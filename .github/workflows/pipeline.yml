@@ -79,6 +79,8 @@ jobs:
         run: |
           python3 _gen_video_content.py
           cat tc_narration.txt
+          echo "--- shot prompts ---"
+          python3 -c "import json; [print(s['n'], ':', s['prompt']) for s in json.load(open('shots.json'))]"
 
       - name: Cache TTS + whisper models
         uses: actions/cache@v4
