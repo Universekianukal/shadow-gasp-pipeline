@@ -103,14 +103,14 @@ jobs:
       - name: 16 stills — FLUX.1-schnell on Kaggle GPU
         working-directory: ${{ env.PROJECT }}
         env:
-          # kaggle 2.2.2's CLI auths via KAGGLE_API_TOKEN (or ~/.kaggle/access_token),
-          # NOT the legacy KAGGLE_USERNAME+KAGGLE_KEY env-var pair — verified locally,
-          # that pair silently fails auth even on this pinned version. KAGGLE_KEY
-          # already holds a KGAT_-prefixed access token, so it's reused here as the
-          # token value; KAGGLE_USERNAME is still needed separately, only to build
-          # the kernel slug (kaggle.com/<user>/<slug>), not for auth.
-          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
-          KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          # Two separate Kaggle accounts by design (anuragmishra108=image-gen,
+          # kianukal=video-gen) so FLUX and CogVideoX don't share one account's
+          # GPU-hour quota. kaggle 2.2.2's CLI auths via KAGGLE_API_TOKEN (or
+          # ~/.kaggle/access_token), NOT the legacy KAGGLE_USERNAME+KAGGLE_KEY
+          # pair — verified locally, that pair silently fails auth even on
+          # this pinned version.
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python3 _gen_flux_images.py
 
@@ -118,8 +118,8 @@ jobs:
         working-directory: ${{ env.PROJECT }}
         continue-on-error: true # composition degrades to a still hook if this fails
         env:
-          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
-          KAGGLE_VIDEO_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
+          KAGGLE_VIDEO_USERNAME: ${{ secrets.KAGGLE_VIDEO_USERNAME }}
         run: python3 _gen_cog_hook.py
 
       - name: Build composition (shot timing, captions, Ken Burns, shake)
