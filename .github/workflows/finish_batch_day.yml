@@ -43,16 +43,15 @@ jobs:
           echo "case=$CASE" >> "$GITHUB_OUTPUT"
           echo "Rendering day $DAY: $CASE"
 
-      - name: Verify hook video + narration audio are present
+      - name: Verify hook video is present
         run: |
           test -f "$DAY_DIR/images/seq/01.mp4" || { echo "no hook video committed for this day yet"; exit 1; }
-          test -f "$DAY_DIR/tc_narration.wav" || { echo "no TTS narration committed for this day yet"; exit 1; }
-          # _batch_pregen.py named it narration.txt; _gen_youtube_meta.py (shared
-          # with the main pipeline) expects tc_narration.txt — alias it.
+          # _batch_pregen.py named it narration.txt; _tts.py/_gen_youtube_meta.py
+          # (shared with the main pipeline) expect tc_narration.txt — alias it.
           cp "$DAY_DIR/narration.txt" "$DAY_DIR/tc_narration.txt"
 
       - name: Python deps
-        run: pip install --quiet anthropic faster-whisper
+        run: pip install --quiet anthropic faster-whisper kokoro-onnx soundfile numpy
 
       - name: Free disk
         run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android "$AGENT_TOOLSDIRECTORY" || true
@@ -64,6 +63,26 @@ jobs:
         # Installed before Build composition, not after — _build_composition.py's
         # prep_music() shells out to ffmpeg to loop/trim the bed track.
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends -qq ffmpeg fonts-montserrat
+
+      - name: Cache TTS + whisper models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/hyperframes
+          key: hyperframes-media-cache-v1-${{ runner.os }}
+
+      - name: TTS (skips if already committed for this day)
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          if [ -f tc_narration.wav ]; then
+            echo "tc_narration.wav already committed, skipping TTS"
+          else
+            cp ../../_tts.py .
+            mkdir -p ~/.cache/hyperframes/tts/models ~/.cache/hyperframes/tts/voices
+            [ -f ~/.cache/hyperframes/tts/models/kokoro-v1.0.onnx ] || curl -sL -o ~/.cache/hyperframes/tts/models/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
+            [ -f ~/.cache/hyperframes/tts/voices/voices-v1.0.bin ] || curl -sL -o ~/.cache/hyperframes/tts/voices/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
+            python3 _tts.py
+          fi
+          test -f tc_narration.wav || { echo "tc_narration.wav not produced"; exit 1; }
 
       - name: Transcribe (word timestamps)
         working-directory: ${{ env.DAY_DIR }}
