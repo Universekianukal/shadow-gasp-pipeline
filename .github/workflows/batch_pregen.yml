@@ -1,0 +1,60 @@
+name: shadow_gasp 30-day batch pregen
+
+# Pre-generates N days ahead: pick case -> script + 16 shot prompts -> 16 FLUX
+# stills (Kaggle GPU) -> push day's shot-1 still -> log a row in the
+# "shadow_gasp - 30 day batch" Google Sheet. Stops there — no TTS, no
+# composition, no render, no upload. The hook clip for shot 1 is added later,
+# by hand, via Google Flow (or CogVideoX as a fallback), once assembly resumes.
+#
+# _pipeline/_batch_pregen.py tracks progress in _pipeline/batch/state.json
+# (committed each day), so this workflow only needs to process a small chunk
+# per run — a single job is capped at 6 hours by GitHub regardless of plan,
+# and each day's FLUX kernel alone takes ~10-20 min. Re-run with the same or a
+# larger `days` input to continue where the last run left off.
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many NEW days to process this run (resumes automatically)"
+        default: "3"
+
+permissions:
+  contents: write
+
+jobs:
+  batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python deps
+        run: pip install --quiet anthropic "kaggle==2.2.2" google-api-python-client google-auth
+
+      - name: Restore Sheets service-account key
+        run: |
+          mkdir -p _pipeline/_local
+          printf '%s' '${{ secrets.SHEETS_SA_KEY }}' > _pipeline/_local/sheets_sa_key.json
+          python3 -c "import json; json.load(open('_pipeline/_local/sheets_sa_key.json'))" # fail fast if malformed
+
+      - name: git identity (batch script commits per-day progress)
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+
+      - name: Run batch pregen
+        working-directory: _pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
+        run: python3 _batch_pregen.py "${{ github.event.inputs.days }}"
+
+      - name: Commit remaining state (in case the last day didn't push itself)
+        run: |
+          git add _pipeline/batch/state.json _pipeline/cases_used.json
+          git diff --cached --quiet || git commit -m "batch pregen: progress checkpoint"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}" || true

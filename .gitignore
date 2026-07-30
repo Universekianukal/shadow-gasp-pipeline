@@ -41,6 +41,13 @@ _youtube_auth_remint.py
 !_pipeline/assets/bed.wav
 !_pipeline/cases_used.json
 
+# 30-day batch pregen: local credentials never get committed, but each day's
+# shot-1 still IS the point (linked from the Google Sheet as a raw GitHub URL,
+# since a personal-Gmail service account has no Drive storage quota of its own
+# to host images under).
+_pipeline/_local/
+!_pipeline/batch/*/shot1.jpeg
+
 # Per-video project directories (renders, generated images, transcripts) —
 # not automation code, not needed in the repo.
 *-short/
