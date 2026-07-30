@@ -126,7 +126,11 @@ def run_flux_for_day(day_dir, shots, day_num):
     """Runs one Kaggle FLUX kernel for this day's 16 shots. Blocks until done."""
     import time
 
-    seq_dir = os.path.join(day_dir, "images")
+    # images/seq/, not images/ — matches _gen_flux_images.py's convention, which
+    # _build_composition.py's template and the hyperframes file server both
+    # hardcode as "images/seq/NN.jpeg". Getting this wrong produces a
+    # composition where every artwork layer 404s and renders solid black.
+    seq_dir = os.path.join(day_dir, "images", "seq")
     os.makedirs(seq_dir, exist_ok=True)
     if os.path.exists(os.path.join(seq_dir, "16.jpeg")):
         print(f"day {day_num}: images already present, skipping FLUX")
@@ -189,7 +193,7 @@ def commit_day_assets(day_dir, day_num):
     artifact — commit them for real."""
     import shutil
 
-    shutil.copyfile(os.path.join(day_dir, "images", "01.jpeg"), os.path.join(day_dir, "shot1.jpeg"))
+    shutil.copyfile(os.path.join(day_dir, "images", "seq", "01.jpeg"), os.path.join(day_dir, "shot1.jpeg"))
 
     repo_root = os.path.dirname(PIPELINE_DIR)
     rel_dir = os.path.relpath(day_dir, repo_root).replace("\\", "/")
