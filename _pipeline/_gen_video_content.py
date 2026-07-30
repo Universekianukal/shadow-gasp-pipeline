@@ -136,12 +136,28 @@ def generate(client, case):
     for attempt in range(3):
         resp = client.messages.create(
             model=MODEL,
-            max_tokens=4096,
+            # 16 shot prompts now each carry a full expression/gaze description
+            # (see the CHARACTER FACES rule above) instead of a short phrase,
+            # which pushed real responses past the old 4096 cap and truncated
+            # mid-JSON. 8192 gives headroom; stop_reason is checked below too,
+            # since a cap hit is a distinct failure from malformed JSON.
+            max_tokens=8192,
             system=SYS,
             messages=messages,
         )
         raw = next(b.text for b in resp.content if b.type == "text")
-        d = extract_json(raw)
+        if resp.stop_reason == "max_tokens":
+            print(f"attempt {attempt + 1}: hit max_tokens, response truncated, retrying")
+            messages.append({"role": "assistant", "content": raw})
+            messages.append({"role": "user", "content": "That response was cut off. Return the full corrected JSON, complete, within the token limit."})
+            continue
+        try:
+            d = extract_json(raw)
+        except json.JSONDecodeError as e:
+            print(f"attempt {attempt + 1}: invalid JSON ({e}), retrying")
+            messages.append({"role": "assistant", "content": raw})
+            messages.append({"role": "user", "content": f"That wasn't valid JSON ({e}). Return the full corrected JSON object only, no other text."})
+            continue
         words = len(d["narration"].split())
         n_shots = len(d.get("shots", []))
         if MIN_WORDS <= words <= MAX_WORDS and n_shots == 16:

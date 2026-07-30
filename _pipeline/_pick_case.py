@@ -116,7 +116,13 @@ def pick(client, used):
             model=MODEL, max_tokens=1024, system=SYS, messages=messages
         )
         raw = next(b.text for b in resp.content if b.type == "text")
-        d = extract_json(raw)
+        try:
+            d = extract_json(raw)
+        except json.JSONDecodeError as e:
+            print(f"attempt {attempt + 1}: invalid JSON ({e}), retrying", file=sys.stderr)
+            messages.append({"role": "assistant", "content": raw})
+            messages.append({"role": "user", "content": f"That wasn't valid JSON ({e}). Return the full corrected JSON object only, no other text."})
+            continue
         clash = is_duplicate(d["case"], used)
         if not clash:
             return d

@@ -29,16 +29,24 @@ def extract_json(text):
     return json.loads(t)
 
 
+def generate(client, script):
+    messages = [{"role": "user", "content": script}]
+    for attempt in range(3):
+        resp = client.messages.create(model=MODEL, max_tokens=2048, system=SYS, messages=messages)
+        raw = next(b.text for b in resp.content if b.type == "text")
+        try:
+            return extract_json(raw)
+        except json.JSONDecodeError as e:
+            print(f"attempt {attempt + 1}: invalid JSON ({e}), retrying")
+            messages.append({"role": "assistant", "content": raw})
+            messages.append({"role": "user", "content": f"That wasn't valid JSON ({e}). Return the full corrected JSON object only, no other text."})
+    raise SystemExit("could not get valid JSON after 3 attempts")
+
+
 def main():
     script = open("tc_narration.txt").read()
     client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    resp = client.messages.create(
-        model=MODEL,
-        max_tokens=2048,
-        system=SYS,
-        messages=[{"role": "user", "content": script}],
-    )
-    meta = extract_json(next(b.text for b in resp.content if b.type == "text"))
+    meta = generate(client, script)
 
     out = {
         "title": meta["title"],
