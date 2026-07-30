@@ -45,11 +45,16 @@ RETENTION RULES (this is the entire point of the format, follow them exactly):
 6. Length: 150-220 words. Short sentences. Fragments are fine for punch.
 
 Also produce 16 image prompts for noir comic-book stills that visually track
-the narration beat-by-beat, in order. Shot 1 is always a WIDE, FACELESS,
-ARCHITECTURAL/ENVIRONMENTAL establishing shot (a building, vehicle, or
-landscape — no characters) because it becomes an animated video clip and
-motion-generation only works reliably on wide shots with no faces to warp.
-Shots 2-16 can include characters/close-ups since they stay as stills.
+the narration beat-by-beat, in order. Shot 1 becomes the animated HOOK CLIP —
+the first thing a viewer sees, the single highest-leverage frame for
+retention — so it must be the most visually striking, dramatic beat in the
+whole case, not a plain establishing shot. Look at what actually works: a
+character mid-shock with wide eyes and an open mouth, a dramatic object right
+at the moment of impact, something that reads as "in motion" and urgent on
+sight. Faces, action, and tension are all fine and encouraged here — treat
+shot 1 like the cold-open beat of the narration, illustrated at its most
+intense. Shots 2-16 track the rest of the narration beat-by-beat and follow
+the SHOT-TYPE MIX rule below.
 
 SHOT-TYPE MIX — this is the single biggest driver of whether the video
 actually SHOWS the story or just narrates over reacting faces. Roughly HALF
@@ -120,7 +125,7 @@ Return JSON:
     {"n": 1, "prompt": "..."},
     ... exactly 16 entries ...
   ],
-  "hook_motion_prompt": "one sentence describing ONLY the camera motion for shot 1 (e.g. slow push-in, drifting clouds) — no new content, must match shot 1's prompt exactly in subject",
+  "hook_motion_prompt": "one sentence describing ONLY the motion for shot 1's animated hook clip (e.g. a sudden flinch and gasp, a slow dread-filled push-in, an object's impact) — no new content, must match shot 1's prompt exactly in subject. This is handed to whatever video model animates the still (may be a person manually using Google Flow, not just the automated pipeline), so make it a clear, usable motion direction on its own.",
   "caption_yt": "one-line YouTube Shorts caption with hashtags, under 150 chars",
   "caption_ig": "one-line Instagram caption with hashtags, under 150 chars"
 }
