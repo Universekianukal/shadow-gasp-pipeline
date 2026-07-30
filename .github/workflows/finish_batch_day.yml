@@ -1,0 +1,161 @@
+name: shadow_gasp finish batch day (render + publish)
+
+# Takes a batch day that already has its hook video + TTS narration added
+# (_pipeline/batch/dayNN/ with tc_narration.wav and images/01.mp4 committed —
+# see _batch_pregen.py and the manual finish-up steps after Google Flow) and
+# runs the SAME proven render recipe as pipeline.yml's render/upload jobs:
+# transcribe -> build composition -> render (Chrome headless, cloud runner
+# only — this pipeline's heavy compositions don't render reliably on a
+# laptop) -> verify -> YouTube metadata -> optional upload.
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 1 for day01)"
+        required: true
+      upload:
+        description: "Upload final.mp4 to YouTube after render"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    outputs:
+      case: ${{ steps.pick.outputs.case }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve day dir + case
+        id: pick
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
+          CASE=$(python3 -c "import json; print(json.load(open('_pipeline/batch/day$DAY/pick.json'))['case'])")
+          echo "case=$CASE" >> "$GITHUB_OUTPUT"
+          echo "Rendering day $DAY: $CASE"
+
+      - name: Verify hook video + narration audio are present
+        run: |
+          test -f "$DAY_DIR/images/01.mp4" || { echo "no hook video committed for this day yet"; exit 1; }
+          test -f "$DAY_DIR/tc_narration.wav" || { echo "no TTS narration committed for this day yet"; exit 1; }
+
+      - name: Python deps
+        run: pip install --quiet anthropic faster-whisper
+
+      - name: Transcribe (word timestamps)
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          cp ../../_transcribe.py .
+          python3 _transcribe.py
+          test -f transcript.json || { echo "transcript.json not produced"; exit 1; }
+
+      - name: Build composition
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          cp ../../_build_composition.py ../../_composition_template.html .
+          [ -f music/bed.wav ] || { mkdir -p music; cp ../../assets/bed.wav music/bed.wav; }
+          python3 _build_composition.py
+          test -f index.html || { echo "index.html not produced"; exit 1; }
+
+      - name: YouTube metadata
+        working-directory: ${{ env.DAY_DIR }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cp ../../_gen_youtube_meta.py .
+          python3 _gen_youtube_meta.py
+
+      - name: Free disk
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android "$AGENT_TOOLSDIRECTORY" || true
+      - name: Chrome sandbox (Ubuntu 24)
+        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: FFmpeg + fonts
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends -qq ffmpeg fonts-montserrat
+
+      - name: Cache HyperFrames
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/hyperframes
+          key: hyperframes-cache-v1-${{ runner.os }}
+
+      - name: Install chrome-headless-shell
+        run: |
+          out=$(npx --yes @puppeteer/browsers install chrome-headless-shell@131.0.6778.85 --path "$HOME/.cache/hyperframes/puppeteer")
+          p=$(echo "$out" | tail -1 | cut -d' ' -f2-)
+          test -x "$p" || { echo "chrome-headless-shell not executable: $p"; exit 1; }
+          echo "HYPERFRAMES_BROWSER_PATH=$p" >> "$GITHUB_ENV"
+
+      - name: Render (retry — Puppeteer detaches intermittently on this comp)
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== render attempt $attempt ==="
+            npx --yes hyperframes@0.6.80 render \
+              --fps 30 -o final.mp4 \
+              --workers 1 --low-memory-mode \
+              --quality high \
+              --browser-timeout 300 --protocol-timeout 900000 --player-ready-timeout 180000 \
+              && break
+            echo "attempt $attempt failed"
+            [ "$attempt" = "3" ] && exit 1
+            sleep 20
+          done
+          test -f final.mp4
+
+      - name: Verify (duration, live frames, audio present)
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          ffprobe -v error -show_entries format=duration:format=size -of default=nw=1 final.mp4
+          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 final.mp4)
+          python3 -c "
+          d = float('$DUR')
+          assert 40 <= d <= 180, f'suspicious duration {d}s'
+          print(f'duration ok: {d:.1f}s')"
+          ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 final.mp4 | grep -q audio || { echo "no audio track"; exit 1; }
+          ffmpeg -y -loglevel error -ss 2 -i final.mp4 -frames:v 1 /tmp/f0.png
+          ffmpeg -y -loglevel error -ss "$(python3 -c "print(float('$DUR')/2)")" -i final.mp4 -frames:v 1 /tmp/f1.png
+          [ "$(md5sum /tmp/f0.png|cut -d' ' -f1)" != "$(md5sum /tmp/f1.png|cut -d' ' -f1)" ] || { echo "identical frames"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: batch-day-${{ github.event.inputs.day }}-final
+          path: |
+            ${{ env.DAY_DIR }}/final.mp4
+            ${{ env.DAY_DIR }}/youtube.json
+          retention-days: 30
+          if-no-files-found: error
+
+  upload:
+    needs: render
+    if: ${{ github.event.inputs.upload == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python deps
+        run: pip install --quiet google-api-python-client google-auth-oauthlib
+      - uses: actions/download-artifact@v4
+        with: { name: batch-day-${{ github.event.inputs.day }}-final }
+      - name: Upload to YouTube + stamp ledger
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          CASE: ${{ needs.render.outputs.case }}
+        run: python3 _pipeline/_youtube_upload.py
+      - name: Commit videoId to ledger
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add _pipeline/cases_used.json
+          git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"
