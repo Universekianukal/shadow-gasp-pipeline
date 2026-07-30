@@ -159,3 +159,4 @@ jobs:
           git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
