@@ -106,7 +106,12 @@ def main():
     os.makedirs(KERNEL_DIR, exist_ok=True)
     os.makedirs(SEQ_DIR, exist_ok=True)
 
-    hf_token = os.environ.get("HF_TOKEN", "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")
+    # No hardcoded fallback: the previous default token is dead server-side
+    # ("User Access Token expired", confirmed via a direct whoami-v2 call),
+    # and a live secret has no business living in source anyway.
+    hf_token = os.environ.get("HF_TOKEN", "")
+    if not hf_token:
+        raise SystemExit("HF_TOKEN env var is required (a Hugging Face token with read access to the gated black-forest-labs/FLUX.1-schnell repo)")
     code = KERNEL_TEMPLATE.format(shots_json=json.dumps(shots), hf_token=hf_token)
     open(os.path.join(KERNEL_DIR, "gen_flux.py"), "w", encoding="utf-8").write(code)
     json.dump({
