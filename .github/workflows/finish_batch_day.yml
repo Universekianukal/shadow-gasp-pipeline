@@ -42,7 +42,7 @@ jobs:
 
       - name: Verify hook video + narration audio are present
         run: |
-          test -f "$DAY_DIR/images/01.mp4" || { echo "no hook video committed for this day yet"; exit 1; }
+          test -f "$DAY_DIR/images/seq/01.mp4" || { echo "no hook video committed for this day yet"; exit 1; }
           test -f "$DAY_DIR/tc_narration.wav" || { echo "no TTS narration committed for this day yet"; exit 1; }
           # _batch_pregen.py named it narration.txt; _gen_youtube_meta.py (shared
           # with the main pipeline) expects tc_narration.txt — alias it.
