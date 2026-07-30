@@ -41,12 +41,17 @@ _youtube_auth_remint.py
 !_pipeline/assets/bed.wav
 !_pipeline/cases_used.json
 
-# 30-day batch pregen: local credentials never get committed, but each day's
-# shot-1 still IS the point (linked from the Google Sheet as a raw GitHub URL,
-# since a personal-Gmail service account has no Drive storage quota of its own
-# to host images under).
+# 30-day batch pregen: local credentials never get committed. Every day's full
+# asset set (narration, shots.json, meta.json, all 16 stills) DOES get
+# committed — these are the actual deliverable, consumed later once a hook
+# video comes back from Google Flow, possibly weeks after generation, so they
+# can't be left to expire as a time-limited Actions artifact. Shot 1 also gets
+# linked from the Google Sheet as a raw GitHub URL, since a personal-Gmail
+# service account has no Drive storage quota of its own to host images under.
 _pipeline/_local/
-!_pipeline/batch/*/shot1.jpeg
+_pipeline/batch/*/_kaggle_flux_kernel/
+!_pipeline/batch/**/*.jpeg
+!_pipeline/batch/**/*.json
 
 # Per-video project directories (renders, generated images, transcripts) —
 # not automation code, not needed in the repo.

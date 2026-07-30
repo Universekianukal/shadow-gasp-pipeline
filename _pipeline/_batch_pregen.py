@@ -180,23 +180,28 @@ def run_flux_for_day(day_dir, shots, day_num):
             print(f"WARNING: day {day_num}: {src} missing from kernel output", file=sys.stderr)
 
 
-def push_shot1(day_dir, day_num):
-    """Copies shot 1 to a fixed, gitignore-excepted filename and pushes it so
-    raw.githubusercontent.com has something stable to link to."""
+def commit_day_assets(day_dir, day_num):
+    """Commits this day's full deliverable — narration, shots.json, meta.json,
+    all 16 stills — plus a fixed-name copy of shot 1 for the Sheet's raw
+    GitHub URL. These are the actual output of the batch (consumed later, once
+    a hook video comes back from Flow), not disposable build state, so they
+    can't be left on the ephemeral Actions runner or in a time-limited
+    artifact — commit them for real."""
     import shutil
 
-    src = os.path.join(day_dir, "images", "01.jpeg")
-    dst = os.path.join(day_dir, "shot1.jpeg")
-    shutil.copyfile(src, dst)
+    shutil.copyfile(os.path.join(day_dir, "images", "01.jpeg"), os.path.join(day_dir, "shot1.jpeg"))
 
-    rel = os.path.relpath(dst, os.path.dirname(PIPELINE_DIR)).replace("\\", "/")
     repo_root = os.path.dirname(PIPELINE_DIR)
-    subprocess.run(["git", "add", rel], cwd=repo_root, check=True)
-    status = subprocess.run(["git", "status", "--porcelain", rel], cwd=repo_root, capture_output=True, text=True)
+    rel_dir = os.path.relpath(day_dir, repo_root).replace("\\", "/")
+    subprocess.run(["git", "add", rel_dir], cwd=repo_root, check=True)
+    status = subprocess.run(["git", "status", "--porcelain", rel_dir], cwd=repo_root, capture_output=True, text=True)
     if status.stdout.strip():
-        subprocess.run(["git", "commit", "-m", f"batch: day {day_num:02d} shot1 still"], cwd=repo_root, check=True)
+        subprocess.run(["git", "commit", "-m", f"batch: day {day_num:02d} assets"], cwd=repo_root, check=True)
+        subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", GITHUB_BRANCH], cwd=repo_root, check=True)
         subprocess.run(["git", "push"], cwd=repo_root, check=True)
-    return f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/{rel}"
+
+    shot1_rel = f"{rel_dir}/shot1.jpeg"
+    return f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/{shot1_rel}"
 
 
 def get_sheets_service():
@@ -280,7 +285,7 @@ def main():
             print(f"day {day_num}: generated narration + 16 shot prompts, title: {meta['title_working']}")
 
         run_flux_for_day(day_dir, shots, day_num)
-        shot1_url = push_shot1(day_dir, day_num)
+        shot1_url = commit_day_assets(day_dir, day_num)
 
         if not day_state.get("sheet_logged"):
             append_sheet_row(sheets, day_num, case, meta["title_working"], shot1_url, angle)
