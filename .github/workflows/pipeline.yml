@@ -44,7 +44,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Python deps
-        run: pip install --quiet anthropic kaggle kokoro-onnx soundfile numpy faster-whisper
+        # kaggle pinned to 2.2.2: unpinned installs picked up a later release
+        # whose CLI switched to a KAGGLE_API_TOKEN/OAuth auth flow and no
+        # longer accepts KAGGLE_USERNAME/KAGGLE_KEY — the exact failure mode
+        # already hit and fixed the same way on the everydayhype pipeline.
+        run: pip install --quiet anthropic "kaggle==2.2.2" kokoro-onnx soundfile numpy faster-whisper
 
       - name: FFmpeg
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
@@ -99,8 +103,13 @@ jobs:
       - name: 16 stills — FLUX.1-schnell on Kaggle GPU
         working-directory: ${{ env.PROJECT }}
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          # kaggle 2.2.2's CLI auths via KAGGLE_API_TOKEN (or ~/.kaggle/access_token),
+          # NOT the legacy KAGGLE_USERNAME+KAGGLE_KEY env-var pair — verified locally,
+          # that pair silently fails auth even on this pinned version. KAGGLE_KEY
+          # already holds a KGAT_-prefixed access token, so it's reused here as the
+          # token value; KAGGLE_USERNAME is still needed separately, only to build
+          # the kernel slug (kaggle.com/<user>/<slug>), not for auth.
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
           KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python3 _gen_flux_images.py
@@ -109,8 +118,7 @@ jobs:
         working-directory: ${{ env.PROJECT }}
         continue-on-error: true # composition degrades to a still hook if this fails
         env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_KEY }}
           KAGGLE_VIDEO_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
         run: python3 _gen_cog_hook.py
 
