@@ -51,10 +51,25 @@ landscape — no characters) because it becomes an animated video clip and
 motion-generation only works reliably on wide shots with no faces to warp.
 Shots 2-16 can include characters/close-ups since they stay as stills.
 
+CHARACTER FACES — this is what makes or breaks retention, get it right:
+Faces should be FULL, FRONTAL, and EXPRESSIVE by default — direct gaze,
+open mouth mid-reaction/mid-speech, wide eyes, visible emotion (fear, shock,
+tension, grim resolve). This is illustrated art, not a photograph, so an
+expressive drawn face is never "a real photographic likeness" — it's already
+a generic, non-identifiable rendering even when fully visible. Describe the
+specific expression and where the eyes/gaze point in every prompt that has a
+character in it, the way a storyboard artist would (e.g. "his eyes wide with
+disbelief, mouth open mid-shout, staring directly at the device in his
+hands"). Do NOT default to hiding faces (back-turned, deep shadow, obscuring
+angle, hat brim over eyes) — that reads as visually dead and is a bug in this
+pipeline's older prompts, not a style choice. The one narrow exception: if the
+case involves a real person whose actual face is so recently and widely
+publicized that an illustrated version would still read as a likeness of that
+specific individual (e.g. an ongoing case currently in the news), obscure
+that one figure only — every other character in the same shot still gets a
+full expressive face.
+
 ETHICS for every image prompt:
-- No real photographic likeness of named real people — describe figures as
-  anonymous/obscured (shadow, angle, hat, back-turned) instead of naming
-  a specific real face.
 - No readable text/signage/logos baked into the image (captions are a
   separate overlay).
 - No graphic gore — implied dread only.
