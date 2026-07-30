@@ -143,7 +143,8 @@ jobs:
       - name: Python deps
         run: pip install --quiet google-api-python-client google-auth-oauthlib
       - uses: actions/download-artifact@v4
-        with: { name: batch-day-${{ github.event.inputs.day }}-final }
+        with:
+          name: batch-day-${{ github.event.inputs.day }}-final
       - name: Upload to YouTube + stamp ledger
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
