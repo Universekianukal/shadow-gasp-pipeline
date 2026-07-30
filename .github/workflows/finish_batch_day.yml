@@ -48,6 +48,17 @@ jobs:
       - name: Python deps
         run: pip install --quiet anthropic faster-whisper
 
+      - name: Free disk
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android "$AGENT_TOOLSDIRECTORY" || true
+      - name: Chrome sandbox (Ubuntu 24)
+        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: FFmpeg + fonts
+        # Installed before Build composition, not after — _build_composition.py's
+        # prep_music() shells out to ffmpeg to loop/trim the bed track.
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends -qq ffmpeg fonts-montserrat
+
       - name: Transcribe (word timestamps)
         working-directory: ${{ env.DAY_DIR }}
         run: |
@@ -70,15 +81,6 @@ jobs:
         run: |
           cp ../../_gen_youtube_meta.py .
           python3 _gen_youtube_meta.py
-
-      - name: Free disk
-        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android "$AGENT_TOOLSDIRECTORY" || true
-      - name: Chrome sandbox (Ubuntu 24)
-        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
-      - uses: actions/setup-node@v4
-        with: { node-version: "22" }
-      - name: FFmpeg + fonts
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends -qq ffmpeg fonts-montserrat
 
       - name: Cache HyperFrames
         uses: actions/cache@v4
