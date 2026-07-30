@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><title>shadow_gasp</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      html, body {{ margin:0; padding:0; width:1080px; height:1920px; overflow:hidden; background:#0a0a0a; font-family:"Oswald","Montserrat",sans-serif; }}
+      #root {{ position:relative; width:1080px; height:1920px; overflow:hidden; background:#0a0a0a; }}
+      #scene {{ position:absolute; inset:0; width:1080px; height:1920px; overflow:hidden; filter:url(#chromaticAberration); }}
+      #wmPatch {{ position:absolute; left:790px; top:1680px; width:260px; height:220px; background:#0a0a0a; filter:blur(18px); border-radius:50%; z-index:65; pointer-events:none; }}
+      .layer {{ position:absolute; inset:0; width:1080px; height:1920px; overflow:hidden; opacity:0; background:#0a0a0a; }}
+      .layer.first {{ opacity:1; }}
+      .kb {{ position:absolute; inset:0; width:100%; height:100%; transform-origin:center center; object-fit:cover; }}
+      .kb img {{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }}
+      video.kb {{ object-fit:cover; }}
+      #grain {{ position:absolute; inset:0; z-index:60; pointer-events:none; opacity:0.06; mix-blend-mode:overlay;
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        background-size:320px 320px; }}
+      #vignette {{ position:absolute; inset:0; z-index:61; pointer-events:none;
+        background:radial-gradient(135% 90% at 50% 46%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.62) 100%); }}
+      #fadeout {{ position:absolute; inset:0; z-index:80; background:#000; opacity:0; pointer-events:none; }}
+      #cap {{ position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); z-index:70; text-align:center; pointer-events:none; height:0; }}
+      .cg {{ position:absolute; left:0; right:0; top:0; transform:translateY(-50%); opacity:0; padding:0 60px; box-sizing:border-box;
+        font-family:"Montserrat",sans-serif; font-weight:900; font-size:76px; line-height:1; letter-spacing:0.01em;
+        text-transform:uppercase; color:#ffffff; -webkit-text-stroke:10px #000000; paint-order:stroke fill;
+        text-shadow:0 6px 10px rgba(0,0,0,0.5); }}
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-width="1080" data-height="1920" data-start="0" data-duration="{TOTAL_DUR:.3f}">
+      <svg width="0" height="0" style="position:absolute">
+        <filter id="chromaticAberration" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+          <feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.16 0" result="redGhost"/>
+          <feOffset in="redGhost" dx="-2.5" dy="0" result="redGhostOff"/>
+          <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 0.16 0" result="blueGhost"/>
+          <feOffset in="blueGhost" dx="2.5" dy="0" result="blueGhostOff"/>
+          <feMerge>
+            <feMergeNode in="SourceGraphic"/>
+            <feMergeNode in="redGhostOff"/>
+            <feMergeNode in="blueGhostOff"/>
+          </feMerge>
+        </filter>
+      </svg>
+      <div id="scene">
+{LAYERS}
+      </div>
+      <div id="grain"></div>
+      <div id="vignette"></div>
+{WM_DIV}
+      <div id="cap"></div>
+      <div id="fadeout"></div>
+      <audio id="vo" class="clip" data-start="0" data-duration="{VO_DUR:.3f}" data-media-start="0.0" data-track-index="90" data-volume="1" src="tc_narration.wav"></audio>
+{MUSIC_AUDIO}
+    </div>
+    <script>
+      const tl = gsap.timeline({{ paused: true }});
+
+{WM_BLOCK}
+
+      // Continuous camera shake (artwork/video layers only, not captions)
+{SHAKE}
+
+      // Ken Burns pans
+{KB}
+
+      // Crossfade entrances
+{FADES}
+
+      // Captions
+      const capLayer = document.getElementById("cap");
+      function mk(i, text, start, end) {{
+        const el = document.createElement("div");
+        el.className = "cg"; el.id = "cg" + i; el.textContent = text;
+        el.setAttribute("data-layout-allow-overlap", "true");
+        capLayer.appendChild(el);
+        const sel = "#cg" + i;
+        tl.fromTo(sel, {{ opacity: 0, scale: 0.9 }}, {{ opacity: 1, scale: 1, duration: 0.08, ease: "power1.out" }}, start);
+        tl.to(sel, {{ opacity: 0, duration: 0.08, ease: "power1.in" }}, Math.max(start + 0.02, end - 0.04));
+      }}
+{CAPS}
+
+      // Final fadeout
+      tl.to("#fadeout", {{ opacity: 1, duration: 1.0, ease: "power2.in" }}, {FADEOUT_START:.3f});
+
+      window.__timelines = window.__timelines || {{}};
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+# Media, renders, logs, and scratch files stay local — the pipeline scaffolds
+# a fresh video/ dir on every Actions run, it doesn't need past output in git.
+*.mp4
+*.mp3
+*.wav
+*.m4a
+*.jpeg
+*.jpg
+*.png
+*.log
+*.txt.bak
+__pycache__/
+_kaggle_flux_kernel/
+_kaggle_cog_kernel/
+
+# Never commit real credentials.
+*secrets*.json
+pending_approvals.json
+client_secret.json
+refresh_token.txt
+*.log
+_listen_log.txt
+_telegram_offset.txt
+_deliver_log*.txt
+
+# Comic-PDF/Gumroad workstream state — separate system, not part of the video
+# pipeline; leave it out of this repo entirely rather than half-track it.
+_captions_unresolved.json
+_deliver_for_approval.py
+_get_captions.py
+_gumroad_publish.py
+_telegram_listen.py
+_telegram_send.py
+state.py
+_channel_videos*.json
+_list_videos*.py
+_youtube_auth_remint.py
+
+# Keep the channel-wide reference bed and the dedup ledger even though the
+# blanket media rules above would otherwise exclude them.
+!_pipeline/assets/bed.wav
+!_pipeline/cases_used.json
+
+# Per-video project directories (renders, generated images, transcripts) —
+# not automation code, not needed in the repo.
+*-short/
+*-long/
+_flux_noir_test/
+_new/
