@@ -51,7 +51,29 @@ landscape — no characters) because it becomes an animated video clip and
 motion-generation only works reliably on wide shots with no faces to warp.
 Shots 2-16 can include characters/close-ups since they stay as stills.
 
-CHARACTER FACES — this is what makes or breaks retention, get it right:
+SHOT-TYPE MIX — this is the single biggest driver of whether the video
+actually SHOWS the story or just narrates over reacting faces. Roughly HALF
+of shots 2-16 (7-8 of them) must be pure macro/object/environment shots with
+NO person, no hand, no reflected face, no figure in frame at all — just the
+concrete physical thing the narration is describing at that exact beat:
+the murder weapon, the evidence, the coded notebook, the instrument, the
+building, the map, the newspaper headline, the grave. If the narration names
+a specific concrete noun (a device, a substance, a document, a symbol, an
+object used to explain the mystery), that noun gets its own dedicated shot,
+alone, in tight macro or environmental framing — this is non-negotiable, not
+a nice-to-have. Do not sneak a hand, a reflection, or a silhouette into these
+shots "for interest" — a pure object shot is the point, it's what makes the
+abstract concrete. Concretely: if the case involves radiation, show a
+dosimeter, a Geiger counter, a radiation-warning symbol, an X-ray apron —
+actually show it, don't just have a character react to it off-screen. The
+other half of shots 2-16 are character shots, and those follow the FACES rule
+below. Model this ratio on a real published example: of isdal-woman-short's
+16 shots, exactly 7 are objects-only (bottle+pills, fingerprint card,
+suitcase, notebook, case file, evidence box, corkboard) with zero human
+presence, and only 1 is a genuine face close-up — the rest are silhouettes,
+obscured, or environments. Match that balance, don't drift toward all-people.
+
+CHARACTER FACES — for the character-shots half of the mix, get this right:
 Faces should be FULL, FRONTAL, and EXPRESSIVE by default — direct gaze,
 open mouth mid-reaction/mid-speech, wide eyes, visible emotion (fear, shock,
 tension, grim resolve). This is illustrated art, not a photograph, so an
@@ -67,7 +89,8 @@ case involves a real person whose actual face is so recently and widely
 publicized that an illustrated version would still read as a likeness of that
 specific individual (e.g. an ongoing case currently in the news), obscure
 that one figure only — every other character in the same shot still gets a
-full expressive face.
+full expressive face. This rule governs faces WHEN a character is in the
+shot — it does not mean every shot needs a character; see SHOT-TYPE MIX above.
 
 ETHICS for every image prompt:
 - No readable text/signage/logos baked into the image (captions are a
