@@ -18,6 +18,9 @@ on:
         description: "Upload final.mp4 to YouTube after render"
         type: boolean
         default: false
+      publish_at:
+        description: "RFC3339 UTC to schedule instead of publishing immediately (e.g. 2026-07-30T23:45:00Z). Leave blank for immediate."
+        default: ""
 
 permissions:
   contents: write
@@ -156,6 +159,7 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           CASE: ${{ needs.render.outputs.case }}
+          PUBLISH_AT: ${{ github.event.inputs.publish_at }}
         run: python3 _pipeline/_youtube_upload.py
       - name: Commit videoId to ledger
         run: |

@@ -62,6 +62,17 @@ def main():
         sys.exit(1)
 
     meta = json.load(open(META_PATH, encoding="utf-8"))
+    # PUBLISH_AT (RFC3339 UTC, e.g. 2026-07-30T23:45:00Z) schedules the video
+    # instead of publishing immediately. YouTube requires privacyStatus
+    # "private" for a scheduled video — it flips to public automatically at
+    # publishAt, so the meta.json privacyStatus is overridden in this case.
+    publish_at = os.environ.get("PUBLISH_AT", "").strip()
+    status = {
+        "privacyStatus": "private" if publish_at else meta.get("privacyStatus", "private"),
+        "selfDeclaredMadeForKids": False,
+    }
+    if publish_at:
+        status["publishAt"] = publish_at
     body = {
         "snippet": {
             "title": meta["title"],
@@ -69,10 +80,7 @@ def main():
             "tags": meta.get("tags", []),
             "categoryId": meta.get("categoryId", "22"),  # 22 = People & Blogs
         },
-        "status": {
-            "privacyStatus": meta.get("privacyStatus", "private"),
-            "selfDeclaredMadeForKids": False,
-        },
+        "status": status,
     }
 
     yt = get_service()
