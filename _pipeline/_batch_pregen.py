@@ -215,14 +215,49 @@ def get_sheets_service():
 
 
 def append_sheet_row(service, day_num, case, title, shot1_url, notes):
+    """The Sheets/Drive APIs both hit transient SSL errors periodically in
+    this environment (seen repeatedly across this project, never a real
+    permissions/data problem) — retry a few times before giving up, since a
+    day's real GPU-generated assets are already safely committed by this
+    point and it would be wasteful to fail the whole run over a flaky
+    connection on the very last step."""
+    import time
+
     row = [[day_num, case, "Images done", title, shot1_url, "Pending", "", notes]]
-    service.spreadsheets().values().append(
-        spreadsheetId=SHEET_ID,
-        range=f"{SHEET_TAB}!A2",
-        valueInputOption="USER_ENTERED",
-        insertDataOption="INSERT_ROWS",
-        body={"values": row},
-    ).execute()
+    for attempt in range(4):
+        try:
+            service.spreadsheets().values().append(
+                spreadsheetId=SHEET_ID,
+                range=f"{SHEET_TAB}!A2",
+                valueInputOption="USER_ENTERED",
+                insertDataOption="INSERT_ROWS",
+                body={"values": row},
+            ).execute()
+            return
+        except Exception as e:
+            print(f"day {day_num}: sheet append attempt {attempt + 1} failed ({e!r}), retrying", file=sys.stderr)
+            time.sleep(5 * (attempt + 1))
+    raise RuntimeError(f"day {day_num}: could not append sheet row after 4 attempts")
+
+
+def commit_state(reason, extra_paths=()):
+    """state.json AND the real channel ledger (cases_used.json) are
+    checkpointed after every meaningful change (not just at the end of the
+    whole run) so a mid-run crash — Kaggle hiccup, transient Sheets SSL
+    error, runner timeout — never loses track of which days are genuinely
+    done, and never silently drops a case reservation (which would let the
+    daily auto-pipeline or a later batch run pick the same case again).
+    Each day's real assets already commit themselves independently in
+    commit_day_assets(); this is cheap insurance on top."""
+    repo_root = os.path.dirname(PIPELINE_DIR)
+    rels = [os.path.relpath(STATE_PATH, repo_root).replace("\\", "/")]
+    rels += [os.path.relpath(p, repo_root).replace("\\", "/") for p in extra_paths]
+    subprocess.run(["git", "add", *rels], cwd=repo_root, check=True)
+    status = subprocess.run(["git", "status", "--porcelain", *rels], cwd=repo_root, capture_output=True, text=True)
+    if status.stdout.strip():
+        subprocess.run(["git", "commit", "-m", f"batch: {reason}"], cwd=repo_root, check=True)
+        subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", GITHUB_BRANCH], cwd=repo_root, check=True)
+        subprocess.run(["git", "push"], cwd=repo_root, check=True)
 
 
 def main():
@@ -249,6 +284,7 @@ def main():
         day_dir = os.path.join(BATCH_DIR, f"day{day_num:02d}")
         os.makedirs(day_dir, exist_ok=True)
 
+        pick_path = os.path.join(day_dir, "pick.json")
         if "case" in day_state:
             case = day_state["case"]
             angle = day_state.get("angle", "")
@@ -260,9 +296,11 @@ def main():
             used_cases.append(case)
             ledger["cases"].append({"videoId": None, "case": case, "publishedAt": None})
             gvc.save_ledger(ledger)
+            json.dump({"case": case, "angle": angle}, open(pick_path, "w", encoding="utf-8"), indent=2)
             day_state.update({"case": case, "angle": angle})
             state["days"][key] = day_state
             save_state(state)
+            commit_state(f"day {day_num:02d} case picked", extra_paths=[gvc.LEDGER_PATH, pick_path])
             print(f"day {day_num}: picked {case}")
 
         shots_path = os.path.join(day_dir, "shots.json")
@@ -290,10 +328,14 @@ def main():
         if not day_state.get("sheet_logged"):
             append_sheet_row(sheets, day_num, case, meta["title_working"], shot1_url, angle)
             day_state["sheet_logged"] = True
+            state["days"][key] = day_state
+            save_state(state)
+            commit_state(f"day {day_num:02d} sheet row logged")
 
         day_state["done"] = True
         state["days"][key] = day_state
         save_state(state)
+        commit_state(f"day {day_num:02d} complete")
         new_days_done += 1
         print(f"day {day_num}: DONE — {case} ({new_days_done}/{new_days_budget} this run)")
 

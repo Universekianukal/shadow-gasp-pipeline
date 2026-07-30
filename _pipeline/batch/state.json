@@ -1,3 +1,16 @@
 {
- "days": {}
+ "days": {
+  "1": {
+   "case": "School of Turin - Antwerp Diamond Heist",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "2": {
+   "case": "The Sodder Fire — Five Children, No Bones",
+   "angle": "",
+   "sheet_logged": false,
+   "done": false
+  }
+ }
 }
