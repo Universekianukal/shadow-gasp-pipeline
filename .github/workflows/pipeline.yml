@@ -57,7 +57,7 @@ jobs:
         run: |
           mkdir -p "$PROJECT/images/seq" "$PROJECT/music"
           cp _pipeline/_tts.py _pipeline/_transcribe.py _pipeline/_gen_video_content.py \
-             _pipeline/_gen_flux_images.py _pipeline/_gen_cog_hook.py \
+             _pipeline/_gen_flux_images.py \
              _pipeline/_build_composition.py _pipeline/_composition_template.html \
              _pipeline/_gen_youtube_meta.py "$PROJECT/"
           cp _pipeline/assets/bed.wav "$PROJECT/music/bed.wav"
@@ -120,13 +120,12 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python3 _gen_flux_images.py
 
-      - name: Animated hook clip — CogVideoX-5b-I2V on Kaggle GPU
-        working-directory: ${{ env.PROJECT }}
-        continue-on-error: true # composition degrades to a still hook if this fails
-        env:
-          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
-          KAGGLE_VIDEO_USERNAME: ${{ secrets.KAGGLE_VIDEO_USERNAME }}
-        run: python3 _gen_cog_hook.py
+      # CogVideoX hook-clip animation removed (2026-08-01, user's call): ~50-82
+      # min of Kaggle GPU time per clip is not worth it. Shot 1 now falls back
+      # to _build_composition.py's existing degrade path -- a static Ken Burns
+      # still, same as every other shot -- since images/seq/01.mp4 never gets
+      # created. Google Flow (manual, via the Telegram /day + /publish flow)
+      # is the only animated-hook path now.
 
       - name: Build composition (shot timing, captions, Ken Burns, shake)
         working-directory: ${{ env.PROJECT }}

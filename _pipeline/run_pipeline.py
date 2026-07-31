@@ -27,7 +27,7 @@ MUSIC_SRC = os.path.join(PIPELINE_DIR, "assets", "bed.wav")
 
 HELPER_SCRIPTS = [
     "_gen_video_content.py", "_tts.py", "_transcribe.py",
-    "_gen_flux_images.py", "_gen_cog_hook.py",
+    "_gen_flux_images.py",
     "_build_composition.py", "_composition_template.html",
     "_gen_youtube_meta.py",
 ]
@@ -37,7 +37,10 @@ STEPS = [
     ("TTS (Kokoro, bm_george)", "_tts.py"),
     ("Transcribe (faster-whisper, word timestamps)", "_transcribe.py"),
     ("Generate 16 stills (FLUX.1-schnell via Kaggle)", "_gen_flux_images.py"),
-    ("Animate hook clip (CogVideoX-5b I2V via Kaggle)", "_gen_cog_hook.py"),
+    # CogVideoX hook-clip animation removed (2026-08-01, user's call): ~50-82
+    # min of Kaggle GPU time per clip isn't worth it. Shot 1 falls back to
+    # _build_composition.py's existing degrade path -- a static Ken Burns
+    # still. Google Flow (manual, via Telegram) is the only animated-hook path.
     ("Build composition (auto shot timing + captions)", "_build_composition.py"),
     ("Generate YouTube metadata", "_gen_youtube_meta.py"),
 ]
