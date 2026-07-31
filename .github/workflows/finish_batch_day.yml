@@ -46,9 +46,23 @@ jobs:
           echo "case=$CASE" >> "$GITHUB_OUTPUT"
           echo "Rendering day $DAY: $CASE"
 
-      - name: Verify hook video is present
+      - name: Hook video — use the committed Google Flow clip, or fall back to CogVideoX
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
+          KAGGLE_VIDEO_USERNAME: ${{ secrets.KAGGLE_VIDEO_USERNAME }}
         run: |
-          test -f "$DAY_DIR/images/seq/01.mp4" || { echo "no hook video committed for this day yet"; exit 1; }
+          if [ -f "$DAY_DIR/images/seq/01.mp4" ]; then
+            echo "Using the committed Google Flow hook video"
+          else
+            # Fallback only -- Flow (manual, via Telegram) is the default path.
+            # CogVideoX-5b costs ~50 min of Kaggle GPU time (sequential offload
+            # + 20 steps, tuned down from the original ~82 min); only worth it
+            # for the days Flow wasn't used for.
+            echo "No Flow video for day $DAY — falling back to CogVideoX (~50 min)"
+            pip install --quiet "kaggle==2.2.2"
+            cp _pipeline/_gen_cog_hook.py "$DAY_DIR/"
+            (cd "$DAY_DIR" && python3 _gen_cog_hook.py) || echo "CogVideoX fallback failed — composition will degrade to a static Ken Burns hook still"
+          fi
           # _batch_pregen.py named it narration.txt; _tts.py/_gen_youtube_meta.py
           # (shared with the main pipeline) expect tc_narration.txt — alias it.
           cp "$DAY_DIR/narration.txt" "$DAY_DIR/tc_narration.txt"
