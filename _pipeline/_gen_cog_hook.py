@@ -44,12 +44,19 @@ for root,_,files in os.walk("/kaggle/input"):
 print("INPUT IMAGE", img_path, flush=True)
 
 cog=CogVideoXImageToVideoPipeline.from_pretrained("THUDM/CogVideoX-5b-I2V", torch_dtype=torch.float16)
+# Tested enable_model_cpu_offload() as a speed fix (2026-08-01): it DID
+# complete all 20 denoising steps faster, but then got OOM-killed by the OS
+# during the VAE decode step every time (confirmed on 2 separate test runs,
+# 2 different input images) -- the P100's 16GB isn't enough for that step's
+# peak memory even with tiling/slicing on. Reverting to the slower-but-stable
+# sequential offload; the real, safe win here is the reduced step count below
+# (35->20), not the offload mode.
 cog.enable_sequential_cpu_offload(); cog.vae.enable_tiling(); cog.vae.enable_slicing()
 print("PIPE READY", flush=True)
 
 img=load_image(img_path).resize((720,480))
 v=cog(image=img, prompt=PROMPT+STYLE, negative_prompt=NEG, num_frames=49,
-      num_inference_steps=35, guidance_scale=6.0,
+      num_inference_steps=20, guidance_scale=6.0,
       generator=torch.Generator(device="cuda").manual_seed(42)).frames[0]
 export_to_video(v, "/kaggle/working/01.mp4", fps=8)
 print("COG DONE meanpix", round(float(np.asarray(v[0]).mean()),1), flush=True)

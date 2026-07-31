@@ -33,7 +33,12 @@ def generate(client, script):
     messages = [{"role": "user", "content": script}]
     for attempt in range(3):
         resp = client.messages.create(model=MODEL, max_tokens=2048, system=SYS, messages=messages)
-        raw = next(b.text for b in resp.content if b.type == "text")
+        # Same crash already fixed in _pick_case.py and _gen_video_content.py:
+        # a response can come back with no text block at all.
+        raw = next((b.text for b in resp.content if b.type == "text"), None)
+        if raw is None:
+            print(f"attempt {attempt + 1}: response had no text block (stop_reason={resp.stop_reason}), retrying")
+            continue
         try:
             return extract_json(raw)
         except json.JSONDecodeError as e:

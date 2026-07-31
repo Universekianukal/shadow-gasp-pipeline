@@ -173,7 +173,14 @@ def generate(client, case):
             system=SYS,
             messages=messages,
         )
-        raw = next(b.text for b in resp.content if b.type == "text")
+        # A response can come back with no text block at all (the same crash
+        # already fixed once in _pick_case.py's pick() -- hit again here,
+        # this time killing a whole batch-pregen chunk instead of just
+        # retrying like every other malformed-response case in this loop).
+        raw = next((b.text for b in resp.content if b.type == "text"), None)
+        if raw is None:
+            print(f"attempt {attempt + 1}: response had no text block (stop_reason={resp.stop_reason}), retrying")
+            continue
         if resp.stop_reason == "max_tokens":
             print(f"attempt {attempt + 1}: hit max_tokens, response truncated, retrying")
             messages.append({"role": "assistant", "content": raw})
