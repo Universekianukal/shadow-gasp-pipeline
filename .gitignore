@@ -55,6 +55,7 @@ _youtube_auth_remint.py
 # just a local laptop path.
 _pipeline/_local/
 _pipeline/batch/*/_kaggle_flux_kernel/
+_pipeline/batch/*/_kaggle_pixart_kernel/
 !_pipeline/batch/**/*.jpeg
 !_pipeline/batch/**/*.json
 !_pipeline/batch/**/*.mp4

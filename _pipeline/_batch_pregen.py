@@ -155,6 +155,124 @@ for s in SHOTS:
 print("ALL DONE", flush=True)
 '''
 
+# PixArt-Sigma: switched to from day 10 onward (see MODEL_SWITCH_DAY below)
+# -- a real side-by-side comparison against
+# FLUX.1-schnell on this exact channel's prompts showed PixArt reads as
+# noticeably more visceral/creepy for this true-crime format (real color
+# grading + a more intense screaming close-up), which matters more here than
+# FLUX's marginal edge on raw prompt-following. Not gated on Hugging Face
+# (unlike FLUX.1-schnell), so no HF_TOKEN needed. Same retry/OCR/vision-QA
+# loop as the FLUX kernel, just swapped model + its tuned inference params.
+PIXART_KERNEL_TEMPLATE = '''import os, sys, subprocess, json
+def pip(*a): subprocess.run([sys.executable,"-m","pip","install","-q",*a], check=False)
+pip("torch==2.4.1","torchvision==0.19.1","--index-url","https://download.pytorch.org/whl/cu121")
+pip("diffusers==0.32.2","transformers==4.46.3","accelerate","sentencepiece","protobuf")
+pip("easyocr","anthropic")
+
+import torch, numpy as np
+print("torch", torch.__version__, "cuda", torch.cuda.is_available(), flush=True)
+
+from diffusers import PixArtSigmaPipeline
+pipe = PixArtSigmaPipeline.from_pretrained("PixArt-alpha/PixArt-Sigma-XL-2-1024-MS", torch_dtype=torch.float16)
+pipe.enable_model_cpu_offload()
+print("PIPE READY", flush=True)
+
+import easyocr
+ocr = easyocr.Reader(["en"], gpu=True)
+print("OCR READY", flush=True)
+
+def has_text(img):
+    results = ocr.readtext(np.array(img))
+    hits = [r for r in results if r[2] > 0.35]
+    return hits
+
+import base64, io
+from anthropic import Anthropic
+vision_client = Anthropic(api_key="{anthropic_api_key}")
+
+QA_PROMPT = """You are doing quality control on an AI-generated illustration for a
+noir comic-style video. Look at this image and check ONLY for these specific
+defects, which are known failure modes of the fast image model that generated it:
+1. Anatomical errors: extra or duplicate limbs, a hand with the wrong number of
+   fingers, a hand/arm that looks disconnected or emerges from the wrong place.
+2. Duplicated small object parts: e.g. a tool (magnifying glass, weapon,
+   instrument, handle) rendered with two handles or a duplicated component.
+3. Illegible fake text/scribble clutter: garbled pseudo-text rendered on
+   documents, papers, or signage that reads as visual noise, even if no single
+   word is clearly legible (a real photo of a blank/blurred document has no
+   scribble texture at all -- if this looks like fake handwriting, that is a
+   defect).
+
+Respond with ONLY one line: "PASS" if none of these defects are present, or
+"FAIL: <short reason>" if any are present. Do not comment on style, art
+quality, composition, or anything else."""
+
+def vision_qa(img):
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=90)
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    try:
+        resp = vision_client.messages.create(
+            model="claude-sonnet-5", max_tokens=100,
+            messages=[{{"role": "user", "content": [
+                {{"type": "image", "source": {{"type": "base64", "media_type": "image/jpeg", "data": b64}}}},
+                {{"type": "text", "text": QA_PROMPT}},
+            ]}}],
+        )
+        text = next(b.text for b in resp.content if b.type == "text").strip()
+        return text
+    except Exception as e:
+        print("vision QA call failed, treating as PASS:", repr(e), flush=True)
+        return "PASS"
+
+SHOTS = {shots_json}
+MAX_ATTEMPTS = 3
+
+for s in SHOTS:
+    n, p = s["n"], s["prompt"]
+    saved = False
+    for attempt in range(MAX_ATTEMPTS):
+        seed = 3000 + n + attempt * 10000
+        try:
+            img=pipe(p, num_inference_steps=25, guidance_scale=4.5, height=1280, width=720,
+                     generator=torch.Generator("cpu").manual_seed(seed)).images[0]
+            m=float(np.asarray(img).mean())
+            if m<5:
+                print("RETRY", n, "attempt", attempt+1, "black/NaN frame", flush=True)
+                torch.cuda.empty_cache()
+                continue
+            hits = has_text(img)
+            if hits:
+                texts = [h[1] for h in hits]
+                print("RETRY", n, "attempt", attempt+1, "text detected:", texts, flush=True)
+                torch.cuda.empty_cache()
+                continue
+            qa = vision_qa(img)
+            if qa.startswith("FAIL"):
+                print("RETRY", n, "attempt", attempt+1, "vision QA:", qa, flush=True)
+                torch.cuda.empty_cache()
+                continue
+            img.save(f"/kaggle/working/{{n:02d}}.jpeg", quality=92)
+            print("DONE", n, "meanpix", round(m,1), "attempt", attempt+1, flush=True)
+            saved = True
+            break
+        except Exception as e:
+            print("FAILED", n, "attempt", attempt+1, repr(e), flush=True)
+        torch.cuda.empty_cache()
+    if not saved:
+        print("GAVE UP", n, "after", MAX_ATTEMPTS, "attempts — saving last generation anyway with a warning", flush=True)
+        img.save(f"/kaggle/working/{{n:02d}}.jpeg", quality=92)
+        with open("/kaggle/working/FLAGGED.txt", "a") as f:
+            f.write(f"{{n:02d}}.jpeg needs manual review (artifact after {{MAX_ATTEMPTS}} attempts)\\n")
+print("ALL DONE", flush=True)
+'''
+
+# Day this batch switches from FLUX.1-schnell to PixArt-Sigma. Days 1-9 stay
+# FLUX (1-3 already published to YouTube; redoing 4-9 would just burn Kaggle
+# GPU time for no visual-consistency benefit worth the cost -- see the
+# decision recorded 2026-08-01).
+MODEL_SWITCH_DAY = 10
+
 
 def load_state():
     if os.path.exists(STATE_PATH):
@@ -167,7 +285,9 @@ def save_state(state):
 
 
 def run_flux_for_day(day_dir, shots, day_num):
-    """Runs one Kaggle FLUX kernel for this day's 16 shots. Blocks until done."""
+    """Runs one Kaggle image-gen kernel for this day's 16 shots. Blocks until
+    done. Model depends on day_num: FLUX.1-schnell below MODEL_SWITCH_DAY,
+    PixArt-Sigma from there on (see MODEL_SWITCH_DAY's comment for why)."""
     import time
 
     # images/seq/, not images/ — matches _gen_flux_images.py's convention, which
@@ -177,22 +297,27 @@ def run_flux_for_day(day_dir, shots, day_num):
     seq_dir = os.path.join(day_dir, "images", "seq")
     os.makedirs(seq_dir, exist_ok=True)
     if os.path.exists(os.path.join(seq_dir, "16.jpeg")):
-        print(f"day {day_num}: images already present, skipping FLUX")
+        print(f"day {day_num}: images already present, skipping generation")
         return
 
-    kernel_dir = os.path.join(day_dir, "_kaggle_flux_kernel")
+    use_pixart = day_num >= MODEL_SWITCH_DAY
+    model_slug = "pixart" if use_pixart else "flux"
+    kernel_dir = os.path.join(day_dir, f"_kaggle_{model_slug}_kernel")
     os.makedirs(kernel_dir, exist_ok=True)
-    hf_token = os.environ["HF_TOKEN"]
     anthropic_api_key = os.environ["ANTHROPIC_API_KEY"]
     kaggle_user = os.environ.get("KAGGLE_IMAGE_USERNAME", "anuragmishra108")
-    kernel_id = f"{kaggle_user}/shadow-gasp-batch-day{day_num:02d}-flux"
+    kernel_id = f"{kaggle_user}/shadow-gasp-batch-day{day_num:02d}-{model_slug}"
 
-    code = FLUX_KERNEL_TEMPLATE.format(shots_json=json.dumps(shots), hf_token=hf_token, anthropic_api_key=anthropic_api_key)
-    open(os.path.join(kernel_dir, "gen_flux.py"), "w", encoding="utf-8").write(code)
+    if use_pixart:
+        code = PIXART_KERNEL_TEMPLATE.format(shots_json=json.dumps(shots), anthropic_api_key=anthropic_api_key)
+    else:
+        hf_token = os.environ["HF_TOKEN"]
+        code = FLUX_KERNEL_TEMPLATE.format(shots_json=json.dumps(shots), hf_token=hf_token, anthropic_api_key=anthropic_api_key)
+    open(os.path.join(kernel_dir, "gen_images.py"), "w", encoding="utf-8").write(code)
     json.dump({
         "id": kernel_id,
-        "title": f"shadow-gasp-batch-day{day_num:02d}-flux",
-        "code_file": "gen_flux.py",
+        "title": f"shadow-gasp-batch-day{day_num:02d}-{model_slug}",
+        "code_file": "gen_images.py",
         "language": "python",
         "kernel_type": "script",
         "is_private": True,
@@ -203,7 +328,7 @@ def run_flux_for_day(day_dir, shots, day_num):
         "kernel_sources": [],
     }, open(os.path.join(kernel_dir, "kernel-metadata.json"), "w"), indent=2)
 
-    print(f"day {day_num}: pushing kernel {kernel_id} ...")
+    print(f"day {day_num}: pushing kernel {kernel_id} ({model_slug}) ...")
     subprocess.run(["kaggle", "kernels", "push", "-p", "."], cwd=kernel_dir, check=True)
 
     print(f"day {day_num}: polling for completion ...")
