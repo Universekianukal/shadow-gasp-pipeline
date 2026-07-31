@@ -57,7 +57,8 @@
   "10": {
    "case": "SS Baychimo ghost ship (Arctic Canada, 1931-1969)",
    "angle": "The crew didn't lose the ship to a storm - they deliberately abandoned it as unsalvageable in a blizzard in October 1931, and it then kept drifting the Arctic ice pack fully intact for nearly 38 years, spotted and boarded by different crews who found it eerily undamaged before it vanished for good.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
