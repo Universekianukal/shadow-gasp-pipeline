@@ -25,7 +25,7 @@ KERNEL_TEMPLATE = '''import os, sys, subprocess, json
 def pip(*a): subprocess.run([sys.executable,"-m","pip","install","-q",*a], check=False)
 pip("torch==2.4.1","torchvision==0.19.1","--index-url","https://download.pytorch.org/whl/cu121")
 pip("diffusers==0.32.2","transformers==4.46.3","accelerate","sentencepiece","protobuf","bitsandbytes")
-pip("easyocr")
+pip("easyocr","anthropic")
 
 import torch, numpy as np
 from huggingface_hub import login
@@ -57,6 +57,45 @@ def has_text(img):
     hits = [r for r in results if r[2] > 0.35]
     return hits
 
+import base64, io
+from anthropic import Anthropic
+vision_client = Anthropic(api_key="{anthropic_api_key}")
+
+QA_PROMPT = """You are doing quality control on an AI-generated illustration for a
+noir comic-style video. Look at this image and check ONLY for these specific
+defects, which are known failure modes of the fast image model that generated it:
+1. Anatomical errors: extra or duplicate limbs, a hand with the wrong number of
+   fingers, a hand/arm that looks disconnected or emerges from the wrong place.
+2. Duplicated small object parts: e.g. a tool (magnifying glass, weapon,
+   instrument, handle) rendered with two handles or a duplicated component.
+3. Illegible fake text/scribble clutter: garbled pseudo-text rendered on
+   documents, papers, or signage that reads as visual noise, even if no single
+   word is clearly legible (a real photo of a blank/blurred document has no
+   scribble texture at all -- if this looks like fake handwriting, that is a
+   defect).
+
+Respond with ONLY one line: "PASS" if none of these defects are present, or
+"FAIL: <short reason>" if any are present. Do not comment on style, art
+quality, composition, or anything else."""
+
+def vision_qa(img):
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=90)
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    try:
+        resp = vision_client.messages.create(
+            model="claude-sonnet-5", max_tokens=100,
+            messages=[{{"role": "user", "content": [
+                {{"type": "image", "source": {{"type": "base64", "media_type": "image/jpeg", "data": b64}}}},
+                {{"type": "text", "text": QA_PROMPT}},
+            ]}}],
+        )
+        text = next(b.text for b in resp.content if b.type == "text").strip()
+        return text
+    except Exception as e:
+        print("vision QA call failed, treating as PASS:", repr(e), flush=True)
+        return "PASS"
+
 SHOTS = {shots_json}
 MAX_ATTEMPTS = 3
 
@@ -79,6 +118,11 @@ for s in SHOTS:
                 print("RETRY", n, "attempt", attempt+1, "text detected:", texts, flush=True)
                 torch.cuda.empty_cache()
                 continue
+            qa = vision_qa(img)
+            if qa.startswith("FAIL"):
+                print("RETRY", n, "attempt", attempt+1, "vision QA:", qa, flush=True)
+                torch.cuda.empty_cache()
+                continue
             img.save(f"/kaggle/working/{{n:02d}}.jpeg", quality=92)
             print("DONE", n, "meanpix", round(m,1), "attempt", attempt+1, flush=True)
             saved = True
@@ -90,7 +134,7 @@ for s in SHOTS:
         print("GAVE UP", n, "after", MAX_ATTEMPTS, "attempts — saving last generation anyway with a warning", flush=True)
         img.save(f"/kaggle/working/{{n:02d}}.jpeg", quality=92)
         with open("/kaggle/working/FLAGGED.txt", "a") as f:
-            f.write(f"{{n:02d}}.jpeg needs manual review (text/bubble artifact after {{MAX_ATTEMPTS}} attempts)\\n")
+            f.write(f"{{n:02d}}.jpeg needs manual review (artifact after {{MAX_ATTEMPTS}} attempts)\\n")
 print("ALL DONE", flush=True)
 '''
 
@@ -112,7 +156,10 @@ def main():
     hf_token = os.environ.get("HF_TOKEN", "")
     if not hf_token:
         raise SystemExit("HF_TOKEN env var is required (a Hugging Face token with read access to the gated black-forest-labs/FLUX.1-schnell repo)")
-    code = KERNEL_TEMPLATE.format(shots_json=json.dumps(shots), hf_token=hf_token)
+    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not anthropic_api_key:
+        raise SystemExit("ANTHROPIC_API_KEY env var is required (used for the in-kernel vision QA pass on each still)")
+    code = KERNEL_TEMPLATE.format(shots_json=json.dumps(shots), hf_token=hf_token, anthropic_api_key=anthropic_api_key)
     open(os.path.join(KERNEL_DIR, "gen_flux.py"), "w", encoding="utf-8").write(code)
     json.dump({
         "id": KERNEL_ID,

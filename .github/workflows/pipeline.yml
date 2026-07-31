@@ -114,6 +114,10 @@ jobs:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
           KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # Used for the in-kernel Claude vision QA pass on each still (catches
+          # hand/anatomy artifacts and duplicate-object glitches that the
+          # OCR/black-frame checks alone can't see).
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python3 _gen_flux_images.py
 
       - name: Animated hook clip — CogVideoX-5b-I2V on Kaggle GPU
