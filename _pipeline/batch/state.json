@@ -39,7 +39,8 @@
   "7": {
    "case": "Max Headroom Broadcast Intrusion (Chicago, Nov 22 1987)",
    "angle": "Someone hijacked two TV stations' signals the same night to broadcast a masked, distorted Max Headroom parody spouting gibberish and getting spanked with a flyswatter \u2014 a felony requiring precise transmitter-level access that's never been traced to anyone, decades later.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
