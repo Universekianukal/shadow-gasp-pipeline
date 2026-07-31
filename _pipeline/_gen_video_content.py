@@ -161,15 +161,17 @@ def save_ledger(ledger):
 
 def generate(client, case):
     messages = [{"role": "user", "content": f"Case: {case}"}]
-    for attempt in range(3):
+    for attempt in range(4):
         resp = client.messages.create(
             model=MODEL,
             # 16 shot prompts now each carry a full expression/gaze description
             # (see the CHARACTER FACES rule above) instead of a short phrase,
             # which pushed real responses past the old 4096 cap and truncated
-            # mid-JSON. 8192 gives headroom; stop_reason is checked below too,
-            # since a cap hit is a distinct failure from malformed JSON.
-            max_tokens=8192,
+            # mid-JSON. Bumped 8192->16000 after a real batch-pregen run still
+            # hit max_tokens on 3/3 attempts for one case (The Yuba County
+            # Five) -- stop_reason is checked below too, since a cap hit is a
+            # distinct failure from malformed JSON.
+            max_tokens=16000,
             system=SYS,
             messages=messages,
         )
@@ -205,7 +207,11 @@ def generate(client, case):
         if n_shots != 16:
             problems.append(f"you produced {n_shots} shots, must be exactly 16")
         messages.append({"role": "user", "content": "Fix: " + "; ".join(problems) + ". Return the full corrected JSON."})
-    return d
+    # Every attempt failed -- raise a clear error instead of falling through
+    # to `return d`, which crashed with an UnboundLocalError (d was never
+    # assigned) when all attempts hit max_tokens/bad JSON without ever
+    # successfully parsing a response.
+    raise SystemExit(f"could not generate valid content for '{case}' after {attempt + 1} attempts")
 
 
 def main():
