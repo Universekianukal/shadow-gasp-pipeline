@@ -21,6 +21,9 @@ on:
       publish_at:
         description: "RFC3339 UTC to schedule instead of publishing immediately (e.g. 2026-07-30T23:45:00Z). Leave blank for immediate."
         default: ""
+      notify_chat_id:
+        description: "Telegram chat id to confirm upload to (set by the bot; leave blank when triggered manually)"
+        default: ""
 
 permissions:
   contents: write
@@ -173,13 +176,14 @@ jobs:
         with:
           name: batch-day-${{ github.event.inputs.day }}-final
       - name: Upload to YouTube + stamp ledger
+        id: upload
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           CASE: ${{ needs.render.outputs.case }}
           PUBLISH_AT: ${{ github.event.inputs.publish_at }}
-        run: python3 _pipeline/_youtube_upload.py
+        run: python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
       - name: Commit videoId to ledger
         run: |
           git config user.name "shadow-gasp-bot"
@@ -188,4 +192,34 @@ jobs:
           git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Notify Telegram (best-effort, never fails the upload)
+        if: always()
+        continue-on-error: true
+        env:
+          # Passed as env vars, not interpolated into a shell/python string
+          # literal -- case names are free-form LLM output and can contain
+          # quotes, which would otherwise break out of an inline literal.
+          DAY: ${{ github.event.inputs.day }}
+          CASE_NAME: ${{ needs.render.outputs.case }}
+          NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          VIDEO_ID=$(grep -o 'video_id=.*' /tmp/upload.log | cut -d= -f2)
+          [ -n "$VIDEO_ID" ] || { echo "no video_id found in upload log, skipping notify"; exit 0; }
+          VIDEO_ID="$VIDEO_ID" python3 -c "
+          import json, os, urllib.request
+          body = json.dumps({
+              'day': os.environ['DAY'],
+              'case': os.environ.get('CASE_NAME', ''),
+              'video_id': os.environ['VIDEO_ID'],
+              'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
+          }).encode()
+          req = urllib.request.Request(
+              'https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/uploaded',
+              data=body, method='POST',
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json'},
+          )
+          urllib.request.urlopen(req).read()
+          "
 
