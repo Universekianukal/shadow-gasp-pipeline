@@ -115,7 +115,14 @@ def pick(client, used):
         resp = client.messages.create(
             model=MODEL, max_tokens=1024, system=SYS, messages=messages
         )
-        raw = next(b.text for b in resp.content if b.type == "text")
+        # A response can come back with no text block at all (seen in practice
+        # once the exclusion list got long) -- that used to crash the whole
+        # batch run with an uncaught StopIteration instead of just retrying
+        # like every other malformed-response case here does.
+        raw = next((b.text for b in resp.content if b.type == "text"), None)
+        if raw is None:
+            print(f"attempt {attempt + 1}: response had no text block (stop_reason={resp.stop_reason}), retrying", file=sys.stderr)
+            continue
         try:
             d = extract_json(raw)
         except json.JSONDecodeError as e:
