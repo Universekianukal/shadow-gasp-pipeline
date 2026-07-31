@@ -514,10 +514,60 @@ def main():
         print(f"day {day_num}: DONE — {case} ({new_days_done}/{new_days_budget} this run)")
 
     print(f"\nThis run: {new_days_done} new day(s) completed, through day {day_num}.")
-    notify_pregen_done(new_days_done, day_num)
+    done_count = sum(1 for v in state["days"].values() if v.get("done"))
+    batch_complete = done_count >= TOTAL_DAYS
+    notify_pregen_done(new_days_done, day_num, batch_complete)
+
+    if not batch_complete:
+        dispatch_next_chunk(new_days_budget)
+    else:
+        print(f"Batch fully complete: {done_count}/{TOTAL_DAYS} days done.")
 
 
-def notify_pregen_done(new_days_done, through_day):
+# Total size of the batch. Self-chaining (see dispatch_next_chunk) keeps
+# triggering new chunks of this same size until this many days are done,
+# so a human only has to start the batch once, not re-trigger every chunk.
+TOTAL_DAYS = 30
+
+
+def dispatch_next_chunk(new_days_budget):
+    """Self-chaining: triggers another run of this same workflow with the
+    same chunk size, so the batch finishes unattended instead of needing a
+    human to manually re-run /pregen after every chunk. Best-effort -- a
+    failed dispatch here must not make an otherwise-successful chunk show as
+    failed; worst case, the batch just stalls and needs a manual nudge."""
+    token = os.environ.get("GITHUB_TOKEN", "")
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    if not token or not repo:
+        print("GITHUB_TOKEN/GITHUB_REPOSITORY not set, cannot self-dispatch next chunk")
+        return
+    import urllib.request
+
+    try:
+        body = json.dumps({
+            "ref": "main",
+            "inputs": {
+                "days": str(new_days_budget),
+                "notify_chat_id": os.environ.get("NOTIFY_CHAT_ID", ""),
+            },
+        }).encode()
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{repo}/actions/workflows/batch_pregen.yml/dispatches",
+            data=body, method="POST",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "Content-Type": "application/json",
+                "User-Agent": "shadow-gasp-batch-pregen",
+            },
+        )
+        urllib.request.urlopen(req).read()
+        print(f"Self-dispatched next chunk (days={new_days_budget})")
+    except Exception as e:
+        print(f"Failed to self-dispatch next chunk (non-fatal, batch will stall until manually re-triggered): {e!r}")
+
+
+def notify_pregen_done(new_days_done, through_day, batch_complete=False):
     """Best-effort: tells the /pregen chat this chunk is done, mirroring
     finish_batch_day.yml's /batch/uploaded callback. Never raises -- a
     notification failure must not make an otherwise-successful pregen run
@@ -532,6 +582,7 @@ def notify_pregen_done(new_days_done, through_day):
         body = json.dumps({
             "new_days_done": new_days_done,
             "through_day": through_day,
+            "batch_complete": batch_complete,
             "chat_id": os.environ.get("NOTIFY_CHAT_ID") or None,
         }).encode()
         req = urllib.request.Request(

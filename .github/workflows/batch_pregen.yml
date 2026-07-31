@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # needed so the script can self-dispatch the next chunk
 
 jobs:
   batch:
@@ -55,6 +56,12 @@ jobs:
           KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          # Self-chaining: if fewer than 30 days are done after this chunk,
+          # the script dispatches another run of this same workflow with the
+          # same chunk size, so the whole batch finishes unattended instead of
+          # needing a human to re-trigger every chunk.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: python3 _batch_pregen.py "${{ github.event.inputs.days }}"
 
       - name: Commit remaining state (in case the last day didn't push itself)
