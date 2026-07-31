@@ -18,6 +18,9 @@ on:
       days:
         description: "How many NEW days to process this run (resumes automatically)"
         default: "3"
+      notify_chat_id:
+        description: "Telegram chat id to notify when this chunk finishes (set by the bot; leave blank when triggered manually)"
+        default: ""
 
 permissions:
   contents: write
@@ -50,6 +53,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
           KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
+          NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
         run: python3 _batch_pregen.py "${{ github.event.inputs.days }}"
 
       - name: Commit remaining state (in case the last day didn't push itself)

@@ -389,6 +389,34 @@ def main():
         print(f"day {day_num}: DONE — {case} ({new_days_done}/{new_days_budget} this run)")
 
     print(f"\nThis run: {new_days_done} new day(s) completed, through day {day_num}.")
+    notify_pregen_done(new_days_done, day_num)
+
+
+def notify_pregen_done(new_days_done, through_day):
+    """Best-effort: tells the /pregen chat this chunk is done, mirroring
+    finish_batch_day.yml's /batch/uploaded callback. Never raises -- a
+    notification failure must not make an otherwise-successful pregen run
+    show as failed."""
+    secret = os.environ.get("BATCH_NOTIFY_SECRET", "")
+    if not secret:
+        print("BATCH_NOTIFY_SECRET not set, skipping Telegram notify")
+        return
+    import urllib.request
+
+    try:
+        body = json.dumps({
+            "new_days_done": new_days_done,
+            "through_day": through_day,
+            "chat_id": os.environ.get("NOTIFY_CHAT_ID") or None,
+        }).encode()
+        req = urllib.request.Request(
+            "https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/pregen_done",
+            data=body, method="POST",
+            headers={"X-Batch-Notify-Secret": secret, "Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req).read()
+    except Exception as e:
+        print(f"pregen_done notify failed (non-fatal): {e!r}")
 
 
 if __name__ == "__main__":
