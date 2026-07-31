@@ -27,7 +27,8 @@
   "5": {
    "case": "Flannan Isles Lighthouse Disappearance (1900, Scotland)",
    "angle": "Three lighthouse keepers vanish without a trace from a locked, storm-battered tower 20 miles off the Scottish coast, leaving behind an overturned chair, an unfinished log entry, and one missing oilskin coat \u2014 the ultimate empty-room mystery with a lighthouse as the crime scene.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
