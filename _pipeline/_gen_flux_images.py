@@ -25,7 +25,7 @@ KERNEL_TEMPLATE = '''import os, sys, subprocess, json
 def pip(*a): subprocess.run([sys.executable,"-m","pip","install","-q",*a], check=False)
 pip("torch==2.4.1","torchvision==0.19.1","--index-url","https://download.pytorch.org/whl/cu121")
 pip("diffusers==0.32.2","transformers==4.46.3","accelerate","sentencepiece","protobuf","bitsandbytes")
-pip("easyocr","anthropic")
+pip("easyocr")
 
 import torch, numpy as np
 from huggingface_hub import login
@@ -56,53 +56,6 @@ def has_text(img):
     results = ocr.readtext(np.array(img))
     hits = [r for r in results if r[2] > 0.35]
     return hits
-
-import base64, io
-from anthropic import Anthropic
-vision_client = Anthropic(api_key="{anthropic_api_key}")
-
-QA_PROMPT = """You are doing quality control on an AI-generated illustration for a
-noir comic-style video. Look at this image and check ONLY for these specific
-defects, which are known failure modes of the fast image model that generated it:
-1. Anatomical errors: extra or duplicate limbs, a hand with the wrong number of
-   fingers, a hand/arm that looks disconnected or emerges from the wrong place.
-2. Duplicated small object parts: e.g. a tool (magnifying glass, weapon,
-   instrument, handle) rendered with two handles or a duplicated component.
-3. Illegible fake text/scribble clutter: garbled pseudo-text rendered on
-   documents, papers, or signage that reads as visual noise, even if no single
-   word is clearly legible (a real photo of a blank/blurred document has no
-   scribble texture at all -- if this looks like fake handwriting, that is a
-   defect).
-4. Incomplete extra figures: an additional person's arm, torso, or legs visible
-   in the frame with NO head or face shown at all. This is only acceptable if
-   that person is clearly and plausibly occluded by another figure or object
-   directly in front of where their head would be, or is cleanly cropped by
-   the image's outer edge. A limb/torso floating in open space, in front of a
-   background (not behind another person or object), with no head anywhere
-   and no plausible reason it would be hidden, is a defect -- it reads as an
-   incomplete or malformed extra person, not an intentional composition.
-
-Respond with ONLY one line: "PASS" if none of these defects are present, or
-"FAIL: <short reason>" if any are present. Do not comment on style, art
-quality, composition, or anything else."""
-
-def vision_qa(img):
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=90)
-    b64 = base64.b64encode(buf.getvalue()).decode()
-    try:
-        resp = vision_client.messages.create(
-            model="claude-sonnet-5", max_tokens=100,
-            messages=[{{"role": "user", "content": [
-                {{"type": "image", "source": {{"type": "base64", "media_type": "image/jpeg", "data": b64}}}},
-                {{"type": "text", "text": QA_PROMPT}},
-            ]}}],
-        )
-        text = next(b.text for b in resp.content if b.type == "text").strip()
-        return text
-    except Exception as e:
-        print("vision QA call failed, treating as PASS:", repr(e), flush=True)
-        return "PASS"
 
 SHOTS = {shots_json}
 MAX_ATTEMPTS = 3
@@ -164,10 +117,7 @@ def main():
     hf_token = os.environ.get("HF_TOKEN", "")
     if not hf_token:
         raise SystemExit("HF_TOKEN env var is required (a Hugging Face token with read access to the gated black-forest-labs/FLUX.1-schnell repo)")
-    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not anthropic_api_key:
-        raise SystemExit("ANTHROPIC_API_KEY env var is required (used for the in-kernel vision QA pass on each still)")
-    code = KERNEL_TEMPLATE.format(shots_json=json.dumps(shots), hf_token=hf_token, anthropic_api_key=anthropic_api_key)
+    code = KERNEL_TEMPLATE.format(shots_json=json.dumps(shots), hf_token=hf_token)
     open(os.path.join(KERNEL_DIR, "gen_flux.py"), "w", encoding="utf-8").write(code)
     json.dump({
         "id": KERNEL_ID,
