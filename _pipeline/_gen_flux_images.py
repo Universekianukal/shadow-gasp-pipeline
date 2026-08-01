@@ -79,11 +79,6 @@ for s in SHOTS:
                 print("RETRY", n, "attempt", attempt+1, "text detected:", texts, flush=True)
                 torch.cuda.empty_cache()
                 continue
-            qa = vision_qa(img)
-            if qa.startswith("FAIL"):
-                print("RETRY", n, "attempt", attempt+1, "vision QA:", qa, flush=True)
-                torch.cuda.empty_cache()
-                continue
             img.save(f"/kaggle/working/{{n:02d}}.jpeg", quality=92)
             print("DONE", n, "meanpix", round(m,1), "attempt", attempt+1, flush=True)
             saved = True
