@@ -73,6 +73,14 @@ defects, which are known failure modes of the fast image model that generated it
    word is clearly legible (a real photo of a blank/blurred document has no
    scribble texture at all -- if this looks like fake handwriting, that is a
    defect).
+4. Incomplete extra figures: an additional person's arm, torso, or legs visible
+   in the frame with NO head or face shown at all. This is only acceptable if
+   that person is clearly and plausibly occluded by another figure or object
+   directly in front of where their head would be, or is cleanly cropped by
+   the image's outer edge. A limb/torso floating in open space, in front of a
+   background (not behind another person or object), with no head anywhere
+   and no plausible reason it would be hidden, is a defect -- it reads as an
+   incomplete or malformed extra person, not an intentional composition.
 
 Respond with ONLY one line: "PASS" if none of these defects are present, or
 "FAIL: <short reason>" if any are present. Do not comment on style, art
