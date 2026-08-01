@@ -509,6 +509,11 @@
    "videoId": null,
    "case": "The Voynich Manuscript (carbon-dated 1404-1438)",
    "publishedAt": null
+  },
+  {
+   "videoId": null,
+   "case": "The Mary Celeste (1872)",
+   "publishedAt": null
   }
  ]
 }
