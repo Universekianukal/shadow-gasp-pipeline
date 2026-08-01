@@ -544,6 +544,11 @@
    "videoId": null,
    "case": "Kaspar Hauser (Nuremberg, 1828)",
    "publishedAt": "2026-08-01"
+  },
+  {
+   "videoId": null,
+   "case": "The Toxic Lady (Gloria Ramirez ER incident, Riverside CA, 1994)",
+   "publishedAt": null
   }
  ]
 }
