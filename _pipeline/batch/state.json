@@ -153,7 +153,8 @@
   "26": {
    "case": "SS Waratah disappearance (1909, South Africa)",
    "angle": "A 500-foot ocean liner carrying 211 people vanished without a single body, life raft, or piece of debris ever recovered, despite calm seas and multiple ships nearby the night before.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
