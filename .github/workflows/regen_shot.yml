@@ -1,0 +1,50 @@
+name: shadow_gasp regenerate one batch shot
+
+# One-off fix for a single bad still (vision-QA-catchable artifact spotted
+# after the fact, or found once the QA prompt itself gets strengthened)
+# without burning GPU time re-doing all 16 shots for that day.
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 9)"
+        required: true
+      shot:
+        description: "Shot number to regenerate (1-16)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python deps
+        run: pip install --quiet anthropic "kaggle==2.2.2"
+
+      - name: git identity
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+
+      - name: Regenerate shot
+        working-directory: _pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
+        run: python3 _regen_shot.py "${{ github.event.inputs.day }}" "${{ github.event.inputs.shot }}"
+
+      - name: Commit regenerated shot
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          git add "_pipeline/batch/day$DAY"
+          git diff --cached --quiet || git commit -m "regen: day $DAY shot ${{ github.event.inputs.shot }}"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}" || true
