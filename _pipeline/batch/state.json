@@ -99,7 +99,8 @@
   "17": {
    "case": "The Great Brink's Robbery (Boston, Jan 17 1950)",
    "angle": "Eleven masked men in Halloween-store rubber faces cracked five padlocks and a vault to steal $2.775 million, then the perfect crime nearly stayed perfect because one conspirator didn't crack until six days before the statute of limitations expired.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
