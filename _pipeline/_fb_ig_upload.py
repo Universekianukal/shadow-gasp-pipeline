@@ -15,11 +15,21 @@ Credentials come from env vars (GitHub Actions secrets):
 
 IDs are hardcoded, not env vars, because they identify a fixed destination
 (this channel's Page/IG account), same as how VIDEO_PATH is hardcoded above.
+
+PUBLISH_AT (RFC3339 UTC, e.g. 2026-07-30T23:45:00Z), same env var
+_youtube_upload.py already reads: Facebook's API natively supports scheduled
+Page video posts (published=false + scheduled_publish_time), so that part is
+honored here. Instagram's Graph API has NO scheduling support at all, even
+for approved third-party apps -- a published container goes live immediately,
+full stop. Rather than fake it (posting to IG now while FB waits would just
+be a confusing, inconsistent launch), IG is skipped entirely when PUBLISH_AT
+is set; it needs to be posted separately, by hand, at the real time.
 """
 import json
 import os
 import sys
 import time
+from datetime import datetime, timezone
 
 import requests
 
@@ -47,17 +57,27 @@ def build_caption(meta):
     return caption
 
 
-def post_to_facebook(token, caption):
+def post_to_facebook(token, caption, publish_at_epoch):
+    data = {"description": caption, "access_token": token}
+    if publish_at_epoch:
+        # Meta requires at least 10 minutes and at most ~75 days out; anything
+        # outside that range comes back as a normal API error, surfaced as-is
+        # rather than pre-validated here.
+        data["published"] = "false"
+        data["scheduled_publish_time"] = publish_at_epoch
     with open(VIDEO_PATH, "rb") as f:
         resp = requests.post(
             f"{GRAPH}/{FB_PAGE_ID}/videos",
-            data={"description": caption, "access_token": token},
+            data=data,
             files={"source": f},
             timeout=600,
         )
     resp.raise_for_status()
     post_id = resp.json()["id"]
-    print(f"Facebook posted: https://facebook.com/{post_id}")
+    if publish_at_epoch:
+        print(f"Facebook scheduled for {datetime.fromtimestamp(publish_at_epoch, tz=timezone.utc).isoformat()}: https://facebook.com/{post_id}")
+    else:
+        print(f"Facebook posted: https://facebook.com/{post_id}")
     print(f"fb_post_id={post_id}")
     return post_id
 
@@ -145,9 +165,19 @@ def main():
     caption = build_caption(meta)
     token = os.environ["FB_PAGE_ACCESS_TOKEN"]
 
+    publish_at = os.environ.get("PUBLISH_AT", "").strip()
+    publish_at_epoch = None
+    if publish_at:
+        publish_at_epoch = int(datetime.fromisoformat(publish_at.replace("Z", "+00:00")).timestamp())
+
     # Facebook first: it's a direct upload with no external staging, so it
     # can't fail because of anything Cloudinary-related.
-    post_to_facebook(token, caption)
+    post_to_facebook(token, caption, publish_at_epoch)
+
+    if publish_at_epoch:
+        print(f"Instagram skipped: PUBLISH_AT is set but Instagram's API has no scheduling support. "
+              f"Post it by hand at {publish_at} instead.")
+        return
 
     public_id, video_url = upload_to_cloudinary()
     try:
