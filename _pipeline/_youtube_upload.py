@@ -44,7 +44,7 @@ def stamp_ledger(video_id, case):
     """Fill in the videoId on the reserved entry for this case."""
     if not case or not os.path.exists(LEDGER_PATH):
         return
-    with open(LEDGER_PATH, encoding="utf-8") as f:
+    with open(LEDGER_PATH, encoding="utf-8-sig", errors="replace") as f:
         ledger = json.load(f)
     for entry in reversed(ledger.get("cases", [])):
         if entry.get("case") == case and not entry.get("videoId"):
@@ -95,6 +95,10 @@ def main():
 
     video_id = response["id"]
     print(f"Uploaded: https://youtu.be/{video_id}")
+    # Printed right after the upload succeeds, before any of the steps below,
+    # so a Telegram notify (which greps this line out of the job log) still
+    # fires even if thumbnail-setting or ledger-stamping blows up.
+    print(f"video_id={video_id}")
 
     thumb = next((p for p in THUMBNAIL_CANDIDATES if os.path.isfile(p)), None)
     if thumb:
@@ -106,8 +110,13 @@ def main():
             # not fail an otherwise-successful upload.
             print(f"Thumbnail upload failed ({thumb}): {e}", file=sys.stderr)
 
-    stamp_ledger(video_id, os.environ.get("CASE", "").strip())
-    print(f"video_id={video_id}")
+    try:
+        stamp_ledger(video_id, os.environ.get("CASE", "").strip())
+    except Exception as e:
+        # The video is already live at this point -- a broken ledger write
+        # (e.g. a stray non-UTF-8 byte in a past LLM-generated case name)
+        # must not look like an upload failure or swallow the video_id line.
+        print(f"Ledger stamp failed: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
