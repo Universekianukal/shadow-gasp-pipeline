@@ -1,0 +1,13 @@
+{
+  "id": "anuragmishra108/shadow-gasp-norjak-promo-scene",
+  "title": "shadow-gasp-norjak-promo-scene",
+  "code_file": "gen_promo.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}

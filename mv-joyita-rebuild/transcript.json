@@ -1,0 +1,980 @@
+[
+{
+"text": "October",
+"start": 0.0,
+"end": 0.3,
+"id": "w0"
+},
+{
+"text": "3rd,",
+"start": 0.3,
+"end": 0.84,
+"id": "w1"
+},
+{
+"text": "1955.",
+"start": 0.94,
+"end": 1.66,
+"id": "w2"
+},
+{
+"text": "5am.",
+"start": 2.64,
+"end": 3.24,
+"id": "w3"
+},
+{
+"text": "The",
+"start": 3.86,
+"end": 3.96,
+"id": "w4"
+},
+{
+"text": "MV",
+"start": 3.96,
+"end": 4.28,
+"id": "w5"
+},
+{
+"text": "Joyida",
+"start": 4.28,
+"end": 4.8,
+"id": "w6"
+},
+{
+"text": "leaves",
+"start": 4.8,
+"end": 5.08,
+"id": "w7"
+},
+{
+"text": "Apia",
+"start": 5.08,
+"end": 5.56,
+"id": "w8"
+},
+{
+"text": "Samoa",
+"start": 5.56,
+"end": 5.94,
+"id": "w9"
+},
+{
+"text": "bound",
+"start": 5.94,
+"end": 6.4,
+"id": "w10"
+},
+{
+"text": "for",
+"start": 6.4,
+"end": 6.7,
+"id": "w11"
+},
+{
+"text": "the",
+"start": 6.7,
+"end": 6.84,
+"id": "w12"
+},
+{
+"text": "Toklau",
+"start": 6.84,
+"end": 7.2,
+"id": "w13"
+},
+{
+"text": "Islands.",
+"start": 7.2,
+"end": 7.68,
+"id": "w14"
+},
+{
+"text": "25",
+"start": 8.36,
+"end": 8.8,
+"id": "w15"
+},
+{
+"text": "souls",
+"start": 8.8,
+"end": 9.18,
+"id": "w16"
+},
+{
+"text": "aboard,",
+"start": 9.18,
+"end": 9.6,
+"id": "w17"
+},
+{
+"text": "crew,",
+"start": 9.86,
+"end": 10.02,
+"id": "w18"
+},
+{
+"text": "a",
+"start": 10.38,
+"end": 10.42,
+"id": "w19"
+},
+{
+"text": "government",
+"start": 10.42,
+"end": 10.6,
+"id": "w20"
+},
+{
+"text": "official,",
+"start": 10.6,
+"end": 11.14,
+"id": "w21"
+},
+{
+"text": "a",
+"start": 11.38,
+"end": 11.44,
+"id": "w22"
+},
+{
+"text": "doctor,",
+"start": 11.44,
+"end": 11.64,
+"id": "w23"
+},
+{
+"text": "two",
+"start": 11.94,
+"end": 12.06,
+"id": "w24"
+},
+{
+"text": "children,",
+"start": 12.06,
+"end": 12.42,
+"id": "w25"
+},
+{
+"text": "distance,",
+"start": 12.92,
+"end": 13.24,
+"id": "w26"
+},
+{
+"text": "270",
+"start": 13.76,
+"end": 14.42,
+"id": "w27"
+},
+{
+"text": "miles.",
+"start": 14.42,
+"end": 15.04,
+"id": "w28"
+},
+{
+"text": "Estimated",
+"start": 16.02,
+"end": 16.02,
+"id": "w29"
+},
+{
+"text": "time,",
+"start": 16.02,
+"end": 16.46,
+"id": "w30"
+},
+{
+"text": "41",
+"start": 16.76,
+"end": 17.06,
+"id": "w31"
+},
+{
+"text": "hours.",
+"start": 17.06,
+"end": 17.5,
+"id": "w32"
+},
+{
+"text": "She",
+"start": 18.02,
+"end": 18.16,
+"id": "w33"
+},
+{
+"text": "never",
+"start": 18.16,
+"end": 18.36,
+"id": "w34"
+},
+{
+"text": "arrives.",
+"start": 18.36,
+"end": 18.94,
+"id": "w35"
+},
+{
+"text": "37",
+"start": 19.54,
+"end": 19.9,
+"id": "w36"
+},
+{
+"text": "days",
+"start": 19.9,
+"end": 20.26,
+"id": "w37"
+},
+{
+"text": "later,",
+"start": 20.26,
+"end": 20.68,
+"id": "w38"
+},
+{
+"text": "a",
+"start": 20.9,
+"end": 20.98,
+"id": "w39"
+},
+{
+"text": "merchant",
+"start": 20.98,
+"end": 21.16,
+"id": "w40"
+},
+{
+"text": "ship",
+"start": 21.16,
+"end": 21.48,
+"id": "w41"
+},
+{
+"text": "finds",
+"start": 21.48,
+"end": 21.82,
+"id": "w42"
+},
+{
+"text": "her",
+"start": 21.82,
+"end": 22.02,
+"id": "w43"
+},
+{
+"text": "600",
+"start": 22.02,
+"end": 22.58,
+"id": "w44"
+},
+{
+"text": "miles",
+"start": 22.58,
+"end": 23.04,
+"id": "w45"
+},
+{
+"text": "off",
+"start": 23.04,
+"end": 23.36,
+"id": "w46"
+},
+{
+"text": "course,",
+"start": 23.36,
+"end": 23.72,
+"id": "w47"
+},
+{
+"text": "listing",
+"start": 24.16,
+"end": 24.44,
+"id": "w48"
+},
+{
+"text": "hard",
+"start": 24.44,
+"end": 24.88,
+"id": "w49"
+},
+{
+"text": "deck",
+"start": 24.88,
+"end": 25.26,
+"id": "w50"
+},
+{
+"text": "awash.",
+"start": 25.26,
+"end": 25.82,
+"id": "w51"
+},
+{
+"text": "Not",
+"start": 26.26,
+"end": 26.48,
+"id": "w52"
+},
+{
+"text": "one",
+"start": 26.48,
+"end": 26.72,
+"id": "w53"
+},
+{
+"text": "person",
+"start": 26.72,
+"end": 27.06,
+"id": "w54"
+},
+{
+"text": "aboard.",
+"start": 27.06,
+"end": 27.48,
+"id": "w55"
+},
+{
+"text": "No",
+"start": 28.02,
+"end": 28.24,
+"id": "w56"
+},
+{
+"text": "bodies.",
+"start": 28.24,
+"end": 28.52,
+"id": "w57"
+},
+{
+"text": "Not",
+"start": 29.1,
+"end": 29.28,
+"id": "w58"
+},
+{
+"text": "then,",
+"start": 29.28,
+"end": 29.58,
+"id": "w59"
+},
+{
+"text": "not",
+"start": 29.58,
+"end": 29.98,
+"id": "w60"
+},
+{
+"text": "ever.",
+"start": 29.98,
+"end": 30.32,
+"id": "w61"
+},
+{
+"text": "On",
+"start": 30.58,
+"end": 30.8,
+"id": "w62"
+},
+{
+"text": "deck.",
+"start": 30.8,
+"end": 31.06,
+"id": "w63"
+},
+{
+"text": "Blood",
+"start": 31.44,
+"end": 31.54,
+"id": "w64"
+},
+{
+"text": "-soaked",
+"start": 31.54,
+"end": 31.98,
+"id": "w65"
+},
+{
+"text": "bandages.",
+"start": 31.98,
+"end": 32.56,
+"id": "w66"
+},
+{
+"text": "A",
+"start": 33.02,
+"end": 33.18,
+"id": "w67"
+},
+{
+"text": "torn",
+"start": 33.18,
+"end": 33.48,
+"id": "w68"
+},
+{
+"text": "medical",
+"start": 33.48,
+"end": 33.86,
+"id": "w69"
+},
+{
+"text": "bag.",
+"start": 33.86,
+"end": 34.36,
+"id": "w70"
+},
+{
+"text": "The",
+"start": 34.76,
+"end": 34.94,
+"id": "w71"
+},
+{
+"text": "ship's",
+"start": 34.94,
+"end": 35.36,
+"id": "w72"
+},
+{
+"text": "clerk",
+"start": 35.36,
+"end": 35.52,
+"id": "w73"
+},
+{
+"text": "stopped",
+"start": 35.52,
+"end": 35.94,
+"id": "w74"
+},
+{
+"text": "at",
+"start": 35.94,
+"end": 36.16,
+"id": "w75"
+},
+{
+"text": "10",
+"start": 36.16,
+"end": 36.42,
+"id": "w76"
+},
+{
+"text": ".25.",
+"start": 36.42,
+"end": 37.02,
+"id": "w77"
+},
+{
+"text": "Every",
+"start": 37.64,
+"end": 37.88,
+"id": "w78"
+},
+{
+"text": "lifeboat",
+"start": 37.88,
+"end": 38.36,
+"id": "w79"
+},
+{
+"text": "gone.",
+"start": 38.36,
+"end": 38.68,
+"id": "w80"
+},
+{
+"text": "Every",
+"start": 39.2,
+"end": 39.44,
+"id": "w81"
+},
+{
+"text": "life",
+"start": 39.44,
+"end": 39.78,
+"id": "w82"
+},
+{
+"text": "raft",
+"start": 39.78,
+"end": 40.02,
+"id": "w83"
+},
+{
+"text": "gone.",
+"start": 40.02,
+"end": 40.46,
+"id": "w84"
+},
+{
+"text": "All",
+"start": 40.92,
+"end": 41.1,
+"id": "w85"
+},
+{
+"text": "but",
+"start": 41.1,
+"end": 41.28,
+"id": "w86"
+},
+{
+"text": "three",
+"start": 41.28,
+"end": 41.58,
+"id": "w87"
+},
+{
+"text": "life",
+"start": 41.58,
+"end": 41.84,
+"id": "w88"
+},
+{
+"text": "jackets",
+"start": 41.84,
+"end": 42.36,
+"id": "w89"
+},
+{
+"text": "vanished.",
+"start": 42.36,
+"end": 42.96,
+"id": "w90"
+},
+{
+"text": "Here's",
+"start": 43.6,
+"end": 43.9,
+"id": "w91"
+},
+{
+"text": "the",
+"start": 43.9,
+"end": 44.06,
+"id": "w92"
+},
+{
+"text": "twist",
+"start": 44.06,
+"end": 44.34,
+"id": "w93"
+},
+{
+"text": "nobody",
+"start": 44.34,
+"end": 44.8,
+"id": "w94"
+},
+{
+"text": "expects.",
+"start": 44.8,
+"end": 45.4,
+"id": "w95"
+},
+{
+"text": "The",
+"start": 45.9,
+"end": 46.0,
+"id": "w96"
+},
+{
+"text": "Joyida",
+"start": 46.0,
+"end": 46.5,
+"id": "w97"
+},
+{
+"text": "couldn't",
+"start": 46.5,
+"end": 46.9,
+"id": "w98"
+},
+{
+"text": "sink.",
+"start": 46.9,
+"end": 47.18,
+"id": "w99"
+},
+{
+"text": "Her",
+"start": 47.78,
+"end": 47.96,
+"id": "w100"
+},
+{
+"text": "hull",
+"start": 47.96,
+"end": 48.14,
+"id": "w101"
+},
+{
+"text": "was",
+"start": 48.14,
+"end": 48.38,
+"id": "w102"
+},
+{
+"text": "packed",
+"start": 48.38,
+"end": 48.64,
+"id": "w103"
+},
+{
+"text": "with",
+"start": 48.64,
+"end": 48.94,
+"id": "w104"
+},
+{
+"text": "cork",
+"start": 48.94,
+"end": 49.24,
+"id": "w105"
+},
+{
+"text": "for",
+"start": 49.24,
+"end": 49.48,
+"id": "w106"
+},
+{
+"text": "refrigeration",
+"start": 49.48,
+"end": 50.32,
+"id": "w107"
+},
+{
+"text": "insulation.",
+"start": 50.32,
+"end": 50.74,
+"id": "w108"
+},
+{
+"text": "She",
+"start": 51.46,
+"end": 51.64,
+"id": "w109"
+},
+{
+"text": "stayed",
+"start": 51.64,
+"end": 51.9,
+"id": "w110"
+},
+{
+"text": "afloat",
+"start": 51.9,
+"end": 52.36,
+"id": "w111"
+},
+{
+"text": "even",
+"start": 52.36,
+"end": 52.78,
+"id": "w112"
+},
+{
+"text": "half",
+"start": 52.78,
+"end": 53.06,
+"id": "w113"
+},
+{
+"text": "-flooded,",
+"start": 53.06,
+"end": 53.56,
+"id": "w114"
+},
+{
+"text": "one",
+"start": 53.82,
+"end": 54.1,
+"id": "w115"
+},
+{
+"text": "engine",
+"start": 54.1,
+"end": 54.46,
+"id": "w116"
+},
+{
+"text": "dead",
+"start": 54.46,
+"end": 54.72,
+"id": "w117"
+},
+{
+"text": "for",
+"start": 54.72,
+"end": 54.96,
+"id": "w118"
+},
+{
+"text": "months.",
+"start": 54.96,
+"end": 55.26,
+"id": "w119"
+},
+{
+"text": "Her",
+"start": 55.74,
+"end": 55.88,
+"id": "w120"
+},
+{
+"text": "radio",
+"start": 55.88,
+"end": 56.3,
+"id": "w121"
+},
+{
+"text": "crippled",
+"start": 56.3,
+"end": 56.66,
+"id": "w122"
+},
+{
+"text": "by",
+"start": 56.66,
+"end": 56.96,
+"id": "w123"
+},
+{
+"text": "a",
+"start": 56.96,
+"end": 57.1,
+"id": "w124"
+},
+{
+"text": "corroded",
+"start": 57.1,
+"end": 57.52,
+"id": "w125"
+},
+{
+"text": "antenna",
+"start": 57.52,
+"end": 57.96,
+"id": "w126"
+},
+{
+"text": "that",
+"start": 57.96,
+"end": 58.44,
+"id": "w127"
+},
+{
+"text": "could",
+"start": 58.44,
+"end": 58.56,
+"id": "w128"
+},
+{
+"text": "barely",
+"start": 58.56,
+"end": 58.88,
+"id": "w129"
+},
+{
+"text": "transmit",
+"start": 58.88,
+"end": 59.42,
+"id": "w130"
+},
+{
+"text": "two",
+"start": 59.42,
+"end": 59.74,
+"id": "w131"
+},
+{
+"text": "miles.",
+"start": 59.74,
+"end": 60.14,
+"id": "w132"
+},
+{
+"text": "So",
+"start": 60.84,
+"end": 61.0,
+"id": "w133"
+},
+{
+"text": "why",
+"start": 61.0,
+"end": 61.22,
+"id": "w134"
+},
+{
+"text": "did",
+"start": 61.22,
+"end": 61.44,
+"id": "w135"
+},
+{
+"text": "25",
+"start": 61.44,
+"end": 62.0,
+"id": "w136"
+},
+{
+"text": "people",
+"start": 62.0,
+"end": 62.44,
+"id": "w137"
+},
+{
+"text": "abandon",
+"start": 62.44,
+"end": 62.9,
+"id": "w138"
+},
+{
+"text": "a",
+"start": 62.9,
+"end": 63.18,
+"id": "w139"
+},
+{
+"text": "ship",
+"start": 63.18,
+"end": 63.38,
+"id": "w140"
+},
+{
+"text": "that",
+"start": 63.38,
+"end": 63.72,
+"id": "w141"
+},
+{
+"text": "never",
+"start": 63.72,
+"end": 64.0,
+"id": "w142"
+},
+{
+"text": "actually",
+"start": 64.0,
+"end": 64.48,
+"id": "w143"
+},
+{
+"text": "went",
+"start": 64.48,
+"end": 64.72,
+"id": "w144"
+},
+{
+"text": "under?",
+"start": 64.72,
+"end": 65.1,
+"id": "w145"
+},
+{
+"text": "No",
+"start": 65.6,
+"end": 65.78,
+"id": "w146"
+},
+{
+"text": "wreckage.",
+"start": 65.78,
+"end": 66.2,
+"id": "w147"
+},
+{
+"text": "No",
+"start": 66.84,
+"end": 66.98,
+"id": "w148"
+},
+{
+"text": "rafts.",
+"start": 66.98,
+"end": 67.74,
+"id": "w149"
+},
+{
+"text": "No",
+"start": 68.0,
+"end": 68.16,
+"id": "w150"
+},
+{
+"text": "survivors.",
+"start": 68.16,
+"end": 68.6,
+"id": "w151"
+},
+{
+"text": "No",
+"start": 69.32,
+"end": 69.42,
+"id": "w152"
+},
+{
+"text": "answer.",
+"start": 69.42,
+"end": 69.88,
+"id": "w153"
+},
+{
+"text": "Decades",
+"start": 70.54,
+"end": 70.92,
+"id": "w154"
+},
+{
+"text": "later,",
+"start": 70.92,
+"end": 71.3,
+"id": "w155"
+},
+{
+"text": "the",
+"start": 71.74,
+"end": 71.84,
+"id": "w156"
+},
+{
+"text": "Pacific",
+"start": 71.84,
+"end": 72.08,
+"id": "w157"
+},
+{
+"text": "still",
+"start": 72.08,
+"end": 72.58,
+"id": "w158"
+},
+{
+"text": "hasn't",
+"start": 72.58,
+"end": 73.02,
+"id": "w159"
+},
+{
+"text": "given",
+"start": 73.02,
+"end": 73.16,
+"id": "w160"
+},
+{
+"text": "it",
+"start": 73.16,
+"end": 73.42,
+"id": "w161"
+},
+{
+"text": "back.",
+"start": 73.42,
+"end": 73.74,
+"id": "w162"
+}
+]
