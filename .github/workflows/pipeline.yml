@@ -246,7 +246,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Python deps
-        run: pip install --quiet google-api-python-client google-auth-oauthlib
+        run: pip install --quiet google-api-python-client google-auth-oauthlib requests cloudinary
       # Artifact root holds final.mp4 + youtube.json (common prefix stripped),
       # which is exactly where _youtube_upload.py looks for them.
       - uses: actions/download-artifact@v4
@@ -258,6 +258,14 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           CASE: ${{ needs.build.outputs.case }}
         run: python3 _pipeline/_youtube_upload.py
+      - name: Cross-post to Facebook + Instagram (best-effort, never fails the YouTube upload)
+        continue-on-error: true
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: python3 _pipeline/_fb_ig_upload.py
       - name: Commit videoId to ledger
         run: |
           git config user.name "shadow-gasp-bot"

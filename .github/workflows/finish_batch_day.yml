@@ -185,7 +185,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Python deps
-        run: pip install --quiet google-api-python-client google-auth-oauthlib
+        run: pip install --quiet google-api-python-client google-auth-oauthlib requests cloudinary
       - uses: actions/download-artifact@v4
         with:
           name: batch-day-${{ github.event.inputs.day }}-final
@@ -198,6 +198,15 @@ jobs:
           CASE: ${{ needs.render.outputs.case }}
           PUBLISH_AT: ${{ github.event.inputs.publish_at }}
         run: python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
+
+      - name: Cross-post to Facebook + Instagram (best-effort, never fails the YouTube upload)
+        continue-on-error: true
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: python3 _pipeline/_fb_ig_upload.py
 
       - name: Upload to Drive (real playable link for Telegram — Telegram's own 50MB bot-file limit can't take the ~100MB render directly)
         id: drive
