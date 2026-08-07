@@ -1,15 +1,18 @@
 name: shadow_gasp short (build + render + publish)
 
-# Full cloud pipeline for one true-crime short. Nothing runs locally:
-#   pick case -> script + 16 shot prompts -> TTS -> transcribe
-#   -> 16 FLUX stills (Kaggle GPU) -> CogVideoX hook clip (Kaggle GPU)
-#   -> build composition -> render -> verify -> YouTube upload -> commit ledger
+# Generates one new batch day the same way batch_pregen.yml does (case ->
+# script + 16 shot prompts -> FLUX stills on Kaggle GPU), auto-numbered as
+# the next day after the highest existing _pipeline/batch/dayNN/, commits it,
+# then asks the Telegram bot to request a Google Flow hook video for it --
+# same flow as manual /day <N>. This used to build+render+upload a full
+# video in one shot with no hook clip at all (CogVideoX was removed
+# 2026-08-01 for GPU cost, leaving every daily video a flat Ken Burns
+# still); now it never publishes without either a real hook video or an
+# explicit timeout fallback (see the Worker's 5h cron sweep in worker.js).
 #
-# Mirrors mindunlocked/ben-franklin-short/.github/workflows/pipeline.yml, with
-# three shadow_gasp differences:
-#   1. Art is generated (FLUX/CogVideoX on Kaggle) instead of fetched (Pexels).
-#   2. A short is a single composition — no chunk matrix, no stitch job.
-#   3. The case ledger is committed back so tomorrow's run can't repeat a case.
+# finish_batch_day.yml (same workflow the 30-day batch uses) does the actual
+# TTS -> transcribe -> composition -> render -> verify -> YouTube upload,
+# once the hook video is resolved one way or the other.
 
 on:
   workflow_dispatch:
@@ -17,13 +20,6 @@ on:
       case:
         description: "Case to cover (leave blank to auto-pick an unused one)"
         default: ""
-      quality:
-        description: "draft | standard | high"
-        default: "high"
-      upload:
-        description: "Upload final.mp4 to YouTube after render"
-        type: boolean
-        default: false
   schedule:
     # 13:00 UTC = 18:30 IST, same daily slot the MindUnlocked channel posts in.
     - cron: "0 13 * * *"
@@ -31,36 +27,15 @@ on:
 permissions:
   contents: write
 
-env:
-  PROJECT: video
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-    outputs:
-      case: ${{ steps.pick.outputs.case }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
       - name: Python deps
-        # kaggle pinned to 2.2.2: unpinned installs picked up a later release
-        # whose CLI switched to a KAGGLE_API_TOKEN/OAuth auth flow and no
-        # longer accepts KAGGLE_USERNAME/KAGGLE_KEY — the exact failure mode
-        # already hit and fixed the same way on the everydayhype pipeline.
-        run: pip install --quiet anthropic "kaggle==2.2.2" kokoro-onnx soundfile numpy faster-whisper
-
-      - name: FFmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-
-      - name: Scaffold project dir
-        run: |
-          mkdir -p "$PROJECT/images/seq" "$PROJECT/music"
-          cp _pipeline/_tts.py _pipeline/_transcribe.py _pipeline/_gen_video_content.py \
-             _pipeline/_gen_flux_images.py \
-             _pipeline/_build_composition.py _pipeline/_composition_template.html \
-             _pipeline/_gen_youtube_meta.py "$PROJECT/"
-          cp _pipeline/assets/bed.wav "$PROJECT/music/bed.wav"
+        run: pip install --quiet anthropic "kaggle==2.2.2"
 
       - name: Pick case (skipped if one was supplied)
         id: pick
@@ -69,208 +44,96 @@ jobs:
           CASE: ${{ github.event.inputs.case }}
         run: python3 _pipeline/_pick_case.py # writes CASE to GITHUB_ENV and step output
 
+      - name: Resolve next batch day number
+        id: day
+        run: |
+          NEXT=$(python3 -c "
+          import json
+          state = json.load(open('_pipeline/batch/state.json'))
+          days = [int(k) for k in state['days'].keys()]
+          print((max(days) if days else 0) + 1)
+          ")
+          DD=$(printf "%02d" "$NEXT")
+          echo "day=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "DAY_DIR=_pipeline/batch/day$DD" >> "$GITHUB_ENV"
+          echo "Assigning this run to batch day $DD"
+
+      - name: Scaffold day dir
+        env:
+          CASE: ${{ steps.pick.outputs.case }}
+        run: |
+          mkdir -p "$DAY_DIR/images/seq"
+          python3 -c "
+          import json, os
+          json.dump({'case': os.environ['CASE']}, open(os.path.join(os.environ['DAY_DIR'], 'pick.json'), 'w'))
+          "
+
       - name: Script + 16 shot prompts + meta
-        working-directory: ${{ env.PROJECT }}
+        working-directory: ${{ env.DAY_DIR }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CASE: ${{ steps.pick.outputs.case }}
-          # Reserve the case in the channel-wide ledger, not a copy inside video/
+          # Reserve the case in the channel-wide ledger, not a copy inside the day dir.
           CASES_LEDGER: ${{ github.workspace }}/_pipeline/cases_used.json
         run: |
+          cp ../../_gen_video_content.py .
           python3 _gen_video_content.py
-          cat tc_narration.txt
+          cp tc_narration.txt narration.txt
+          cat narration.txt
           echo "--- shot prompts ---"
           python3 -c "import json; [print(s['n'], ':', s['prompt']) for s in json.load(open('shots.json'))]"
 
-      - name: Cache TTS + whisper models
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/hyperframes
-          key: hyperframes-media-cache-v1-${{ runner.os }}
-
-      - name: TTS (Kokoro bm_george @ 0.92)
-        working-directory: ${{ env.PROJECT }}
-        run: |
-          mkdir -p ~/.cache/hyperframes/tts/models ~/.cache/hyperframes/tts/voices
-          [ -f ~/.cache/hyperframes/tts/models/kokoro-v1.0.onnx ] || curl -sL -o ~/.cache/hyperframes/tts/models/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
-          [ -f ~/.cache/hyperframes/tts/voices/voices-v1.0.bin ] || curl -sL -o ~/.cache/hyperframes/tts/voices/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
-          python3 _tts.py
-
-      - name: Transcribe (word timestamps)
-        working-directory: ${{ env.PROJECT }}
-        run: |
-          python3 _transcribe.py
-          test -f transcript.json || { echo "transcript.json not produced"; exit 1; }
-
       - name: 16 stills — FLUX.1-schnell on Kaggle GPU
-        working-directory: ${{ env.PROJECT }}
+        working-directory: ${{ env.DAY_DIR }}
         env:
           # Two separate Kaggle accounts by design (anuragmishra108=image-gen,
           # kianukal=video-gen) so FLUX and CogVideoX don't share one account's
-          # GPU-hour quota. kaggle 2.2.2's CLI auths via KAGGLE_API_TOKEN (or
-          # ~/.kaggle/access_token), NOT the legacy KAGGLE_USERNAME+KAGGLE_KEY
-          # pair — verified locally, that pair silently fails auth even on
-          # this pinned version.
+          # GPU-hour quota. Running from _pipeline/batch/dayNN/ (not a fixed
+          # "video/" dir) also gives each day's Kaggle kernel slug its own
+          # name (_gen_flux_images.py derives SLUG from os.path.basename(cwd)),
+          # fixing a real bug: every daily run used to reuse the same
+          # "video-flux" kernel slug and could download the previous day's
+          # stale stills if a status poll landed on the wrong terminal state.
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
           KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          # Used for the in-kernel Claude vision QA pass on each still (catches
-          # hand/anatomy artifacts and duplicate-object glitches that the
-          # OCR/black-frame checks alone can't see).
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python3 _gen_flux_images.py
-
-      # CogVideoX hook-clip animation removed (2026-08-01, user's call): ~50-82
-      # min of Kaggle GPU time per clip is not worth it. Shot 1 now falls back
-      # to _build_composition.py's existing degrade path -- a static Ken Burns
-      # still, same as every other shot -- since images/seq/01.mp4 never gets
-      # created. Google Flow (manual, via the Telegram /day + /publish flow)
-      # is the only animated-hook path now.
-
-      - name: Build composition (shot timing, captions, Ken Burns, shake)
-        working-directory: ${{ env.PROJECT }}
         run: |
-          python3 _build_composition.py
-          test -f index.html || { echo "index.html not produced"; exit 1; }
+          cp ../../_gen_flux_images.py .
+          python3 _gen_flux_images.py
+          cp images/seq/01.jpeg shot1.jpeg
 
-      - name: YouTube metadata
-        working-directory: ${{ env.PROJECT }}
+      - name: Commit day + update state.json
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python3 _gen_youtube_meta.py
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            video/index.html
-            video/images/seq/**
-            video/music/**
-            video/tc_narration.wav
-            video/tc_narration.txt
-            video/transcript.json
-            video/shots.json
-            video/meta.json
-            video/youtube.json
-          retention-days: 7
-          if-no-files-found: error
-
-      - name: Commit reserved case to ledger
+          DAY: ${{ steps.day.outputs.day }}
+          CASE: ${{ steps.pick.outputs.case }}
         run: |
-          git config user.name "shadow-gasp-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add _pipeline/cases_used.json
-          git diff --cached --quiet || git commit -m "reserve case: ${{ steps.pick.outputs.case }}"
-          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
-          git push origin "HEAD:${GITHUB_REF_NAME}" || true
-
-  render:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    steps:
-      - uses: actions/checkout@v4
-      # upload-artifact@v4 strips the common path prefix, so the artifact holds
-      # index.html/images/... at its root, not under video/. Restore the layout
-      # the composition's relative asset paths expect.
-      - uses: actions/download-artifact@v4
-        with: { name: build-output, path: video }
-
-      - name: Free disk
-        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android "$AGENT_TOOLSDIRECTORY" || true
-      - name: Chrome sandbox (Ubuntu 24)
-        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
-      - uses: actions/setup-node@v4
-        with: { node-version: "22" }
-      - name: FFmpeg + fonts
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends -qq ffmpeg fonts-montserrat
-
-      - name: Cache HyperFrames
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/hyperframes
-          key: hyperframes-cache-v1-${{ runner.os }}
-
-      - name: Install chrome-headless-shell
-        run: |
-          out=$(npx --yes @puppeteer/browsers install chrome-headless-shell@131.0.6778.85 --path "$HOME/.cache/hyperframes/puppeteer")
-          p=$(echo "$out" | tail -1 | cut -d' ' -f2-)
-          test -x "$p" || { echo "chrome-headless-shell not executable: $p"; exit 1; }
-          echo "HYPERFRAMES_BROWSER_PATH=$p" >> "$GITHUB_ENV"
-
-      - name: Render (retry — Puppeteer detaches intermittently on this comp)
-        working-directory: video
-        run: |
-          for attempt in 1 2 3; do
-            echo "=== render attempt $attempt ==="
-            npx --yes hyperframes@0.6.80 render \
-              --fps 30 -o final.mp4 \
-              --workers 1 --low-memory-mode \
-              --quality "${{ github.event.inputs.quality || 'high' }}" \
-              --browser-timeout 300 --protocol-timeout 900000 --player-ready-timeout 180000 \
-              && break
-            echo "attempt $attempt failed"
-            [ "$attempt" = "3" ] && exit 1
-            sleep 20
-          done
-          test -f final.mp4
-
-      - name: Verify (duration, live frames, audio present)
-        working-directory: video
-        run: |
-          ffprobe -v error -show_entries format=duration:format=size -of default=nw=1 final.mp4
-          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 final.mp4)
           python3 -c "
-          d = float('$DUR')
-          assert 40 <= d <= 180, f'suspicious duration {d}s'
-          print(f'duration ok: {d:.1f}s')"
-          ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 final.mp4 | grep -q audio || { echo "no audio track"; exit 1; }
-          ffmpeg -y -loglevel error -ss 2 -i final.mp4 -frames:v 1 /tmp/f0.png
-          ffmpeg -y -loglevel error -ss "$(python3 -c "print(float('$DUR')/2)")" -i final.mp4 -frames:v 1 /tmp/f1.png
-          [ "$(md5sum /tmp/f0.png|cut -d' ' -f1)" != "$(md5sum /tmp/f1.png|cut -d' ' -f1)" ] || { echo "identical frames"; exit 1; }
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: final-video
-          path: |
-            video/final.mp4
-            video/youtube.json
-          retention-days: 30
-          if-no-files-found: error
-
-  upload:
-    needs: [build, render]
-    if: ${{ github.event.inputs.upload == 'true' || github.event_name == 'schedule' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - name: Python deps
-        run: pip install --quiet google-api-python-client google-auth-oauthlib requests cloudinary
-      # Artifact root holds final.mp4 + youtube.json (common prefix stripped),
-      # which is exactly where _youtube_upload.py looks for them.
-      - uses: actions/download-artifact@v4
-        with: { name: final-video }
-      - name: Upload to YouTube + stamp ledger
-        env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-          CASE: ${{ needs.build.outputs.case }}
-        run: python3 _pipeline/_youtube_upload.py
-      - name: Cross-post to Facebook + Instagram (best-effort, never fails the YouTube upload)
-        continue-on-error: true
-        env:
-          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-        run: python3 _pipeline/_fb_ig_upload.py
-      - name: Commit videoId to ledger
-        run: |
+          import json, os
+          p = '_pipeline/batch/state.json'
+          state = json.load(open(p))
+          state['days'][os.environ['DAY']] = {'case': os.environ['CASE'], 'angle': '', 'sheet_logged': False, 'done': True}
+          json.dump(state, open(p, 'w'), indent=1)
+          "
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add _pipeline/cases_used.json
-          git diff --cached --quiet || git commit -m "published: ${{ needs.build.outputs.case }}"
-          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git add "$DAY_DIR" _pipeline/batch/state.json _pipeline/cases_used.json
+          git diff --cached --quiet || git commit -m "batch: day $(printf '%02d' "$DAY") auto-picked ($CASE)"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Ask the Telegram bot to request a Google Flow hook video
+        env:
+          DAY: ${{ steps.day.outputs.day }}
+          CASE: ${{ steps.pick.outputs.case }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          body = json.dumps({'day': os.environ['DAY'], 'case': os.environ['CASE']}).encode()
+          req = urllib.request.Request(
+              'https://shadow-gasp-bot.everydayhypehq.workers.dev/short/ready',
+              data=body, method='POST',
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json'},
+          )
+          urllib.request.urlopen(req).read()
+          "
