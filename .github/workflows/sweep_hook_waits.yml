@@ -1,0 +1,29 @@
+name: shadow_gasp sweep hook-video waits
+
+# Every 15 min, asks the Telegram bot's Worker to check whether any
+# /short/ready hook-video request (see pipeline.yml) has passed its 5h
+# deadline with no reply. If so, the Worker itself dispatches
+# finish_batch_day.yml with a static (no Flow, no CogVideoX) fallback,
+# scheduled for the next 05:15 IST slot -- this workflow only pokes it,
+# all the actual logic lives in worker.js's sweepExpiredHookWaits().
+#
+# Runs from this repo (not a Cloudflare Cron Trigger) because the account is
+# already at the Workers Free plan's 5-cron-trigger cap from other pipelines.
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: POST /short/sweep
+        env:
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          curl -sf -X POST "https://shadow-gasp-bot.everydayhypehq.workers.dev/short/sweep" \
+            -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET" \
+            -H "Content-Type: application/json" -d '{}'
