@@ -191,6 +191,12 @@
    "angle": "A cryptic 19-foot granite monument inscribed with rules for surviving apocalypse stood untouched for 42 years \u2014 then in July 2022 someone detonated it hours after a state senator called for its destruction, and the bomber was never found.",
    "sheet_logged": true,
    "done": true
+  },
+  "33": {
+   "case": "The Boston Molasses Flood (January 15, 1919)",
+   "angle": "backfill: republished with a Flow hook video (watermark removed) in place of the original hookless publish",
+   "sheet_logged": false,
+   "done": true
   }
  }
 }
