@@ -80,9 +80,15 @@ jobs:
         # Only runs for a real Telegram-submitted Flow clip (not the CogVideoX
         # fallback, which has no watermark). Every Flow export stamps the same
         # small sparkle logo in the same relative bottom-right position --
-        # measured once on a 1080x1920 export (x=865,y=1665,w=95,h=100) and
-        # scaled here to whatever resolution the user actually sends, so this
-        # works whether they send the raw generation or a 1080p/4K upscale.
+        # measured once on a 1080x1920 export (delogo box x=865,y=1665,
+        # w=90,h=95; grain box x=860,y=1660,w=110,h=115) and scaled here to
+        # whatever resolution the user actually sends, so this works whether
+        # they send the raw generation or a 1080p/4K upscale.
+        # delogo() alone just interpolates flat color in from the box edges,
+        # which reads as an obvious flat/dark smudge against this scene's
+        # grainy dark pavement -- the noise() pass re-adds matching grain
+        # inside a slightly larger box so the patch blends in instead of
+        # standing out.
         # Also fixes a real bug: Flow's own audio track wasn't being stripped
         # before, so it bled into the final narration mix (caught on Sodder
         # Fire). And sets explicit color-range/colorspace tags -- without
@@ -97,10 +103,15 @@ jobs:
           H=$(echo "$DIMS" | cut -d, -f2)
           X=$(python3 -c "print(round($W * 865 / 1080))")
           Y=$(python3 -c "print(round($H * 1665 / 1920))")
-          BW=$(python3 -c "print(round($W * 95 / 1080))")
-          BH=$(python3 -c "print(round($H * 100 / 1920))")
+          BW=$(python3 -c "print(round($W * 90 / 1080))")
+          BH=$(python3 -c "print(round($H * 95 / 1920))")
+          GX=$(python3 -c "print(round($W * 860 / 1080))")
+          GY=$(python3 -c "print(round($H * 1660 / 1920))")
+          GW=$(python3 -c "print(round($W * 110 / 1080))")
+          GH=$(python3 -c "print(round($H * 115 / 1920))")
           ffmpeg -y -i "$IN" \
-            -vf "delogo=x=$X:y=$Y:w=$BW:h=$BH:show=0" \
+            -filter_complex "[0:v]delogo=x=$X:y=$Y:w=$BW:h=$BH:show=0[delogoed];[delogoed]split=2[main][region];[region]crop=$GW:$GH:$GX:$GY,noise=alls=6:allf=t+u[grained];[main][grained]overlay=$GX:$GY[out]" \
+            -map "[out]" \
             -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
             -an -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p \
             "$DAY_DIR/images/seq/01_clean.mp4"
