@@ -24,6 +24,10 @@ on:
       notify_chat_id:
         description: "Telegram chat id to confirm upload to (set by the bot; leave blank when triggered manually)"
         default: ""
+      use_cog_fallback:
+        description: "If no Flow hook video is committed, generate one with CogVideoX (~50 min Kaggle GPU) instead of falling back to a static Ken Burns still"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -53,15 +57,17 @@ jobs:
         run: |
           if [ -f "$DAY_DIR/images/seq/01.mp4" ]; then
             echo "Using the committed Google Flow hook video"
-          else
-            # Fallback only -- Flow (manual, via Telegram) is the default path.
+          elif [ "${{ github.event.inputs.use_cog_fallback }}" = "true" ]; then
+            # Opt-in only -- Flow (manual, via Telegram) is the default path.
             # CogVideoX-5b costs ~50 min of Kaggle GPU time (sequential offload
             # + 20 steps, tuned down from the original ~82 min); only worth it
-            # for the days Flow wasn't used for.
-            echo "No Flow video for day $DAY — falling back to CogVideoX (~50 min)"
+            # when explicitly requested.
+            echo "No Flow video for day $DAY — use_cog_fallback=true, running CogVideoX (~50 min)"
             pip install --quiet "kaggle==2.2.2"
             cp _pipeline/_gen_cog_hook.py "$DAY_DIR/"
             (cd "$DAY_DIR" && python3 _gen_cog_hook.py) || echo "CogVideoX fallback failed — composition will degrade to a static Ken Burns hook still"
+          else
+            echo "No Flow video for day $DAY and use_cog_fallback is not set — composition will degrade to a static Ken Burns hook still"
           fi
           # _batch_pregen.py named it narration.txt; _tts.py/_gen_youtube_meta.py
           # (shared with the main pipeline) expect tc_narration.txt — alias it.
