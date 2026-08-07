@@ -36,7 +36,7 @@ jobs:
               token_uri='https://oauth2.googleapis.com/token',
               client_id=os.environ['YOUTUBE_CLIENT_ID'],
               client_secret=os.environ['YOUTUBE_CLIENT_SECRET'],
-              scopes=['https://www.googleapis.com/auth/youtube'],
+              scopes=['https://www.googleapis.com/auth/youtube.upload'],
           )
           yt = build('youtube', 'v3', credentials=creds)
           vid = os.environ['VIDEO_ID']
