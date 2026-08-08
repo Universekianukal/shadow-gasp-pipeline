@@ -26,6 +26,26 @@ META_PATH = "youtube.json"
 # invoking from a project dir, where _pipeline/ isn't a child of cwd.
 LEDGER_PATH = os.environ.get("CASES_LEDGER", os.path.join("_pipeline", "cases_used.json"))
 THUMBNAIL_CANDIDATES = ["thumbnail.jpg", "thumbnail.png"]
+TITLE_LIMIT = 100  # YouTube's hard cap; one char over is a 400 invalidTitle
+
+
+def clamp_title(title):
+    """Keep the title inside YouTube's 100-character cap.
+
+    _gen_youtube_meta.py asks Claude for a hook-style title and the model
+    occasionally lands a character or two over the cap (day33's molasses title
+    came back at 101), which YouTube rejects outright with a 400
+    "invalid or empty video title" -- a confusing error, since the title is
+    neither invalid-looking nor empty. Trim at a word boundary and drop any
+    trailing punctuation so the result still reads like a written headline
+    rather than a truncated string.
+    """
+    title = title.strip()
+    if len(title) <= TITLE_LIMIT:
+        return title
+    cut = title[:TITLE_LIMIT].rsplit(" ", 1)[0].rstrip(" ,.;:-—")
+    print(f"Title was {len(title)} chars, trimmed to {len(cut)}: {cut}", file=sys.stderr)
+    return cut
 
 
 def get_service():
@@ -75,7 +95,7 @@ def main():
         status["publishAt"] = publish_at
     body = {
         "snippet": {
-            "title": meta["title"],
+            "title": clamp_title(meta["title"]),
             "description": meta["description"],
             "tags": meta.get("tags", []),
             "categoryId": meta.get("categoryId", "22"),  # 22 = People & Blogs
