@@ -44,19 +44,56 @@ jobs:
           CASE: ${{ github.event.inputs.case }}
         run: python3 _pipeline/_pick_case.py # writes CASE to GITHUB_ENV and step output
 
-      - name: Resolve next batch day number
+      - name: Reserve next batch day number
+        # Reserves the day number on the remote (a placeholder state.json
+        # entry) BEFORE any expensive work happens, not after. This used to
+        # be computed once from the initial checkout and only committed at
+        # the very end (15-20 min later, after script + 16 FLUX stills), so
+        # two runs overlapping in that window -- e.g. a manual dispatch
+        # landing close to the scheduled run, or two scheduled runs during a
+        # GitHub Actions cron delay -- could both compute the same "next
+        # day", both burn ~15 min generating content, and then collide in a
+        # git add/add conflict at the finish line, wasting the whole run
+        # (hit in production 2026-08-08: a manual dispatch at 13:28 UTC and
+        # the 13:38 UTC scheduled run both claimed day34). Reserving first
+        # (a single small JSON commit, seconds not minutes) shrinks the
+        # collision window from ~15 min to ~seconds, and retries with a
+        # fresh day number on conflict instead of failing outright.
         id: day
+        env:
+          CASE: ${{ steps.pick.outputs.case }}
         run: |
-          NEXT=$(python3 -c "
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            git reset --hard "origin/${GITHUB_REF_NAME}"
+            NEXT=$(python3 -c "
           import json
           state = json.load(open('_pipeline/batch/state.json'))
           days = [int(k) for k in state['days'].keys()]
           print((max(days) if days else 0) + 1)
           ")
-          DD=$(printf "%02d" "$NEXT")
-          echo "day=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "DAY_DIR=_pipeline/batch/day$DD" >> "$GITHUB_ENV"
-          echo "Assigning this run to batch day $DD"
+            DD=$(printf "%02d" "$NEXT")
+            python3 -c "
+          import json, os
+          p = '_pipeline/batch/state.json'
+          state = json.load(open(p))
+          state['days'][str($NEXT)] = {'case': os.environ['CASE'], 'angle': '', 'sheet_logged': False, 'done': False}
+          json.dump(state, open(p, 'w'), indent=1)
+          "
+            git add _pipeline/batch/state.json
+            git commit -m "batch: reserve day $DD ($CASE)"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "day=$NEXT" >> "$GITHUB_OUTPUT"
+              echo "DAY_DIR=_pipeline/batch/day$DD" >> "$GITHUB_ENV"
+              echo "Reserved day $DD on attempt $attempt"
+              exit 0
+            fi
+            echo "day $DD collided with a concurrent run (attempt $attempt) — retrying with a fresh number"
+          done
+          echo "Could not reserve a batch day after 5 attempts — too much concurrent contention"
+          exit 1
 
       - name: Scaffold day dir
         env:
@@ -102,38 +139,78 @@ jobs:
           python3 _gen_flux_images.py
           cp images/seq/01.jpeg shot1.jpeg
 
-      - name: Commit day + update state.json
+      - name: Commit day content + mark state.json done
+        # The day NUMBER was already claimed and pushed by the reservation
+        # step above, so this step only ever touches its own dayNN/
+        # directory (unique to this run) plus flipping its own state.json
+        # key from done:false to done:true -- a much smaller collision
+        # surface than the old single end-of-run commit, but still retried
+        # (cheap: just re-stages the same already-generated files) in case
+        # another run's commit landed in between.
         env:
           DAY: ${{ steps.day.outputs.day }}
           CASE: ${{ steps.pick.outputs.case }}
         run: |
-          python3 -c "
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            # Always re-derive state.json from the freshest origin content
+            # (not our possibly-stale local copy) before flipping our own
+            # day's done flag, so a concurrent run's own commit in between
+            # attempts is picked up instead of silently overwritten. The
+            # dayNN/ files themselves live untouched in the working tree
+            # regardless of which commit HEAD points to, so re-adding them
+            # after moving HEAD is safe.
+            git fetch origin "${GITHUB_REF_NAME}"
+            git checkout "origin/${GITHUB_REF_NAME}" -- _pipeline/batch/state.json
+            python3 -c "
           import json, os
           p = '_pipeline/batch/state.json'
           state = json.load(open(p))
-          state['days'][os.environ['DAY']] = {'case': os.environ['CASE'], 'angle': '', 'sheet_logged': False, 'done': True}
+          state['days'][os.environ['DAY']]['done'] = True
           json.dump(state, open(p, 'w'), indent=1)
           "
-          git config user.name "shadow-gasp-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add "$DAY_DIR" _pipeline/batch/state.json _pipeline/cases_used.json
-          git diff --cached --quiet || git commit -m "batch: day $(printf '%02d' "$DAY") auto-picked ($CASE)"
-          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+            git reset --mixed "origin/${GITHUB_REF_NAME}"
+            git add "$DAY_DIR" _pipeline/cases_used.json _pipeline/batch/state.json
+            git diff --cached --quiet || git commit -m "batch: day $(printf '%02d' "$DAY") content ($CASE)"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push collided (attempt $attempt) — resyncing and retrying"
+          done
+          echo "Could not commit day $DAY content after 5 attempts — too much concurrent contention"
+          exit 1
 
       - name: Ask the Telegram bot to request a Google Flow hook video
+        # Best-effort, never fails the job: the day's content is already
+        # safely committed by this point (previous step), so a notify
+        # hiccup must not lose that work the way it did in production on
+        # 2026-08-08 (day34 generated fine, committed fine, but this step's
+        # urllib call got a 403 and its uncaught exception failed the whole
+        # job — leaving the day reserved+committed but nobody ever told to
+        # send a hook video for it). continue-on-error plus a few curl
+        # retries (curl, not urllib -- matches the client already proven
+        # reliable against this same Worker endpoint pattern in
+        # sweep_hook_waits.yml) covers both a genuine bug and a transient
+        # edge hiccup; if all retries fail, the day is still fully valid
+        # and recoverable manually via /day $DAY in Telegram.
+        continue-on-error: true
         env:
           DAY: ${{ steps.day.outputs.day }}
           CASE: ${{ steps.pick.outputs.case }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
         run: |
-          python3 -c "
-          import json, os, urllib.request
-          body = json.dumps({'day': os.environ['DAY'], 'case': os.environ['CASE']}).encode()
-          req = urllib.request.Request(
-              'https://shadow-gasp-bot.everydayhypehq.workers.dev/short/ready',
-              data=body, method='POST',
-              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json'},
-          )
-          urllib.request.urlopen(req).read()
-          "
+          BODY=$(python3 -c "import json, os; print(json.dumps({'day': os.environ['DAY'], 'case': os.environ['CASE']}))")
+          for attempt in 1 2 3; do
+            HTTP_CODE=$(curl -s -o /tmp/short_ready_resp.txt -w "%{http_code}" -X POST \
+              "https://shadow-gasp-bot.everydayhypehq.workers.dev/short/ready" \
+              -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET" -H "Content-Type: application/json" \
+              -d "$BODY")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Notified Telegram for day $DAY"
+              exit 0
+            fi
+            echo "attempt $attempt: HTTP $HTTP_CODE — $(cat /tmp/short_ready_resp.txt)"
+            sleep 5
+          done
+          echo "Could not notify Telegram after 3 attempts. Day $DAY's content is safely committed regardless — recover with: /day $DAY in Telegram."
