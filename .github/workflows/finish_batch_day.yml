@@ -94,10 +94,27 @@ jobs:
         # Fire). And sets explicit color-range/colorspace tags -- without
         # them, HyperFrames' render step fails outright with a "deprecated
         # pixel format" swscale error on any re-encoded clip.
+        # Escape hatch: if a `01.PREWASHED` marker file sits next to the clip,
+        # the clip was already cleaned offline (e.g. by the alpha-matte
+        # dewatermark tool, which removes the sparkle properly instead of
+        # patching over it) and is already audio-stripped + color-tagged.
+        # Running delogo again on an already-clean frame just paints a fresh
+        # smudge over clean pixels, so skip it -- but still defensively strip
+        # audio if any snuck through, since a bleeding hook track is the one
+        # failure this step must never let past.
         if: env.FLOW_HOOK == '1'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           IN="$DAY_DIR/images/seq/01.mp4"
+          if [ -f "$DAY_DIR/images/seq/01.PREWASHED" ]; then
+            echo "01.PREWASHED present — hook clip already cleaned offline, skipping delogo"
+            if ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "$IN" | grep -q audio; then
+              echo "prewashed clip still had an audio track — stripping it"
+              ffmpeg -y -i "$IN" -an -c:v copy "$DAY_DIR/images/seq/01_noaudio.mp4"
+              mv "$DAY_DIR/images/seq/01_noaudio.mp4" "$IN"
+            fi
+            exit 0
+          fi
           DIMS=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$IN")
           W=$(echo "$DIMS" | cut -d, -f1)
           H=$(echo "$DIMS" | cut -d, -f2)
