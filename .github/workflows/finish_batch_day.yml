@@ -264,7 +264,12 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           CASE: ${{ needs.render.outputs.case }}
           PUBLISH_AT: ${{ github.event.inputs.publish_at }}
-        run: python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
+        # pipefail matters here: without it the exit status is tee's, so a
+        # failed upload (day33 hit a 400 invalidTitle) reported the whole job
+        # as green while nothing reached YouTube.
+        run: |
+          set -o pipefail
+          python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
 
       - name: Cross-post to Facebook + Instagram (best-effort, never fails the YouTube upload)
         continue-on-error: true
