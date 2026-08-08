@@ -161,6 +161,13 @@ def main():
     shots = list(zip(boundaries[:-1], boundaries[1:]))  # 16 (start, end) tuples
 
     has_hook_video = os.path.exists("images/seq/01.mp4")
+    # #wmPatch is a blurred black ellipse parked over the Flow sparkle's corner
+    # for the length of the hook -- a belt-and-braces cover on top of the
+    # ffmpeg delogo. On a clip that was properly dewatermarked offline (marked
+    # with 01.PREWASHED) there is nothing left to cover, and the patch is the
+    # only thing left making that corner look like a dark smudge. Skip it.
+    hook_prewashed = os.path.exists("images/seq/01.PREWASHED")
+    needs_wm_patch = has_hook_video and not hook_prewashed
     music_path = prep_music(total_dur)
 
     layers = []
@@ -207,7 +214,7 @@ def main():
         cap_lines.append(f'      mk({i},"{text}",{w["start"]:.3f},{w["end"]:.3f});')
 
     fadeout_start = vo_dur + 0.1
-    wm_fade_time = shots[0][1] if has_hook_video else 0.0
+    wm_fade_time = shots[0][1] if needs_wm_patch else 0.0
 
     music_audio = (
         f'      <audio id="mus1" class="clip" data-start="0" data-duration="{total_dur:.3f}" '
@@ -216,9 +223,9 @@ def main():
     )
     wm_block = (
         f'      tl.to("#wmPatch", {{ opacity: 0, duration: 0.4, ease: "power2.out" }}, {wm_fade_time:.3f});'
-        if has_hook_video else ""
+        if needs_wm_patch else ""
     )
-    wm_div = '      <div id="wmPatch"></div>' if has_hook_video else ""
+    wm_div = '      <div id="wmPatch"></div>' if needs_wm_patch else ""
 
     shake_skip_until = shots[0][1] if has_hook_video else 0.0
     shake_lines = build_shake_lines(total_dur, SHAKE_PX, SHAKE_FREQ_X, SHAKE_FREQ_Y, SHAKE_FPS, shake_skip_until)
@@ -238,7 +245,7 @@ def main():
         SHAKE="\n".join(shake_lines),
     )
     open("index.html", "w", encoding="utf-8").write(html)
-    print(f"index.html built: {total_dur:.1f}s, 16 shots, hook_video={has_hook_video}, music={bool(music_path)}, shake={SHAKE_PX}px")
+    print(f"index.html built: {total_dur:.1f}s, 16 shots, hook_video={has_hook_video}, wm_patch={needs_wm_patch}, music={bool(music_path)}, shake={SHAKE_PX}px")
 
 
 if __name__ == "__main__":
