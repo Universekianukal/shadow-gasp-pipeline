@@ -91,6 +91,7 @@ jobs:
           cp "$DAY_DIR/narration.txt" "$DAY_DIR/tc_narration.txt"
 
       - name: No hook video — ask Telegram whether to stop, before burning a render
+        id: hookgate
         # The whole point: a missing hook clip used to degrade to a static Ken
         # Burns still and PUBLISH, so you only found out by watching the video.
         # Now the run pauses here, says why, and defaults to STOP on silence.
@@ -271,7 +272,9 @@ jobs:
       - name: Tell Telegram this job failed, and which step
         # Every failure mode before this reached you as silence: the run went
         # red in a tab nobody opens, and the day simply never appeared.
-        if: failure()
+        # Skipped when the hook gate stopped the run on purpose -- that is a
+        # decision you already made in Telegram, not a crash to report twice.
+        if: failure() && steps.hookgate.conclusion != 'failure'
         continue-on-error: true
         env:
           BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
