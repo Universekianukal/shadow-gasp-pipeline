@@ -90,6 +90,40 @@ jobs:
           # (shared with the main pipeline) expect tc_narration.txt — alias it.
           cp "$DAY_DIR/narration.txt" "$DAY_DIR/tc_narration.txt"
 
+      - name: No hook video — ask Telegram whether to stop, before burning a render
+        # The whole point: a missing hook clip used to degrade to a static Ken
+        # Burns still and PUBLISH, so you only found out by watching the video.
+        # Now the run pauses here, says why, and defaults to STOP on silence.
+        # Gated on notify_chat_id so manual dispatches (no Telegram involved)
+        # keep their old fire-and-forget behaviour.
+        if: env.FLOW_HOOK == '0' && github.event.inputs.notify_chat_id != ''
+        env:
+          BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT: ${{ github.event.inputs.notify_chat_id }}
+          DAY: ${{ github.event.inputs.day }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          REASON="$DAY_DIR/images/seq/01.mp4 is not present at this commit ($GITHUB_SHA)"
+          printf '{"day":"%s","run_id":"%s","run_url":"%s","reason":"%s","chat_id":"%s"}'             "$DAY" "$GITHUB_RUN_ID" "$RUN_URL" "$REASON" "$CHAT" > /tmp/hookmissing.json
+          curl -sS -X POST "$BASE/batch/hookmissing"             -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json"             --data @/tmp/hookmissing.json || echo "could not reach the bot"
+
+          # 90 x 10s = 15 min, then default to STOP. Silence must never mean
+          # "go ahead and publish it hookless".
+          for i in $(seq 1 90); do
+            D=$(curl -sS "$BASE/batch/hookdecision?run_id=$GITHUB_RUN_ID"                   -H "X-Batch-Notify-Secret: $SECRET" | grep -o '"decision":"[a-z]*"' | cut -d'"' -f4)
+            if [ "$D" = "stop" ]; then
+              echo "::error::Stopped from Telegram — day $DAY has no hook video"
+              exit 1
+            elif [ "$D" = "go" ]; then
+              echo "Confirmed from Telegram: continue with a static still"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::No answer from Telegram in 15 min — stopping rather than publishing a hookless video"
+          exit 1
+
       - name: Clean the Flow hook video — remove the Flow sparkle, strip audio, fix color-range metadata
         # Runs the SAME dewatermark tool the user runs locally
         # (_pipeline/dewatermark/, alpha-matte inversion) rather than ffmpeg's
@@ -234,6 +268,26 @@ jobs:
           ffmpeg -y -loglevel error -ss "$(python3 -c "print(float('$DUR')/2)")" -i final.mp4 -frames:v 1 /tmp/f1.png
           [ "$(md5sum /tmp/f0.png|cut -d' ' -f1)" != "$(md5sum /tmp/f1.png|cut -d' ' -f1)" ] || { echo "identical frames"; exit 1; }
 
+      - name: Tell Telegram this job failed, and which step
+        # Every failure mode before this reached you as silence: the run went
+        # red in a tab nobody opens, and the day simply never appeared.
+        if: failure()
+        continue-on-error: true
+        env:
+          BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT: ${{ github.event.inputs.notify_chat_id }}
+          DAY: ${{ github.event.inputs.day }}
+          JOB: render
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Name the step that actually failed, rather than making the user go
+          # and read the log to find out.
+          STEP=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs"                  --jq '.jobs[] | select(.name=="'"$JOB"'") | .steps[] | select(.conclusion=="failure") | .name'                  2>/dev/null | head -1)
+          printf '{"day":"%s","job":"%s","step":"%s","run_url":"%s","chat_id":"%s"}'             "$DAY" "$JOB" "${STEP:-unknown}" "$RUN_URL" "$CHAT" > /tmp/failed.json
+          curl -sS -X POST "$BASE/batch/failed"             -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json"             --data @/tmp/failed.json || true
+
       - uses: actions/upload-artifact@v4
         with:
           name: batch-day-${{ github.event.inputs.day }}-final
@@ -304,6 +358,26 @@ jobs:
           git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Tell Telegram this job failed, and which step
+        # Every failure mode before this reached you as silence: the run went
+        # red in a tab nobody opens, and the day simply never appeared.
+        if: failure()
+        continue-on-error: true
+        env:
+          BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT: ${{ github.event.inputs.notify_chat_id }}
+          DAY: ${{ github.event.inputs.day }}
+          JOB: upload
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Name the step that actually failed, rather than making the user go
+          # and read the log to find out.
+          STEP=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs"                  --jq '.jobs[] | select(.name=="'"$JOB"'") | .steps[] | select(.conclusion=="failure") | .name'                  2>/dev/null | head -1)
+          printf '{"day":"%s","job":"%s","step":"%s","run_url":"%s","chat_id":"%s"}'             "$DAY" "$JOB" "${STEP:-unknown}" "$RUN_URL" "$CHAT" > /tmp/failed.json
+          curl -sS -X POST "$BASE/batch/failed"             -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json"             --data @/tmp/failed.json || true
 
       - name: Notify Telegram (best-effort, never fails the upload)
         if: always()
