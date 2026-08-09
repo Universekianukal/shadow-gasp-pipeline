@@ -39,7 +39,17 @@ jobs:
     outputs:
       case: ${{ steps.pick.outputs.case }}
     steps:
+      # ref: main, NOT the default github.sha. The bot commits the Telegram hook
+      # clip and dispatches this workflow within a few seconds, and GitHub pins
+      # a workflow_dispatch run to the branch tip AS IT RESOLVED IT AT DISPATCH
+      # TIME -- which loses that race. Real case 2026-08-09: hook committed at
+      # 13:18:20Z, dispatched 13:18:24Z, run checked out the PARENT commit, and
+      # the render silently degraded to a static Ken Burns still because
+      # images/seq/01.mp4 "did not exist". Resolving the branch at checkout time
+      # always sees the clip.
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Resolve day dir + case
         id: pick
@@ -76,63 +86,48 @@ jobs:
           # (shared with the main pipeline) expect tc_narration.txt — alias it.
           cp "$DAY_DIR/narration.txt" "$DAY_DIR/tc_narration.txt"
 
-      - name: Clean the Flow hook video — strip audio, remove the Flow sparkle watermark, fix color-range metadata
-        # Only runs for a real Telegram-submitted Flow clip (not the CogVideoX
-        # fallback, which has no watermark). Every Flow export stamps the same
-        # small sparkle logo in the same relative bottom-right position --
-        # measured once on a 1080x1920 export (delogo box x=865,y=1665,
-        # w=90,h=95; grain box x=860,y=1660,w=110,h=115) and scaled here to
-        # whatever resolution the user actually sends, so this works whether
-        # they send the raw generation or a 1080p/4K upscale.
-        # delogo() alone just interpolates flat color in from the box edges,
-        # which reads as an obvious flat/dark smudge against this scene's
-        # grainy dark pavement -- the noise() pass re-adds matching grain
-        # inside a slightly larger box so the patch blends in instead of
-        # standing out.
-        # Also fixes a real bug: Flow's own audio track wasn't being stripped
-        # before, so it bled into the final narration mix (caught on Sodder
-        # Fire). And sets explicit color-range/colorspace tags -- without
-        # them, HyperFrames' render step fails outright with a "deprecated
-        # pixel format" swscale error on any re-encoded clip.
-        # Escape hatch: if a `01.PREWASHED` marker file sits next to the clip,
-        # the clip was already cleaned offline (e.g. by the alpha-matte
-        # dewatermark tool, which removes the sparkle properly instead of
-        # patching over it) and is already audio-stripped + color-tagged.
-        # Running delogo again on an already-clean frame just paints a fresh
-        # smudge over clean pixels, so skip it -- but still defensively strip
-        # audio if any snuck through, since a bleeding hook track is the one
-        # failure this step must never let past.
+      - name: Clean the Flow hook video — remove the Flow sparkle, strip audio, fix color-range metadata
+        # Runs the SAME dewatermark tool the user runs locally
+        # (_pipeline/dewatermark/, alpha-matte inversion) rather than ffmpeg's
+        # delogo. delogo interpolates flat colour in from a box edge, which
+        # reads as an obvious dark smudge; this inverts the alpha compositing
+        # algebraically and recovers the real pixels underneath, calibrating
+        # the alpha per clip against watermark-free control patches. It also
+        # detects first and SKIPS a clip that has no watermark, so an already
+        # cleaned upload is never double-processed.
+        #
+        # After cleaning, a single re-encode strips Flow's own audio (it bled
+        # into the narration mix on Sodder Fire) and sets explicit
+        # color-range/colorspace tags — without them the HyperFrames render
+        # step fails outright with a "deprecated pixel format" swscale error.
+        #
+        # Finally it drops an 01.PREWASHED marker, which tells
+        # _build_composition.py not to paint its #wmPatch black ellipse over
+        # the corner: that cover-up exists only for a watermark this step has
+        # now actually removed.
         if: env.FLOW_HOOK == '1'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python3 -m pip install --quiet opencv-python-headless numpy
           IN="$DAY_DIR/images/seq/01.mp4"
-          if [ -f "$DAY_DIR/images/seq/01.PREWASHED" ]; then
-            echo "01.PREWASHED present — hook clip already cleaned offline, skipping delogo"
-            if ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "$IN" | grep -q audio; then
-              echo "prewashed clip still had an audio track — stripping it"
-              ffmpeg -y -i "$IN" -an -c:v copy "$DAY_DIR/images/seq/01_noaudio.mp4"
-              mv "$DAY_DIR/images/seq/01_noaudio.mp4" "$IN"
+          SEQ="$DAY_DIR/images/seq"
+
+          if [ -f "$SEQ/01.PREWASHED" ]; then
+            echo "01.PREWASHED present — clip was already cleaned before upload"
+          else
+            python3 _pipeline/dewatermark/dewatermark.py "$IN" -o "$SEQ/01_dwm.mp4"
+            if [ -f "$SEQ/01_dwm.mp4" ]; then
+              mv "$SEQ/01_dwm.mp4" "$IN"
+            else
+              # No output means the detector found no watermark and skipped the
+              # file, which is a valid outcome, not a failure.
+              echo "no watermark detected — hook clip left as uploaded"
             fi
-            exit 0
           fi
-          DIMS=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$IN")
-          W=$(echo "$DIMS" | cut -d, -f1)
-          H=$(echo "$DIMS" | cut -d, -f2)
-          X=$(python3 -c "print(round($W * 865 / 1080))")
-          Y=$(python3 -c "print(round($H * 1665 / 1920))")
-          BW=$(python3 -c "print(round($W * 90 / 1080))")
-          BH=$(python3 -c "print(round($H * 95 / 1920))")
-          GX=$(python3 -c "print(round($W * 860 / 1080))")
-          GY=$(python3 -c "print(round($H * 1660 / 1920))")
-          GW=$(python3 -c "print(round($W * 110 / 1080))")
-          GH=$(python3 -c "print(round($H * 115 / 1920))")
-          ffmpeg -y -i "$IN" \
-            -filter_complex "[0:v]delogo=x=$X:y=$Y:w=$BW:h=$BH:show=0[delogoed];[delogoed]split=2[main][region];[region]crop=$GW:$GH:$GX:$GY,noise=alls=6:allf=t+u[grained];[main][grained]overlay=$GX:$GY[out]" \
-            -map "[out]" \
-            -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-            -an -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p \
-            "$DAY_DIR/images/seq/01_clean.mp4"
-          mv "$DAY_DIR/images/seq/01_clean.mp4" "$IN"
+
+          ffmpeg -y -i "$IN" -an             -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709             -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p             "$SEQ/01_norm.mp4"
+          mv "$SEQ/01_norm.mp4" "$IN"
+          touch "$SEQ/01.PREWASHED"
 
       - name: Python deps
         run: pip install --quiet anthropic faster-whisper kokoro-onnx soundfile numpy
