@@ -214,3 +214,23 @@ jobs:
             sleep 5
           done
           echo "Could not notify Telegram after 3 attempts. Day $DAY's content is safely committed regardless — recover with: /day $DAY in Telegram."
+          # Last resort: the /short/ready endpoint is what failed, so try the
+          # failure endpoint instead. Without this the day sits fully generated
+          # with nobody ever told to send it a hook video -- exactly what
+          # happened on 2026-08-08.
+          printf '{"day":"%s","job":"build","step":"Ask the Telegram bot to request a Google Flow hook video","run_url":"%s","chat_id":""}'             "$DAY" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /tmp/f.json
+          curl -sS -X POST "https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/failed"             -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET" -H "Content-Type: application/json"             --data @/tmp/f.json || true
+
+      - name: Tell Telegram the daily build failed, and which step
+        # The 13:38 cron run on 2026-08-08 died on a 403 and reported to nobody;
+        # the first anyone knew was that no video appeared. Never again.
+        if: failure()
+        continue-on-error: true
+        env:
+          DAY: ${{ steps.day.outputs.day }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STEP=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs"                  --jq '.jobs[] | select(.name=="build") | .steps[] | select(.conclusion=="failure") | .name'                  2>/dev/null | head -1)
+          printf '{"day":"%s","job":"build (daily cron)","step":"%s","run_url":"%s","chat_id":""}'             "${DAY:-not yet reserved}" "${STEP:-unknown}"             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /tmp/failed.json
+          curl -sS -X POST "https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/failed"             -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET" -H "Content-Type: application/json"             --data @/tmp/failed.json || true
