@@ -28,6 +28,10 @@ on:
         description: "If no Flow hook video is committed, generate one with CogVideoX (~50 min Kaggle GPU) instead of falling back to a static Ken Burns still"
         type: boolean
         default: false
+      crosspost:
+        description: "Also post to Facebook + Instagram. Turn OFF when republishing a fixed render, or the socials get a duplicate of a post that is already there."
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -267,6 +271,10 @@ jobs:
           python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
 
       - name: Cross-post to Facebook + Instagram (best-effort, never fails the YouTube upload)
+        # Skippable because YouTube can be re-uploaded over a bad render while
+        # Instagram cannot: its Content Publishing API has no delete endpoint,
+        # so every re-run leaves a duplicate the user has to remove by hand.
+        if: ${{ github.event.inputs.crosspost != 'false' }}
         continue-on-error: true
         env:
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
