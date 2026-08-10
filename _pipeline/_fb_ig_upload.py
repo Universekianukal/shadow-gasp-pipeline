@@ -45,13 +45,21 @@ POLL_TIMEOUT_S = 600  # IG container processing can take a few minutes for longe
 
 
 def build_caption(meta):
-    """Title + first paragraph of the description, IG-caption-length shaped.
-    youtube.json's description already ends with 'Subscribe now 👇' — kept
-    as-is rather than re-appending a CTA.
+    """Title + first paragraph of the description + hashtags, IG-caption-length
+    shaped. youtube.json's description already ends with 'Subscribe now 👇' —
+    kept as-is rather than re-appending a CTA.
+
+    youtube.json's "tags" are plain lowercase keywords with no "#" (they're
+    meant for YouTube's separate tags field, per _gen_youtube_meta.py's
+    prompt) — this is the only place they get turned into real hashtags, for
+    Facebook/Instagram where hashtags are part of the caption text itself.
     """
     title = meta["title"]
     first_para = meta["description"].split("\n\n")[0].strip()
+    hashtags = " ".join(f"#{tag.replace(' ', '')}" for tag in meta.get("tags", [])[:8])
     caption = f"{title}\n\n{first_para}"
+    if hashtags:
+        caption += f"\n\n{hashtags}"
     if len(caption) > 2000:
         caption = caption[:1997] + "..."
     return caption
