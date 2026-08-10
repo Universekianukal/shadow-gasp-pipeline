@@ -32,6 +32,10 @@ on:
         description: "Also post to Facebook + Instagram. Turn OFF when republishing a fixed render, or the socials get a duplicate of a post that is already there."
         type: boolean
         default: true
+      youtube_upload:
+        description: "Upload to YouTube. Turn OFF when re-rendering a day that's already live on YouTube (e.g. re-grading for a crosspost-only re-run) so it isn't uploaded twice."
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -331,6 +335,7 @@ jobs:
           name: batch-day-${{ github.event.inputs.day }}-final
       - name: Upload to YouTube + stamp ledger
         id: upload
+        if: ${{ github.event.inputs.youtube_upload != 'false' }}
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
