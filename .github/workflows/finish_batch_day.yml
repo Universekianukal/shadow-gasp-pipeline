@@ -364,7 +364,7 @@ jobs:
           # API can't schedule at all -- see _fb_ig_upload.py's docstring --
           # so IG is skipped and logged when this is set, not faked.
           PUBLISH_AT: ${{ github.event.inputs.publish_at }}
-        run: python3 _pipeline/_fb_ig_upload.py
+        run: python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
 
       - name: Upload to Drive (real playable link for Telegram — Telegram's own 50MB bot-file limit can't take the ~100MB render directly)
         id: drive
@@ -416,15 +416,29 @@ jobs:
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
         run: |
-          VIDEO_ID=$(grep -o 'video_id=.*' /tmp/upload.log | cut -d= -f2)
-          [ -n "$VIDEO_ID" ] || { echo "no video_id found in upload log, skipping notify"; exit 0; }
+          # video_id only exists when youtube_upload wasn't skipped; fb_post_id/
+          # ig_media_id only exist when crosspost ran. A youtube_upload=false
+          # crosspost-only re-run (e.g. re-grading a day already live on
+          # YouTube) has no upload.log at all, so this used to silently exit
+          # here with nothing to report -- the run succeeded but Telegram
+          # never heard about it. Now it notifies as long as ANY of the three
+          # actually happened, and only truly skips if literally nothing did.
+          VIDEO_ID=$(grep -o 'video_id=.*' /tmp/upload.log 2>/dev/null | cut -d= -f2)
+          FB_POST_ID=$(grep -o 'fb_post_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
+          IG_MEDIA_ID=$(grep -o 'ig_media_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
+          if [ -z "$VIDEO_ID" ] && [ -z "$FB_POST_ID" ] && [ -z "$IG_MEDIA_ID" ]; then
+            echo "no video_id, fb_post_id, or ig_media_id found — nothing published this run, skipping notify"
+            exit 0
+          fi
           DRIVE_LINK=$(grep -o 'drive_link=.*' /tmp/drive.log | cut -d= -f2-)
-          VIDEO_ID="$VIDEO_ID" DRIVE_LINK="$DRIVE_LINK" python3 -c "
+          VIDEO_ID="$VIDEO_ID" FB_POST_ID="$FB_POST_ID" IG_MEDIA_ID="$IG_MEDIA_ID" DRIVE_LINK="$DRIVE_LINK" python3 -c "
           import json, os, urllib.request
           body = json.dumps({
               'day': os.environ['DAY'],
               'case': os.environ.get('CASE_NAME', ''),
-              'video_id': os.environ['VIDEO_ID'],
+              'video_id': os.environ.get('VIDEO_ID') or None,
+              'fb_post_id': os.environ.get('FB_POST_ID') or None,
+              'ig_media_id': os.environ.get('IG_MEDIA_ID') or None,
               'drive_link': os.environ.get('DRIVE_LINK') or None,
               'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
           }).encode()
