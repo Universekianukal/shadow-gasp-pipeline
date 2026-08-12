@@ -1,0 +1,45 @@
+name: shadow_gasp ig diagnostic (one-off, manual only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: IG media history + reach/plays
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          GRAPH="https://graph.facebook.com/v19.0"
+          IG_USER_ID="17841425663819735"
+
+          echo "=== IG media list (up to 40) ==="
+          curl -sS "$GRAPH/$IG_USER_ID/media?fields=id,timestamp,caption,media_product_type&limit=40&access_token=$FB_PAGE_ACCESS_TOKEN" > /tmp/ig_media.json
+          python3 -c "
+          import json
+          d = json.load(open('/tmp/ig_media.json'))
+          if 'error' in d:
+              print('ERROR:', d['error'])
+          else:
+              for m in d.get('data', []):
+                  print(m['id'], m.get('timestamp'), m.get('media_product_type'), (m.get('caption') or '')[:50].replace(chr(10),' '))
+          "
+
+          echo ""
+          echo "=== Per-media insights ==="
+          python3 -c "
+          import json
+          d = json.load(open('/tmp/ig_media.json'))
+          for m in d.get('data', []):
+              print(m['id'])
+          " > /tmp/ig_ids.txt
+
+          while read -r MID; do
+            [ -z "$MID" ] && continue
+            R=$(curl -sS "$GRAPH/$MID/insights?metric=reach,plays,likes,comments,shares,saved&access_token=$FB_PAGE_ACCESS_TOKEN")
+            echo "$MID: $R"
+          done < /tmp/ig_ids.txt
