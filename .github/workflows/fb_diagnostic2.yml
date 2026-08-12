@@ -1,0 +1,28 @@
+name: shadow_gasp fb diagnostic 2 (one-off, manual only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Page status (no insights fields this time)
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          PAGE_ID="1164008466785123"
+          GRAPH="https://graph.facebook.com/v19.0"
+          echo "=== Page status ==="
+          curl -sS "$GRAPH/$PAGE_ID?fields=name,is_published,fan_count,followers_count,restriction_info,verification_status,link&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -m json.tool
+
+          echo ""
+          echo "=== Token permissions granted (debug_token, no read_insights needed) ==="
+          curl -sS "$GRAPH/debug_token?input_token=$FB_PAGE_ACCESS_TOKEN&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -m json.tool
+
+          echo ""
+          echo "=== Recent video posts (basic fields, no insights) ==="
+          curl -sS "$GRAPH/$PAGE_ID/videos?fields=id,created_time,description&limit=15&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -m json.tool
