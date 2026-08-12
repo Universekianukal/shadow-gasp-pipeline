@@ -25,6 +25,12 @@ META_PATH = "youtube.json"
 # Repo-root-relative by default (how the workflow runs it); override when
 # invoking from a project dir, where _pipeline/ isn't a child of cwd.
 LEDGER_PATH = os.environ.get("CASES_LEDGER", os.path.join("_pipeline", "cases_used.json"))
+
+# Lives inside the day's own directory (committed to git by the workflow
+# after a successful upload) so a re-render of an already-published day skips
+# re-uploading by default instead of silently creating a second video. Set
+# FORCE_YOUTUBE_UPLOAD=true to override on purpose.
+YOUTUBE_MARKER_PATH = os.path.join(os.environ.get("DAY_DIR", "."), "YOUTUBE_UPLOADED")
 THUMBNAIL_CANDIDATES = ["thumbnail.jpg", "thumbnail.png"]
 TITLE_LIMIT = 100  # YouTube's hard cap; one char over is a 400 invalidTitle
 
@@ -77,6 +83,12 @@ def stamp_ledger(video_id, case):
 
 
 def main():
+    force = os.environ.get("FORCE_YOUTUBE_UPLOAD", "").strip().lower() == "true"
+    if os.path.exists(YOUTUBE_MARKER_PATH) and not force:
+        print(f"{YOUTUBE_MARKER_PATH} present -- already uploaded to YouTube for this day, "
+              f"skipping to avoid a duplicate video (set FORCE_YOUTUBE_UPLOAD=true to force a re-upload)")
+        return
+
     if not os.path.isfile(VIDEO_PATH):
         print(f"{VIDEO_PATH} not found", file=sys.stderr)
         sys.exit(1)
@@ -119,6 +131,9 @@ def main():
     # so a Telegram notify (which greps this line out of the job log) still
     # fires even if thumbnail-setting or ledger-stamping blows up.
     print(f"video_id={video_id}")
+
+    os.makedirs(os.path.dirname(YOUTUBE_MARKER_PATH) or ".", exist_ok=True)
+    open(YOUTUBE_MARKER_PATH, "w").close()
 
     thumb = next((p for p in THUMBNAIL_CANDIDATES if os.path.isfile(p)), None)
     if thumb:
