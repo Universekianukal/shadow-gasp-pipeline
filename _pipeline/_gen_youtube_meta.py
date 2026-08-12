@@ -58,7 +58,15 @@ def main():
         "description": meta["description"],
         "tags": meta["tags"],
         "categoryId": "22",
-        "privacyStatus": "private",
+        # Public by default -- _youtube_upload.py overrides this to "private"
+        # itself when PUBLISH_AT is set, which is the only case a video should
+        # ever land private (YouTube requires private+publishAt for a real
+        # scheduled release, then flips it public automatically). Hardcoding
+        # "private" here with no PUBLISH_AT path ever flipping it back used to
+        # strand every "immediate" upload private forever (the pipeline token
+        # is upload-only, so it can't even call videos.update to fix it after
+        # the fact) -- confirmed on day34/day35/day37.
+        "privacyStatus": "public",
     }
     json.dump(out, open("youtube.json", "w"), indent=2)
     print(f"Generated youtube.json: {out['title']}")
