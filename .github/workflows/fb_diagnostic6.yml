@@ -1,0 +1,25 @@
+name: shadow_gasp fb diagnostic 6 (one-off, manual only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reach + plays, raw output this time
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          GRAPH="https://graph.facebook.com/v19.0"
+          VIDS="2870489533304427:2026-07-21 1049328227963953:2026-08-01 4206765519614434:2026-08-10 1792597111900430:2026-08-11 1732192041382038:2026-08-12"
+          for pair in $VIDS; do
+            VID="${pair%%:*}"
+            DATE="${pair##*:}"
+            echo "--- $DATE $VID ---"
+            curl -sS "$GRAPH/$VID/video_insights?metric=post_impressions_unique,blue_reels_play_count,fb_reels_total_plays,post_video_followers&access_token=$FB_PAGE_ACCESS_TOKEN"
+            echo ""
+          done
