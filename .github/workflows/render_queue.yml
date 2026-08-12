@@ -1,0 +1,65 @@
+name: shadow_gasp render queue (04:30 IST)
+
+# A Telegram hook-video reply no longer dispatches a render immediately -- it
+# just queues the day (queue.json, status pending_render) so every day's
+# actual render always starts at this same fixed time, leaving buffer before
+# publish_queue.yml fires everything live at 05:15 IST. See worker.js's
+# video-reply handler for the queuing side.
+
+on:
+  schedule:
+    - cron: '0 23 * * *'   # 23:00 UTC = 04:30 IST
+  workflow_dispatch: {}     # manual test trigger
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+
+      - name: Dispatch render_batch_day.yml for every day still pending_render
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          for i in 1 2 3; do
+            git fetch origin main -q
+            git reset --hard origin/main -q
+            python3 - <<'PYEOF'
+          import json
+
+          path = "_pipeline/batch/queue.json"
+          try:
+              q = json.load(open(path))
+          except FileNotFoundError:
+              q = {}
+          pending = [d for d, v in q.items() if v.get("status") == "pending_render"]
+          with open("/tmp/pending_render_days.txt", "w") as f:
+              for day in pending:
+                  f.write(f"{day}\t{q[day].get('notify_chat_id', '')}\n")
+                  q[day]["status"] = "rendering"
+          json.dump(q, open(path, "w"), indent=2)
+          PYEOF
+            if [ ! -s /tmp/pending_render_days.txt ]; then
+              echo "nothing pending_render"
+              break
+            fi
+            git add _pipeline/batch/queue.json
+            git commit -q -m "queue: dispatch pending renders (04:30 IST sweep)"
+            if git push origin HEAD:main; then break; fi
+            echo "push conflict, retry $i"
+            sleep $((RANDOM % 8 + 3))
+          done
+
+          if [ -s /tmp/pending_render_days.txt ]; then
+            while IFS=$'\t' read -r day chat; do
+              echo "Dispatching render for day $day (notify_chat_id=$chat)"
+              gh workflow run render_batch_day.yml -f "day=$day" -f "notify_chat_id=$chat"
+            done < /tmp/pending_render_days.txt
+          fi
