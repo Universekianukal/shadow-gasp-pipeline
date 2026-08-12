@@ -1,0 +1,48 @@
+name: shadow_gasp fb diagnostic 3 (one-off, manual only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Per-video view counts, most recent 20
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          PAGE_ID="1164008466785123"
+          GRAPH="https://graph.facebook.com/v19.0"
+
+          echo "=== Recent video IDs ==="
+          IDS=$(curl -sS "$GRAPH/$PAGE_ID/videos?fields=id,created_time&limit=20&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for v in data.get('data', []):
+              print(v['id'], v['created_time'])
+          ")
+          echo "$IDS"
+
+          echo ""
+          echo "=== Per-video views (total_video_views) ==="
+          echo "$IDS" | while read -r VID CREATED; do
+            [ -z "$VID" ] && continue
+            RESULT=$(curl -sS "$GRAPH/$VID/video_insights?metric=total_video_views,total_video_impressions&access_token=$FB_PAGE_ACCESS_TOKEN")
+            VIEWS=$(echo "$RESULT" | python3 -c "
+          import json, sys
+          try:
+              d = json.load(sys.stdin)
+              vals = {m['name']: m['values'][0]['value'] for m in d.get('data', [])}
+              print(f\"views={vals.get('total_video_views','?')} impressions={vals.get('total_video_impressions','?')}\")
+          except Exception as e:
+              print('parse_error:', e, json.dumps(d)[:200] if 'd' in dir() else '')
+          " 2>&1)
+            echo "$CREATED  $VID  $VIEWS"
+          done
+
+          echo ""
+          echo "=== Page fan/follower count now ==="
+          curl -sS "$GRAPH/$PAGE_ID?fields=name,fan_count,followers_count&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -m json.tool
