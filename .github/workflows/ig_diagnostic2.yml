@@ -1,0 +1,40 @@
+name: shadow_gasp ig diagnostic 2 (one-off, manual only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: IG per-media insights (correct metric names)
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          GRAPH="https://graph.facebook.com/v19.0"
+          IG_USER_ID="17841425663819735"
+          curl -sS "$GRAPH/$IG_USER_ID/media?fields=id,timestamp&limit=40&access_token=$FB_PAGE_ACCESS_TOKEN" > /tmp/ig_media.json
+          python3 -c "
+          import json
+          d = json.load(open('/tmp/ig_media.json'))
+          for m in d.get('data', []):
+              print(m['id'], m.get('timestamp'))
+          " > /tmp/ig_ids.txt
+
+          while read -r MID TS; do
+            [ -z "$MID" ] && continue
+            R=$(curl -sS "$GRAPH/$MID/insights?metric=reach,views,likes,comments,shares,saved&access_token=$FB_PAGE_ACCESS_TOKEN")
+            SUMMARY=$(echo "$R" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          if 'error' in d:
+              print('ERROR:', d['error']['message'][:80])
+          else:
+              vals={m['name']:m['values'][0]['value'] for m in d.get('data',[])}
+              print('reach='+str(vals.get('reach','?')), 'views='+str(vals.get('views','?')), 'likes='+str(vals.get('likes','?')))
+          ")
+            echo "$TS  $MID  $SUMMARY"
+          done < /tmp/ig_ids.txt
