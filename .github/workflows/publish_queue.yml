@@ -1,0 +1,66 @@
+name: shadow_gasp publish queue (05:15 IST)
+
+# Fires everything render_batch_day.yml finished (status pending_publish in
+# queue.json) live across YouTube + Facebook + Instagram at the same fixed
+# time every day. This is the moment that actually decides "publish now" --
+# see publish_batch_day.yml's header for why Instagram in particular needs
+# the call itself delayed rather than just passing a future timestamp.
+
+on:
+  schedule:
+    - cron: '45 23 * * *'   # 23:45 UTC = 05:15 IST
+  workflow_dispatch: {}      # manual test trigger
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+
+      - name: Dispatch publish_batch_day.yml for every day pending_publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          for i in 1 2 3; do
+            git fetch origin main -q
+            git reset --hard origin/main -q
+            python3 - <<'PYEOF'
+          import json
+
+          path = "_pipeline/batch/queue.json"
+          try:
+              q = json.load(open(path))
+          except FileNotFoundError:
+              q = {}
+          pending = [d for d, v in q.items() if v.get("status") == "pending_publish"]
+          with open("/tmp/pending_publish_days.txt", "w") as f:
+              for day in pending:
+                  entry = q[day]
+                  f.write(f"{day}\t{entry.get('render_run_id', '')}\t{entry.get('notify_chat_id', '')}\n")
+                  entry["status"] = "publishing"
+          json.dump(q, open(path, "w"), indent=2)
+          PYEOF
+            if [ ! -s /tmp/pending_publish_days.txt ]; then
+              echo "nothing pending_publish"
+              break
+            fi
+            git add _pipeline/batch/queue.json
+            git commit -q -m "queue: dispatch pending publishes (05:15 IST sweep)"
+            if git push origin HEAD:main; then break; fi
+            echo "push conflict, retry $i"
+            sleep $((RANDOM % 8 + 3))
+          done
+
+          if [ -s /tmp/pending_publish_days.txt ]; then
+            while IFS=$'\t' read -r day run_id chat; do
+              echo "Dispatching publish for day $day (render_run_id=$run_id, notify_chat_id=$chat)"
+              gh workflow run publish_batch_day.yml -f "day=$day" -f "render_run_id=$run_id" -f "notify_chat_id=$chat"
+            done < /tmp/pending_publish_days.txt
+          fi
