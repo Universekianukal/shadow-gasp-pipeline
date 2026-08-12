@@ -1,0 +1,37 @@
+name: shadow_gasp fb diagnostic 7 (one-off, manual only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reach + plays across the timeline (no metric filter, parse client-side)
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          GRAPH="https://graph.facebook.com/v19.0"
+          VIDS="2870489533304427:2026-07-21 1030352596377542:2026-07-22 1503925015019612:2026-07-25 2004436930239565:2026-07-27 1049328227963953:2026-08-01 2432687737257037:2026-08-06 840722295675677:2026-08-07 1051013957405333:2026-08-09 4206765519614434:2026-08-10 1792597111900430:2026-08-11 1732192041382038:2026-08-12"
+          for pair in $VIDS; do
+            VID="${pair%%:*}"
+            DATE="${pair##*:}"
+            curl -sS "$GRAPH/$VID/video_insights?access_token=$FB_PAGE_ACCESS_TOKEN" > /tmp/vi.json
+            python3 -c "
+          import json
+          d = json.load(open('/tmp/vi.json'))
+          vals = {}
+          for m in d.get('data', []):
+              v = m['values'][0]['value']
+              if isinstance(v, (int, float, str)):
+                  vals[m['name']] = v
+          print('$DATE', '$VID',
+                'reach=' + str(vals.get('post_impressions_unique', '?')),
+                'plays=' + str(vals.get('blue_reels_play_count', '?')),
+                'total_plays=' + str(vals.get('fb_reels_total_plays', '?')),
+                'avg_watch_ms=' + str(vals.get('post_video_avg_time_watched', '?')))
+          "
+          done
