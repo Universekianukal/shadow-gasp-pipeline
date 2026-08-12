@@ -1,0 +1,32 @@
+name: shadow_gasp fb diagnostic (one-off, manual only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Page status + restriction info + recent video reach
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          PAGE_ID="1164008466785123"
+          GRAPH="https://graph.facebook.com/v19.0"
+
+          echo "=== Page status ==="
+          curl -sS "$GRAPH/$PAGE_ID?fields=name,is_published,is_unpublished,fan_count,followers_count,restriction_info,verification_status&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -m json.tool
+
+          echo ""
+          echo "=== Page-level insights, last 28 days (daily) ==="
+          for METRIC in page_impressions page_impressions_unique page_video_views page_video_views_unique page_fans; do
+            echo "--- $METRIC ---"
+            curl -sS "$GRAPH/$PAGE_ID/insights?metric=$METRIC&period=day&date_preset=last_28d&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -m json.tool 2>/dev/null || echo "(metric unavailable/deprecated)"
+          done
+
+          echo ""
+          echo "=== Last 15 video posts: created_time + total views ==="
+          curl -sS "$GRAPH/$PAGE_ID/videos?fields=id,created_time,description,video_insights.metric(total_video_views)&limit=15&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -m json.tool
