@@ -40,6 +40,19 @@ GRAPH = "https://graph.facebook.com/v19.0"
 VIDEO_PATH = "final.mp4"
 META_PATH = "youtube.json"
 
+# Live inside the day's own directory (committed to git after a successful
+# post) so a re-render of an already-published day skips re-crossposting by
+# default instead of silently duplicating the post -- this is what actually
+# happened on day07 (Max Headroom) on 2026-08-10: a re-render for a
+# color-grade fix re-posted to Facebook a second time within 2 hours, and the
+# duplicate-content signal tanked reach on the page for days afterward. Set
+# FORCE_CROSSPOST=true to override on purpose. Separate FB/IG markers so a
+# partial failure (e.g. IG times out after FB succeeds) only needs to retry
+# the platform that actually failed.
+DAY_DIR = os.environ.get("DAY_DIR", ".")
+FB_MARKER_PATH = os.path.join(DAY_DIR, "FB_POSTED")
+IG_MARKER_PATH = os.path.join(DAY_DIR, "IG_POSTED")
+
 POLL_INTERVAL_S = 10
 POLL_TIMEOUT_S = 600  # IG container processing can take a few minutes for longer videos
 
@@ -178,18 +191,32 @@ def main():
     if publish_at:
         publish_at_epoch = int(datetime.fromisoformat(publish_at.replace("Z", "+00:00")).timestamp())
 
+    force = os.environ.get("FORCE_CROSSPOST", "").strip().lower() == "true"
+    os.makedirs(DAY_DIR, exist_ok=True)
+
     # Facebook first: it's a direct upload with no external staging, so it
     # can't fail because of anything Cloudinary-related.
-    post_to_facebook(token, caption, publish_at_epoch)
+    if os.path.exists(FB_MARKER_PATH) and not force:
+        print(f"{FB_MARKER_PATH} present -- already posted to Facebook for this day, "
+              f"skipping to avoid a duplicate post (set FORCE_CROSSPOST=true to force a repost)")
+    else:
+        post_to_facebook(token, caption, publish_at_epoch)
+        open(FB_MARKER_PATH, "w").close()
 
     if publish_at_epoch:
         print(f"Instagram skipped: PUBLISH_AT is set but Instagram's API has no scheduling support. "
               f"Post it by hand at {publish_at} instead.")
         return
 
+    if os.path.exists(IG_MARKER_PATH) and not force:
+        print(f"{IG_MARKER_PATH} present -- already posted to Instagram for this day, "
+              f"skipping to avoid a duplicate post (set FORCE_CROSSPOST=true to force a repost)")
+        return
+
     public_id, video_url = upload_to_cloudinary()
     try:
         post_to_instagram(token, caption, video_url)
+        open(IG_MARKER_PATH, "w").close()
     finally:
         delete_from_cloudinary(public_id)
 
