@@ -33,6 +33,14 @@ on:
         description: "Upload to YouTube"
         type: boolean
         default: true
+      force_crosspost:
+        description: "Re-post to Facebook/Instagram even if this day already has one (normally skipped automatically to prevent duplicates)"
+        type: boolean
+        default: false
+      force_youtube_upload:
+        description: "Re-upload to YouTube even if this day already has a video (normally skipped automatically to prevent duplicates)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -45,10 +53,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Resolve case name
+      - name: Resolve case name + day dir
         id: pick
         run: |
           DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
           CASE=$(python3 -c "import json; print(json.load(open('_pipeline/batch/day$DAY/pick.json'))['case'])")
           echo "case=$CASE" >> "$GITHUB_OUTPUT"
 
@@ -69,6 +78,8 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           CASE: ${{ steps.pick.outputs.case }}
+          DAY_DIR: ${{ env.DAY_DIR }}
+          FORCE_YOUTUBE_UPLOAD: ${{ github.event.inputs.force_youtube_upload }}
         run: |
           set -o pipefail
           python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
@@ -81,6 +92,8 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          DAY_DIR: ${{ env.DAY_DIR }}
+          FORCE_CROSSPOST: ${{ github.event.inputs.force_crosspost }}
         run: python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
 
       - name: Upload to Drive (real playable link for Telegram)
@@ -92,16 +105,13 @@ jobs:
           DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
         run: python3 _pipeline/_drive_upload.py "shadow_gasp_day${{ github.event.inputs.day }}.mp4" | tee /tmp/drive.log
 
-      - name: Commit videoId to ledger + mark day published in the queue
+      - name: Commit videoId + publish markers to ledger, mark day published in the queue
         env:
           DAY: ${{ github.event.inputs.day }}
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
-          for i in 1 2 3; do
-            git fetch origin main -q
-            git reset --hard origin/main -q
-            python3 - <<PYEOF
+          python3 - <<PYEOF
           import json, os
           path = "_pipeline/batch/queue.json"
           try:
@@ -112,9 +122,14 @@ jobs:
           q.setdefault(day, {})["status"] = "published"
           json.dump(q, open(path, "w"), indent=2)
           PYEOF
-            git add _pipeline/batch/queue.json
-            git diff --cached --quiet || git commit -q -m "published: ${{ steps.pick.outputs.case }}"
-            if git push origin HEAD:main; then break; fi
+          git add _pipeline/batch/queue.json _pipeline/cases_used.json "$DAY_DIR/FB_POSTED" "$DAY_DIR/IG_POSTED" "$DAY_DIR/YOUTUBE_UPLOADED" 2>/dev/null
+          git diff --cached --quiet || git commit -q -m "published: ${{ steps.pick.outputs.case }}"
+          # Commit first, THEN rebase-pull: this merges our commit on top of
+          # anything that landed on origin/main since checkout (e.g. another
+          # day's publish finishing first) instead of a reset-hard, which
+          # would silently discard whichever of the two commits it clobbers.
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main -q && git push origin HEAD:main && break
             echo "push conflict, retry $i"
             sleep $((RANDOM % 8 + 3))
           done
