@@ -1,0 +1,177 @@
+name: shadow_gasp publish batch day (queue worker)
+
+# Publish-only half of the 04:30/05:15 IST scheduled-publish split. Dispatched
+# by publish_queue.yml's 05:15 IST sweep for a day render_batch_day.yml
+# already finished and marked pending_publish in queue.json. Pulls the
+# rendered final.mp4 back out of that earlier run's artifact (download-artifact
+# supports a cross-run download via run-id + a token) instead of re-rendering.
+#
+# No publish_at input on purpose: this workflow IS the schedule -- it only
+# ever runs at 05:15 IST, so every platform call inside it is a plain
+# immediate publish. (Facebook natively supports a later scheduled_publish_time
+# and YouTube supports publishAt, but Instagram's Graph API has no scheduling
+# at all -- see _fb_ig_upload.py's docstring -- so "call it exactly when it
+# should go live" is the only way to get IG in sync with the other two.)
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 37)"
+        required: true
+      render_run_id:
+        description: "run id of the render_batch_day.yml run that produced the artifact"
+        required: true
+      notify_chat_id:
+        description: "Telegram chat id to notify (blank for manual runs)"
+        default: ""
+      crosspost:
+        description: "Also post to Facebook + Instagram"
+        type: boolean
+        default: true
+      youtube_upload:
+        description: "Upload to YouTube"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve case name
+        id: pick
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          CASE=$(python3 -c "import json; print(json.load(open('_pipeline/batch/day$DAY/pick.json'))['case'])")
+          echo "case=$CASE" >> "$GITHUB_OUTPUT"
+
+      - name: Python deps
+        run: pip install --quiet google-api-python-client google-auth-oauthlib requests cloudinary
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: batch-day-${{ github.event.inputs.day }}-final
+          run-id: ${{ github.event.inputs.render_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to YouTube + stamp ledger
+        id: upload
+        if: ${{ github.event.inputs.youtube_upload != 'false' }}
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          CASE: ${{ steps.pick.outputs.case }}
+        run: |
+          set -o pipefail
+          python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
+
+      - name: Cross-post to Facebook + Instagram (best-effort, never fails the YouTube upload)
+        if: ${{ github.event.inputs.crosspost != 'false' }}
+        continue-on-error: true
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
+
+      - name: Upload to Drive (real playable link for Telegram)
+        id: drive
+        continue-on-error: true
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+        run: python3 _pipeline/_drive_upload.py "shadow_gasp_day${{ github.event.inputs.day }}.mp4" | tee /tmp/drive.log
+
+      - name: Commit videoId to ledger + mark day published in the queue
+        env:
+          DAY: ${{ github.event.inputs.day }}
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          for i in 1 2 3; do
+            git fetch origin main -q
+            git reset --hard origin/main -q
+            python3 - <<PYEOF
+          import json, os
+          path = "_pipeline/batch/queue.json"
+          try:
+              q = json.load(open(path))
+          except FileNotFoundError:
+              q = {}
+          day = os.environ["DAY"]
+          q.setdefault(day, {})["status"] = "published"
+          json.dump(q, open(path, "w"), indent=2)
+          PYEOF
+            git add _pipeline/batch/queue.json
+            git diff --cached --quiet || git commit -q -m "published: ${{ steps.pick.outputs.case }}"
+            if git push origin HEAD:main; then break; fi
+            echo "push conflict, retry $i"
+            sleep $((RANDOM % 8 + 3))
+          done
+
+      - name: Tell Telegram this job failed, and which step
+        if: failure()
+        continue-on-error: true
+        env:
+          BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT: ${{ github.event.inputs.notify_chat_id }}
+          DAY: ${{ github.event.inputs.day }}
+          JOB: publish
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          STEP=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+                 --jq '.jobs[] | select(.name=="publish") | .steps[] | select(.conclusion=="failure") | .name' \
+                 2>/dev/null | head -1)
+          printf '{"day":"%s","job":"%s","step":"%s","run_url":"%s","chat_id":"%s"}' \
+            "$DAY" "$JOB" "${STEP:-unknown}" "$RUN_URL" "$CHAT" > /tmp/failed.json
+          curl -sS -X POST "$BASE/batch/failed" \
+            -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json" \
+            --data @/tmp/failed.json || true
+
+      - name: Notify Telegram (best-effort, never fails the upload)
+        if: always()
+        continue-on-error: true
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          CASE_NAME: ${{ steps.pick.outputs.case }}
+          NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          VIDEO_ID=$(grep -o 'video_id=.*' /tmp/upload.log 2>/dev/null | cut -d= -f2)
+          FB_POST_ID=$(grep -o 'fb_post_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
+          IG_MEDIA_ID=$(grep -o 'ig_media_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
+          if [ -z "$VIDEO_ID" ] && [ -z "$FB_POST_ID" ] && [ -z "$IG_MEDIA_ID" ]; then
+            echo "no video_id, fb_post_id, or ig_media_id found — nothing published this run, skipping notify"
+            exit 0
+          fi
+          DRIVE_LINK=$(grep -o 'drive_link=.*' /tmp/drive.log | cut -d= -f2-)
+          VIDEO_ID="$VIDEO_ID" FB_POST_ID="$FB_POST_ID" IG_MEDIA_ID="$IG_MEDIA_ID" DRIVE_LINK="$DRIVE_LINK" python3 -c "
+          import json, os, urllib.request
+          body = json.dumps({
+              'day': os.environ['DAY'],
+              'case': os.environ.get('CASE_NAME', ''),
+              'video_id': os.environ.get('VIDEO_ID') or None,
+              'fb_post_id': os.environ.get('FB_POST_ID') or None,
+              'ig_media_id': os.environ.get('IG_MEDIA_ID') or None,
+              'drive_link': os.environ.get('DRIVE_LINK') or None,
+              'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
+          }).encode()
+          req = urllib.request.Request(
+              'https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/uploaded',
+              data=body, method='POST',
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json'},
+          )
+          urllib.request.urlopen(req).read()
+          "
