@@ -1,0 +1,19 @@
+name: shadow_gasp ig diagnostic 3 (one-off, manual only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: IG account profile (followers, following, media count)
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          GRAPH="https://graph.facebook.com/v19.0"
+          IG_USER_ID="17841425663819735"
+          curl -sS "$GRAPH/$IG_USER_ID?fields=username,name,followers_count,follows_count,media_count,biography&access_token=$FB_PAGE_ACCESS_TOKEN" | python3 -m json.tool
