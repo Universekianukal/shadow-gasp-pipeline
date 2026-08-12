@@ -1,0 +1,301 @@
+name: shadow_gasp render batch day (queue worker)
+
+# Render-only half of the 04:30/05:15 IST scheduled-publish split. Dispatched
+# by render_queue.yml's 04:30 IST sweep (or manually) for a single day. This
+# is intentionally a near-duplicate of finish_batch_day.yml's "render" job
+# rather than a refactor of that file -- finish_batch_day.yml is still used
+# as-is for /publish <N> and /publish <N> at <HH:MM>, and is fragile enough
+# (checkout race, hookgate, wmPatch, tee-pipefail history -- see its own
+# comments) that splitting it in place risked breaking those paths too. Keep
+# the render steps here in sync with finish_batch_day.yml's render job if
+# that one changes.
+#
+# On success this commits the day into queue.json as pending_publish with
+# this run's id, which publish_batch_day.yml (dispatched by publish_queue.yml
+# at 05:15 IST) reads to pull the render artifact back out.
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 37)"
+        required: true
+      notify_chat_id:
+        description: "Telegram chat id to notify on failure (blank for manual runs)"
+        default: ""
+      use_cog_fallback:
+        description: "If no Flow hook video is committed, generate one with CogVideoX instead of falling back to a static Ken Burns still"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    outputs:
+      case: ${{ steps.pick.outputs.case }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve day dir + case
+        id: pick
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
+          CASE=$(python3 -c "import json; print(json.load(open('_pipeline/batch/day$DAY/pick.json'))['case'])")
+          echo "case=$CASE" >> "$GITHUB_OUTPUT"
+          echo "Rendering day $DAY: $CASE"
+
+      - name: Hook video — use the committed Google Flow clip, or fall back to CogVideoX
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
+          KAGGLE_VIDEO_USERNAME: ${{ secrets.KAGGLE_VIDEO_USERNAME }}
+        run: |
+          if [ -f "$DAY_DIR/images/seq/01.mp4" ]; then
+            echo "Using the committed Google Flow hook video"
+            echo "FLOW_HOOK=1" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.inputs.use_cog_fallback }}" = "true" ]; then
+            echo "No Flow video for day $DAY — use_cog_fallback=true, running CogVideoX (~50 min)"
+            pip install --quiet "kaggle==2.2.2"
+            cp _pipeline/_gen_cog_hook.py "$DAY_DIR/"
+            (cd "$DAY_DIR" && python3 _gen_cog_hook.py) || echo "CogVideoX fallback failed — composition will degrade to a static Ken Burns hook still"
+            echo "FLOW_HOOK=0" >> "$GITHUB_ENV"
+          else
+            echo "No Flow video for day $DAY and use_cog_fallback is not set — composition will degrade to a static Ken Burns hook still"
+            echo "FLOW_HOOK=0" >> "$GITHUB_ENV"
+          fi
+          cp "$DAY_DIR/narration.txt" "$DAY_DIR/tc_narration.txt"
+
+      - name: No hook video — ask Telegram whether to stop, before burning a render
+        id: hookgate
+        if: env.FLOW_HOOK == '0' && github.event.inputs.notify_chat_id != ''
+        env:
+          BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT: ${{ github.event.inputs.notify_chat_id }}
+          DAY: ${{ github.event.inputs.day }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          REASON="$DAY_DIR/images/seq/01.mp4 is not present at this commit ($GITHUB_SHA)"
+          printf '{"day":"%s","run_id":"%s","run_url":"%s","reason":"%s","chat_id":"%s"}' \
+            "$DAY" "$GITHUB_RUN_ID" "$RUN_URL" "$REASON" "$CHAT" > /tmp/hookmissing.json
+          curl -sS -X POST "$BASE/batch/hookmissing" \
+            -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json" \
+            --data @/tmp/hookmissing.json || echo "could not reach the bot"
+
+          for i in $(seq 1 90); do
+            D=$(curl -sS "$BASE/batch/hookdecision?run_id=$GITHUB_RUN_ID" \
+                  -H "X-Batch-Notify-Secret: $SECRET" | grep -o '"decision":"[a-z]*"' | cut -d'"' -f4)
+            if [ "$D" = "stop" ]; then
+              echo "::error::Stopped from Telegram — day $DAY has no hook video"
+              exit 1
+            elif [ "$D" = "go" ]; then
+              echo "Confirmed from Telegram: continue with a static still"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::No answer from Telegram in 15 min — stopping rather than publishing a hookless video"
+          exit 1
+
+      - name: Clean the Flow hook video — remove the Flow sparkle, strip audio, fix color-range metadata
+        if: env.FLOW_HOOK == '1'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python3 -m pip install --quiet opencv-python-headless numpy
+          IN="$DAY_DIR/images/seq/01.mp4"
+          SEQ="$DAY_DIR/images/seq"
+
+          if [ -f "$SEQ/01.PREWASHED" ]; then
+            echo "01.PREWASHED present — clip was already cleaned before upload"
+          else
+            python3 _pipeline/dewatermark/dewatermark.py "$IN" -o "$SEQ/01_dwm.mp4"
+            if [ -f "$SEQ/01_dwm.mp4" ]; then
+              mv "$SEQ/01_dwm.mp4" "$IN"
+            else
+              echo "no watermark detected — hook clip left as uploaded"
+            fi
+          fi
+
+          ffmpeg -y -i "$IN" -an \
+            -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+            -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p \
+            "$SEQ/01_norm.mp4"
+          mv "$SEQ/01_norm.mp4" "$IN"
+          touch "$SEQ/01.PREWASHED"
+
+      - name: Python deps
+        run: pip install --quiet anthropic faster-whisper kokoro-onnx soundfile numpy
+
+      - name: Free disk
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android "$AGENT_TOOLSDIRECTORY" || true
+      - name: Chrome sandbox (Ubuntu 24)
+        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: FFmpeg + fonts
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends -qq ffmpeg fonts-montserrat
+
+      - name: Cache TTS + whisper models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/hyperframes
+          key: hyperframes-media-cache-v1-${{ runner.os }}
+
+      - name: TTS (skips if already committed for this day)
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          if [ -f tc_narration.wav ]; then
+            echo "tc_narration.wav already committed, skipping TTS"
+          else
+            cp ../../_tts.py .
+            mkdir -p ~/.cache/hyperframes/tts/models ~/.cache/hyperframes/tts/voices
+            [ -f ~/.cache/hyperframes/tts/models/kokoro-v1.0.onnx ] || curl -sL -o ~/.cache/hyperframes/tts/models/kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
+            [ -f ~/.cache/hyperframes/tts/voices/voices-v1.0.bin ] || curl -sL -o ~/.cache/hyperframes/tts/voices/voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
+            python3 _tts.py
+          fi
+          test -f tc_narration.wav || { echo "tc_narration.wav not produced"; exit 1; }
+
+      - name: Transcribe (word timestamps)
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          cp ../../_transcribe.py .
+          python3 _transcribe.py
+          test -f transcript.json || { echo "transcript.json not produced"; exit 1; }
+
+      - name: Build composition
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          cp ../../_build_composition.py ../../_composition_template.html .
+          [ -f music/bed.wav ] || { mkdir -p music; cp ../../assets/bed.wav music/bed.wav; }
+          python3 _build_composition.py
+          test -f index.html || { echo "index.html not produced"; exit 1; }
+
+      - name: YouTube metadata
+        working-directory: ${{ env.DAY_DIR }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cp ../../_gen_youtube_meta.py .
+          python3 _gen_youtube_meta.py
+
+      - name: Cache HyperFrames
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/hyperframes
+          key: hyperframes-cache-v1-${{ runner.os }}
+
+      - name: Install chrome-headless-shell
+        run: |
+          out=$(npx --yes @puppeteer/browsers install chrome-headless-shell@131.0.6778.85 --path "$HOME/.cache/hyperframes/puppeteer")
+          p=$(echo "$out" | tail -1 | cut -d' ' -f2-)
+          test -x "$p" || { echo "chrome-headless-shell not executable: $p"; exit 1; }
+          echo "HYPERFRAMES_BROWSER_PATH=$p" >> "$GITHUB_ENV"
+
+      - name: Render (retry — Puppeteer detaches intermittently on this comp)
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== render attempt $attempt ==="
+            npx --yes hyperframes@0.6.80 render \
+              --fps 30 -o final.mp4 \
+              --workers 1 --low-memory-mode \
+              --quality high \
+              --browser-timeout 300 --protocol-timeout 900000 --player-ready-timeout 180000 \
+              && break
+            echo "attempt $attempt failed"
+            [ "$attempt" = "3" ] && exit 1
+            sleep 20
+          done
+          test -f final.mp4
+
+      - name: Color grade — punchier contrast/saturation, cooler white balance, sharpened
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          ffmpeg -y -i final.mp4 \
+            -vf "eq=contrast=1.18:saturation=1.3:brightness=0.02,colorbalance=rs=-0.08:gs=-0.03:bs=0.10:rm=-0.05:gm=-0.02:bm=0.07:rh=-0.03:bh=0.05,unsharp=5:5:0.8:5:5:0.0" \
+            -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+            -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a copy \
+            final_graded.mp4
+          mv final_graded.mp4 final.mp4
+
+      - name: Verify (duration, live frames, audio present)
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          ffprobe -v error -show_entries format=duration:format=size -of default=nw=1 final.mp4
+          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 final.mp4)
+          python3 -c "
+          d = float('$DUR')
+          assert 40 <= d <= 180, f'suspicious duration {d}s'
+          print(f'duration ok: {d:.1f}s')"
+          ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 final.mp4 | grep -q audio || { echo "no audio track"; exit 1; }
+          ffmpeg -y -loglevel error -ss 2 -i final.mp4 -frames:v 1 /tmp/f0.png
+          ffmpeg -y -loglevel error -ss "$(python3 -c "print(float('$DUR')/2)")" -i final.mp4 -frames:v 1 /tmp/f1.png
+          [ "$(md5sum /tmp/f0.png|cut -d' ' -f1)" != "$(md5sum /tmp/f1.png|cut -d' ' -f1)" ] || { echo "identical frames"; exit 1; }
+
+      - name: Mark day pending_publish in the queue (05:15 IST sweep picks this up)
+        if: success()
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          for i in 1 2 3; do
+            git fetch origin main -q
+            git reset --hard origin/main -q
+            python3 - <<PYEOF
+          import json, os
+          path = "_pipeline/batch/queue.json"
+          try:
+              q = json.load(open(path))
+          except FileNotFoundError:
+              q = {}
+          day = os.environ["DAY"]
+          entry = q.setdefault(day, {})
+          entry["status"] = "pending_publish"
+          entry["render_run_id"] = os.environ["RUN_ID"]
+          json.dump(q, open(path, "w"), indent=2)
+          PYEOF
+            git add _pipeline/batch/queue.json
+            git diff --cached --quiet && { echo "no change to commit"; break; }
+            git commit -q -m "queue: day ${DAY} rendered, ready to publish at 05:15 IST"
+            if git push origin HEAD:main; then break; fi
+            echo "push conflict, retry $i"
+            sleep $((RANDOM % 8 + 3))
+          done
+
+      - name: Tell Telegram this job failed, and which step
+        if: failure() && steps.hookgate.conclusion != 'failure'
+        continue-on-error: true
+        env:
+          BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT: ${{ github.event.inputs.notify_chat_id }}
+          DAY: ${{ github.event.inputs.day }}
+          JOB: render
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          STEP=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+                 --jq '.jobs[] | select(.name=="render") | .steps[] | select(.conclusion=="failure") | .name' \
+                 2>/dev/null | head -1)
+          printf '{"day":"%s","job":"%s","step":"%s","run_url":"%s","chat_id":"%s"}' \
+            "$DAY" "$JOB" "${STEP:-unknown}" "$RUN_URL" "$CHAT" > /tmp/failed.json
+          curl -sS -X POST "$BASE/batch/failed" \
+            -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json" \
+            --data @/tmp/failed.json || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: batch-day-${{ github.event.inputs.day }}-final
+          path: |
+            ${{ env.DAY_DIR }}/final.mp4
+            ${{ env.DAY_DIR }}/youtube.json
+          retention-days: 7
+          if-no-files-found: error
