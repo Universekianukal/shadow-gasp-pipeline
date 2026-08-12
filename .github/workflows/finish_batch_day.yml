@@ -36,6 +36,14 @@ on:
         description: "Upload to YouTube. Turn OFF when re-rendering a day that's already live on YouTube (e.g. re-grading for a crosspost-only re-run) so it isn't uploaded twice."
         type: boolean
         default: true
+      force_crosspost:
+        description: "Re-post to Facebook/Instagram even if this day already has one. Normally auto-skipped once a day is marked posted -- this is what should have stopped the 2026-08-10 day07 duplicate-post incident that tanked Facebook reach for days. Only turn on if you deliberately need a second post."
+        type: boolean
+        default: false
+      force_youtube_upload:
+        description: "Re-upload to YouTube even if this day already has a video. Normally auto-skipped once a day is marked uploaded."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -328,6 +336,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve day dir
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
       - name: Python deps
         run: pip install --quiet google-api-python-client google-auth-oauthlib requests cloudinary
       - uses: actions/download-artifact@v4
@@ -342,6 +354,8 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           CASE: ${{ needs.render.outputs.case }}
           PUBLISH_AT: ${{ github.event.inputs.publish_at }}
+          DAY_DIR: ${{ env.DAY_DIR }}
+          FORCE_YOUTUBE_UPLOAD: ${{ github.event.inputs.force_youtube_upload }}
         # pipefail matters here: without it the exit status is tee's, so a
         # failed upload (day33 hit a 400 invalidTitle) reported the whole job
         # as green while nothing reached YouTube.
@@ -353,6 +367,12 @@ jobs:
         # Skippable because YouTube can be re-uploaded over a bad render while
         # Instagram cannot: its Content Publishing API has no delete endpoint,
         # so every re-run leaves a duplicate the user has to remove by hand.
+        # Also auto-skipped per-platform if this day already has a
+        # FB_POSTED/IG_POSTED marker committed -- see _fb_ig_upload.py. This
+        # is the actual fix for the 2026-08-10 day07 incident: a re-render
+        # for a color-grade fix re-crossposted without anyone remembering to
+        # pass crosspost=false, duplicate-posting to Facebook and tanking
+        # reach on the Page for days afterward.
         if: ${{ github.event.inputs.crosspost != 'false' }}
         continue-on-error: true
         env:
@@ -360,6 +380,8 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          DAY_DIR: ${{ env.DAY_DIR }}
+          FORCE_CROSSPOST: ${{ github.event.inputs.force_crosspost }}
           # Facebook honors this natively (scheduled Page post). Instagram's
           # API can't schedule at all -- see _fb_ig_upload.py's docstring --
           # so IG is skipped and logged when this is set, not faked.
@@ -375,11 +397,11 @@ jobs:
           DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
         run: python3 _pipeline/_drive_upload.py "shadow_gasp_day${{ github.event.inputs.day }}.mp4" | tee /tmp/drive.log
 
-      - name: Commit videoId to ledger
+      - name: Commit videoId + publish markers to ledger
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add _pipeline/cases_used.json
+          git add _pipeline/cases_used.json "$DAY_DIR/FB_POSTED" "$DAY_DIR/IG_POSTED" "$DAY_DIR/YOUTUBE_UPLOADED" 2>/dev/null
           git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin "HEAD:${GITHUB_REF_NAME}"
