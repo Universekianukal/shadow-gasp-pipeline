@@ -88,7 +88,7 @@ def main():
     # publishAt, so the meta.json privacyStatus is overridden in this case.
     publish_at = os.environ.get("PUBLISH_AT", "").strip()
     status = {
-        "privacyStatus": "private" if publish_at else meta.get("privacyStatus", "private"),
+        "privacyStatus": "private" if publish_at else meta.get("privacyStatus", "public"),
         "selfDeclaredMadeForKids": False,
     }
     if publish_at:
