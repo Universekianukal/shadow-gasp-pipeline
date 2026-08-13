@@ -105,6 +105,15 @@ jobs:
           DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
         run: python3 _pipeline/_drive_upload.py "shadow_gasp_day${{ github.event.inputs.day }}.mp4" | tee /tmp/drive.log
 
+      - name: Upload to Cloudinary (direct no-login download link for Telegram)
+        id: cloudinary
+        continue-on-error: true
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
+
       - name: Commit videoId + publish markers to ledger, mark day published in the queue
         env:
           DAY: ${{ github.event.inputs.day }}
@@ -172,7 +181,8 @@ jobs:
             exit 0
           fi
           DRIVE_LINK=$(grep -o 'drive_link=.*' /tmp/drive.log | cut -d= -f2-)
-          VIDEO_ID="$VIDEO_ID" FB_POST_ID="$FB_POST_ID" IG_MEDIA_ID="$IG_MEDIA_ID" DRIVE_LINK="$DRIVE_LINK" python3 -c "
+          CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2-)
+          VIDEO_ID="$VIDEO_ID" FB_POST_ID="$FB_POST_ID" IG_MEDIA_ID="$IG_MEDIA_ID" DRIVE_LINK="$DRIVE_LINK" CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
           import json, os, urllib.request
           body = json.dumps({
               'day': os.environ['DAY'],
@@ -181,6 +191,7 @@ jobs:
               'fb_post_id': os.environ.get('FB_POST_ID') or None,
               'ig_media_id': os.environ.get('IG_MEDIA_ID') or None,
               'drive_link': os.environ.get('DRIVE_LINK') or None,
+              'cloudinary_link': os.environ.get('CLOUDINARY_LINK') or None,
               'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
           }).encode()
           req = urllib.request.Request(
