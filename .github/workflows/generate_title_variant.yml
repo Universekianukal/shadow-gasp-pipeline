@@ -1,0 +1,120 @@
+name: shadow_gasp generate title variant
+
+# Drafts ONE title+tags in a requested style from a batch day's already-
+# committed narration script, and reports it back to the Telegram bot as a
+# draft -- never touches the day's actual youtube.json/TITLE_OVERRIDE.json
+# itself. Applying a draft is a separate, explicit step (the bot's "Apply"
+# button, via commitTitleOverride in worker.js) so nothing a style button
+# generates is ever used until a human taps Apply.
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 9)"
+        required: true
+      style:
+        description: "shock | curiosity | openloop | direct"
+        required: true
+      notify_chat_id:
+        description: "Telegram chat ID to send the draft to"
+        required: false
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve day dir
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
+
+      - name: Python deps
+        run: pip install --quiet anthropic requests
+
+      - name: Draft title
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          STYLE: ${{ github.event.inputs.style }}
+        run: |
+          cat > /tmp/draft_title.py << 'PYEOF'
+          import json
+          import os
+          import re
+
+          from anthropic import Anthropic
+
+          STYLE_PROMPTS = {
+              "shock": "Lean hard into shock value -- the most disturbing, "
+                       "unsettling true fact in the case, stated bluntly.",
+              "curiosity": "Create a strong curiosity gap -- name the case "
+                           "but withhold the key twist, so the viewer has to "
+                           "click to find out.",
+              "openloop": "Frame it as an unresolved question the video "
+                          "answers -- literally end the title on an open "
+                          "question or an unfinished thought.",
+              "direct": "Be direct and factual -- clear, accurate, no "
+                        "clickbait tricks, just the case and why it matters.",
+          }
+
+          def extract_json(text):
+              t = text.strip()
+              if t.startswith("```"):
+                  t = re.sub(r"^```(?:json)?\n", "", t)
+                  t = re.sub(r"\n```$", "", t)
+              return json.loads(t)
+
+          style = os.environ.get("STYLE", "direct")
+          style_instruction = STYLE_PROMPTS.get(style, STYLE_PROMPTS["direct"])
+
+          sys_prompt = (
+              "You write YouTube Shorts titles for shadow_gasp, a true-crime channel.\n"
+              "Given a video's narration script, produce ONE title in this specific style:\n"
+              f"{style_instruction}\n"
+              "Title must be under 100 chars and factually accurate to the script -- "
+              "no lies, only the angle changes.\n"
+              "Also produce 5-10 relevant lowercase keyword tags (no hashtags).\n"
+              'Return JSON: {"title": "", "tags": ["", ...]}\n'
+              "Respond with ONLY the JSON object -- no markdown code fences, no other text."
+          )
+
+          script = open(os.path.join(os.environ.get("DAY_DIR", ""), "narration.txt")).read()
+          client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+          resp = client.messages.create(
+              model="claude-sonnet-5", max_tokens=1024, system=sys_prompt,
+              messages=[{"role": "user", "content": script}],
+          )
+          raw = next((b.text for b in resp.content if b.type == "text"), None)
+          meta = extract_json(raw)
+          with open("/tmp/title_variant.json", "w") as f:
+              json.dump(meta, f)
+          print("title:", meta["title"])
+          PYEOF
+          python3 /tmp/draft_title.py
+
+      - name: Report draft to Telegram bot
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          STYLE: ${{ github.event.inputs.style }}
+          NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          meta = json.load(open('/tmp/title_variant.json'))
+          body = json.dumps({
+              'day': os.environ['DAY'],
+              'style': os.environ.get('STYLE'),
+              'title': meta['title'],
+              'tags': meta.get('tags', []),
+              'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
+          }).encode()
+          req = urllib.request.Request(
+              'https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/title-variant',
+              data=body, method='POST',
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'},
+          )
+          urllib.request.urlopen(req).read()
+          "
