@@ -1,0 +1,72 @@
+name: shadow_gasp cloudinary backfill (one-off, manual only)
+
+# Pulls an already-rendered batch day's final.mp4 from a past run's artifact
+# and uploads it to Cloudinary, for days that published before the
+# persistent-Cloudinary-link feature existed. Not part of the normal
+# pipeline -- delete once no longer needed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 9)"
+        required: true
+      run_id:
+        description: "Run ID whose artifact holds this day's final.mp4"
+        required: true
+      notify_chat_id:
+        description: "Telegram chat ID to send the link to"
+        required: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: batch-day-${{ github.event.inputs.day }}-final
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Python deps
+        run: pip install --quiet cloudinary requests
+
+      - name: Upload to Cloudinary
+        id: cloudinary
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
+
+      - name: Notify Telegram
+        if: always()
+        continue-on-error: true
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2-)
+          if [ -z "$CLOUDINARY_LINK" ]; then
+            echo "no cloudinary_link produced, skipping notify"
+            exit 0
+          fi
+          CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
+          import json, os, urllib.request
+          body = json.dumps({
+              'day': os.environ['DAY'],
+              'case': 'Cloudinary backfill',
+              'video_id': 'backfill',
+              'cloudinary_link': os.environ.get('CLOUDINARY_LINK') or None,
+              'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
+          }).encode()
+          req = urllib.request.Request(
+              'https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/uploaded',
+              data=body, method='POST',
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json'},
+          )
+          urllib.request.urlopen(req).read()
+          "
