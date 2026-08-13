@@ -41,6 +41,14 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
 
+      - name: Write link to artifact (log/summary mask secrets, artifact contents don't)
+        run: grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2- > /tmp/link.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cloudinary-link-day${{ github.event.inputs.day }}
+          path: /tmp/link.txt
+
       - name: Notify Telegram
         if: always()
         continue-on-error: true
