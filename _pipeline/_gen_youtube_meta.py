@@ -53,10 +53,19 @@ def main():
     client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     meta = generate(client, script)
 
+    # A title picked via the Telegram style-picker (see worker.js's
+    # commitTitleOverride) overrides only title+tags -- description still
+    # comes from the normal generation above, since the style picker never
+    # touches it.
+    override = {}
+    if os.path.isfile("TITLE_OVERRIDE.json"):
+        override = json.load(open("TITLE_OVERRIDE.json"))
+        print(f"Applying title override: {override.get('title')}")
+
     out = {
-        "title": meta["title"],
+        "title": override.get("title") or meta["title"],
         "description": meta["description"],
-        "tags": meta["tags"],
+        "tags": override.get("tags") or meta["tags"],
         "categoryId": "22",
         # Public by default -- _youtube_upload.py overrides this to "private"
         # itself when PUBLISH_AT is set, which is the only case a video should
