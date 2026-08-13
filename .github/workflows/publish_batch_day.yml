@@ -207,7 +207,11 @@ jobs:
           req = urllib.request.Request(
               'https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/uploaded',
               data=body, method='POST',
-              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json'},
+              # Cloudflare's bot-protection (error 1010) fingerprints and
+              # blocks Python urllib's default User-Agent before the request
+              # ever reaches the Worker -- a browser-like UA is the fix, this
+              # is NOT related to the X-Batch-Notify-Secret check below.
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'},
           )
           urllib.request.urlopen(req).read()
           "
