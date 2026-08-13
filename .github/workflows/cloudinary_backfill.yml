@@ -17,12 +17,20 @@ on:
       notify_chat_id:
         description: "Telegram chat ID to send the link to"
         required: false
+      video_id:
+        description: "This day's real YouTube video ID (for the confirmation message's link) -- leave blank if unknown"
+        required: false
 
 jobs:
   backfill:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve day dir
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
 
       - uses: actions/download-artifact@v4
         with:
@@ -55,6 +63,7 @@ jobs:
         env:
           DAY: ${{ github.event.inputs.day }}
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          VIDEO_ID: ${{ github.event.inputs.video_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
         run: |
           CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2-)
@@ -64,10 +73,20 @@ jobs:
           fi
           CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
           import json, os, urllib.request
+          title, hashtags = None, None
+          try:
+              meta = json.load(open(os.path.join(os.environ.get('DAY_DIR', ''), 'youtube.json')))
+              title = meta.get('title') or None
+              tags = meta.get('tags') or []
+              hashtags = ' '.join('#' + t.replace(' ', '') for t in tags) or None
+          except Exception:
+              pass
           body = json.dumps({
               'day': os.environ['DAY'],
               'case': 'Cloudinary backfill',
-              'video_id': 'backfill',
+              'title': title,
+              'hashtags': hashtags,
+              'video_id': os.environ.get('VIDEO_ID') or 'backfill',
               'cloudinary_link': os.environ.get('CLOUDINARY_LINK') or None,
               'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
           }).encode()
