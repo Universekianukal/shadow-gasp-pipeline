@@ -184,9 +184,19 @@ jobs:
           CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2-)
           VIDEO_ID="$VIDEO_ID" FB_POST_ID="$FB_POST_ID" IG_MEDIA_ID="$IG_MEDIA_ID" DRIVE_LINK="$DRIVE_LINK" CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
           import json, os, urllib.request
+          title, hashtags = None, None
+          try:
+              meta = json.load(open(os.path.join(os.environ.get('DAY_DIR', ''), 'youtube.json')))
+              title = meta.get('title') or None
+              tags = meta.get('tags') or []
+              hashtags = ' '.join('#' + t.replace(' ', '') for t in tags) or None
+          except Exception:
+              pass
           body = json.dumps({
               'day': os.environ['DAY'],
               'case': os.environ.get('CASE_NAME', ''),
+              'title': title,
+              'hashtags': hashtags,
               'video_id': os.environ.get('VIDEO_ID') or None,
               'fb_post_id': os.environ.get('FB_POST_ID') or None,
               'ig_media_id': os.environ.get('IG_MEDIA_ID') or None,
