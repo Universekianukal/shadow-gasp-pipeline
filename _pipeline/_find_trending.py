@@ -161,7 +161,12 @@ guessing. Keep it under 300 words, plain text, no markdown headers."""
 
     body = json.dumps({
         "model": "claude-sonnet-5",
-        "max_tokens": 1200,
+        # claude-sonnet-5 spends output budget on reasoning blocks BEFORE
+        # emitting text -- a small cap can return zero text (stop_reason
+        # max_tokens, only a thinking block). max_tokens is a CAP not a
+        # charge, so headroom here is free. See mindunlocked-growth-agents
+        # memory's max_tokens-starvation entry -- same bug, same fix.
+        "max_tokens": 4096,
         "messages": [{"role": "user", "content": prompt}],
     }).encode()
     req = urllib.request.Request(
