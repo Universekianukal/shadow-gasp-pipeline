@@ -186,7 +186,13 @@ def notify(report_text, chat_id):
     req = urllib.request.Request(
         "https://shadow-gasp-bot.everydayhypehq.workers.dev/trending/report",
         data=body, method="POST",
-        headers={"X-Batch-Notify-Secret": secret, "Content-Type": "application/json"},
+        headers={
+            "X-Batch-Notify-Secret": secret,
+            "Content-Type": "application/json",
+            # Cloudflare bot-protection (error 1010) blocks urllib's default
+            # UA fingerprint on this Worker -- see shadow-gasp-notify-cloudflare-1010-fix memory.
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        },
     )
     try:
         urllib.request.urlopen(req).read()
