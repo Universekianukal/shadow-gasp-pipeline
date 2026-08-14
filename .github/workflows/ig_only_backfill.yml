@@ -1,0 +1,108 @@
+name: shadow_gasp instagram-only backfill (one-off, manual only)
+
+# Posts an already-published day to Instagram ONLY, for days where FB+YouTube
+# already went out but Instagram was skipped (its API can't schedule, so
+# finish_batch_day.yml's crosspost step always skips IG when publish_at is
+# set -- see _fb_ig_upload.py's docstring). Pulls final.mp4+youtube.json from
+# a past run's artifact instead of re-rendering. Marks FB_POSTED locally
+# before running so _fb_ig_upload.py's own duplicate-post guard skips
+# Facebook (already live -- do NOT repost it, see the day07 incident notes
+# in _fb_ig_upload.py). Not part of the normal pipeline -- delete once no
+# longer needed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 12)"
+        required: true
+      run_id:
+        description: "Run ID whose artifact holds this day's final.mp4 + youtube.json"
+        required: true
+      notify_chat_id:
+        description: "Telegram chat ID to send the confirmation to"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  ig_backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve day dir
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: batch-day-${{ github.event.inputs.day }}-final
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Python deps
+        run: pip install --quiet cloudinary requests
+
+      - name: Mark Facebook already-posted so the crosspost script skips it
+        run: |
+          mkdir -p "$DAY_DIR"
+          touch "$DAY_DIR/FB_POSTED"
+
+      - name: Cross-post to Instagram only
+        id: crosspost
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
+
+      - name: Commit FB_POSTED + IG_POSTED markers to ledger
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add "$DAY_DIR/FB_POSTED" "$DAY_DIR/IG_POSTED" 2>/dev/null
+          git diff --cached --quiet || git commit -m "backfill: day ${{ github.event.inputs.day }} Instagram post + ledger markers"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Notify Telegram
+        if: always()
+        continue-on-error: true
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          IG_MEDIA_ID=$(grep -o 'ig_media_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
+          if [ -z "$IG_MEDIA_ID" ]; then
+            echo "no ig_media_id produced, skipping notify"
+            exit 0
+          fi
+          IG_MEDIA_ID="$IG_MEDIA_ID" python3 -c "
+          import json, os, urllib.request
+          title, hashtags = None, None
+          try:
+              meta = json.load(open('youtube.json'))
+              title = meta.get('title') or None
+              tags = meta.get('tags') or []
+              hashtags = ' '.join('#' + t.replace(' ', '') for t in tags) or None
+          except Exception:
+              pass
+          body = json.dumps({
+              'day': os.environ['DAY'],
+              'title': title,
+              'hashtags': hashtags,
+              'ig_media_id': os.environ.get('IG_MEDIA_ID'),
+              'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
+          }).encode()
+          req = urllib.request.Request(
+              'https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/uploaded',
+              data=body, method='POST',
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'},
+          )
+          urllib.request.urlopen(req).read()
+          "
