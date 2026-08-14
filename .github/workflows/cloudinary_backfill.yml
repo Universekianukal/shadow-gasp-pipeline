@@ -75,7 +75,7 @@ jobs:
           import json, os, urllib.request
           title, hashtags = None, None
           try:
-              meta = json.load(open(os.path.join(os.environ.get('DAY_DIR', ''), 'youtube.json')))
+              meta = json.load(open('youtube.json'))
               title = meta.get('title') or None
               tags = meta.get('tags') or []
               hashtags = ' '.join('#' + t.replace(' ', '') for t in tags) or None
