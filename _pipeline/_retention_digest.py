@@ -131,8 +131,15 @@ def main():
         dur = durations.get(r["video"], 0)
         r["dropoff"] = dropoff_point(token, r["video"], dur) if dur else "?"
 
-    by_retention = sorted(rows, key=lambda r: -r["averageViewPercentage"])
     by_views = sorted(rows, key=lambda r: -r["views"])
+    # Shorts can be re-watched in a loop, so averageViewPercentage can exceed
+    # 100% on a barely-viewed video (one viewer looping it 4x looks like
+    # "413% watched") -- that is a low-sample artifact, not genuine
+    # attention held at scale. Pick best-retained only from videos with
+    # real reach (the same top-8 actually shown below), same fix as
+    # MindUnlocked's reach-vs-retention ranking bug.
+    shown = by_views[:8]
+    by_retention = sorted(shown, key=lambda r: -r["averageViewPercentage"])
     best_retained = by_retention[0]
     widest_reach = by_views[0]
 
