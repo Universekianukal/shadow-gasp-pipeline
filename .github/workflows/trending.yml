@@ -1,0 +1,35 @@
+name: shadow_gasp trending story finder
+
+# Report-only: searches YouTube for breakout true-crime/horror/mystery videos
+# from OTHER channels (views/subscriber ratio, last 30 days), excludes
+# stories already covered (cases_used.json), asks Claude to synthesize 3-5
+# fresh story ideas, and sends the report to Telegram. Never auto-picks or
+# auto-builds anything -- purely informational, same pattern as
+# MindUnlocked's /competitors.
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: "Telegram chat id to reply to (optional, falls back to the bot's default chat)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  trending:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find trending stories
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT_ID_INPUT: ${{ github.event.inputs.chat_id }}
+        run: |
+          python3 _pipeline/_find_trending.py
