@@ -122,6 +122,9 @@ def main():
         "kernel_type": "script",
         "is_private": True,
         "enable_gpu": True,
+        # NvidiaTeslaP100 (default) is sm_60, which Kaggle's stock torch no longer
+        # builds for -> kernel dies at import/op time. T4 is sm_75, same 16GB, works.
+        "machine_shape": "NvidiaTeslaT4",
         "enable_internet": True,
         "dataset_sources": [],
         "competition_sources": [],
