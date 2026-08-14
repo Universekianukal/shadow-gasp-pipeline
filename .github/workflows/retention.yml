@@ -1,0 +1,29 @@
+name: shadow_gasp retention digest
+
+# Report-only: last-21-day per-video views/retention/drop-off + net
+# subscriber change, ranked by BOTH retention and reach separately. Sends
+# the report to Telegram. Never writes to any pick/build loop.
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: "Telegram chat id to reply to (optional)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  retention:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retention digest
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT_ID_INPUT: ${{ github.event.inputs.chat_id }}
+        run: |
+          python3 _pipeline/_retention_digest.py
