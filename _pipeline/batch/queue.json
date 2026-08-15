@@ -1,7 +1,8 @@
 {
   "41": {
-    "status": "rendering",
+    "status": "pending_publish",
     "notify_chat_id": "8692339206",
-    "queued_at": "2026-08-15T19:13:19.193Z"
+    "queued_at": "2026-08-15T19:13:19.193Z",
+    "render_run_id": "31914367293"
   }
 }
