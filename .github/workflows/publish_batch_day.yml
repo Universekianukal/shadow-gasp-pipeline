@@ -25,18 +25,10 @@ on:
       notify_chat_id:
         description: "Telegram chat id to notify (blank for manual runs)"
         default: ""
-      crosspost:
-        description: "Also post to Facebook + Instagram"
-        type: boolean
-        default: true
       youtube_upload:
         description: "Upload to YouTube"
         type: boolean
         default: true
-      force_crosspost:
-        description: "Re-post to Facebook/Instagram even if this day already has one (normally skipped automatically to prevent duplicates)"
-        type: boolean
-        default: false
       force_youtube_upload:
         description: "Re-upload to YouTube even if this day already has a video (normally skipped automatically to prevent duplicates)"
         type: boolean
@@ -84,18 +76,6 @@ jobs:
           set -o pipefail
           python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
 
-      - name: Cross-post to Facebook + Instagram (best-effort, never fails the YouTube upload)
-        if: ${{ github.event.inputs.crosspost != 'false' }}
-        continue-on-error: true
-        env:
-          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-          DAY_DIR: ${{ env.DAY_DIR }}
-          FORCE_CROSSPOST: ${{ github.event.inputs.force_crosspost }}
-        run: python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
-
       - name: Upload to Drive (real playable link for Telegram)
         id: drive
         continue-on-error: true
@@ -114,12 +94,18 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
 
-      - name: Commit videoId + publish markers to ledger, mark day published in the queue
+      - name: Commit permanent Cloudinary link + videoId + publish markers to ledger, mark day published in the queue
+        # CLOUDINARY_LINK.txt is what crosspost_decision.yml reads whenever
+        # Facebook/Instagram eventually get approved via Telegram -- could be
+        # minutes or weeks later, well past the artifact retention window, so
+        # this has to be committed to git, not just printed to a log.
         env:
           DAY: ${{ github.event.inputs.day }}
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
+          CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log 2>/dev/null | cut -d= -f2-)
+          [ -n "$CLOUDINARY_LINK" ] && echo -n "$CLOUDINARY_LINK" > "$DAY_DIR/CLOUDINARY_LINK.txt"
           python3 - <<PYEOF
           import json, os
           path = "_pipeline/batch/queue.json"
@@ -131,7 +117,7 @@ jobs:
           q.setdefault(day, {})["status"] = "published"
           json.dump(q, open(path, "w"), indent=2)
           PYEOF
-          git add _pipeline/batch/queue.json _pipeline/cases_used.json "$DAY_DIR/FB_POSTED" "$DAY_DIR/IG_POSTED" "$DAY_DIR/YOUTUBE_UPLOADED" 2>/dev/null
+          git add _pipeline/batch/queue.json _pipeline/cases_used.json "$DAY_DIR/YOUTUBE_UPLOADED" "$DAY_DIR/CLOUDINARY_LINK.txt" 2>/dev/null
           git diff --cached --quiet || git commit -q -m "published: ${{ steps.pick.outputs.case }}"
           # Commit first, THEN rebase-pull: this merges our commit on top of
           # anything that landed on origin/main since checkout (e.g. another
@@ -173,16 +159,18 @@ jobs:
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
         run: |
+          # Facebook/Instagram no longer post from this job -- the Worker
+          # attaches FB/IG Approve/Reject buttons to this same message once
+          # video_id is present (see /batch/uploaded's fbIgDecisionKeyboard);
+          # actual posting happens later via crosspost_decision.yml.
           VIDEO_ID=$(grep -o 'video_id=.*' /tmp/upload.log 2>/dev/null | cut -d= -f2)
-          FB_POST_ID=$(grep -o 'fb_post_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
-          IG_MEDIA_ID=$(grep -o 'ig_media_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
-          if [ -z "$VIDEO_ID" ] && [ -z "$FB_POST_ID" ] && [ -z "$IG_MEDIA_ID" ]; then
-            echo "no video_id, fb_post_id, or ig_media_id found — nothing published this run, skipping notify"
+          if [ -z "$VIDEO_ID" ]; then
+            echo "no video_id found — nothing published this run, skipping notify"
             exit 0
           fi
           DRIVE_LINK=$(grep -o 'drive_link=.*' /tmp/drive.log | cut -d= -f2-)
           CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2-)
-          VIDEO_ID="$VIDEO_ID" FB_POST_ID="$FB_POST_ID" IG_MEDIA_ID="$IG_MEDIA_ID" DRIVE_LINK="$DRIVE_LINK" CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
+          VIDEO_ID="$VIDEO_ID" DRIVE_LINK="$DRIVE_LINK" CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
           import json, os, urllib.request
           title, hashtags = None, None
           try:
@@ -198,8 +186,6 @@ jobs:
               'title': title,
               'hashtags': hashtags,
               'video_id': os.environ.get('VIDEO_ID') or None,
-              'fb_post_id': os.environ.get('FB_POST_ID') or None,
-              'ig_media_id': os.environ.get('IG_MEDIA_ID') or None,
               'drive_link': os.environ.get('DRIVE_LINK') or None,
               'cloudinary_link': os.environ.get('CLOUDINARY_LINK') or None,
               'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
