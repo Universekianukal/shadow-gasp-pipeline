@@ -39,6 +39,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   render:
@@ -378,6 +379,7 @@ jobs:
         # Facebook/Instagram eventually get approved via Telegram -- could be
         # minutes or weeks later, well past the ~7-day artifact retention, so
         # this has to be committed to git, not just printed to a log.
+        id: commit
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
@@ -387,6 +389,30 @@ jobs:
           git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Delete the build artifact now that Cloudinary has a permanent copy
+        # final.mp4 no longer needs to sit in this public repo's Actions
+        # artifacts -- downloadable by any signed-in GitHub user -- for the
+        # full 30-day retention. FB/IG approval reads from the permanent
+        # Cloudinary link now (crosspost_decision.yml), not this artifact, so
+        # its only remaining job was being that exposure window. Same spirit
+        # as MindUnlocked's per-video-repo self-delete, adapted for
+        # shadow_gasp's one persistent repo (see shadow-gasp-fb-ig-approve-reject memory).
+        # Gated on the Cloudinary upload AND the git commit both succeeding --
+        # deleting the only copy before the permanent link is safely
+        # committed would strand the day with no way to ever post FB/IG.
+        if: steps.cloudinary.outcome == 'success' && steps.commit.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ID=$(gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+                 --jq '.artifacts[] | select(.name=="batch-day-${{ github.event.inputs.day }}-final" and .expired==false) | .id' | head -1)
+          if [ -n "$ID" ]; then
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$ID" && echo "deleted artifact $ID"
+          else
+            echo "no matching non-expired artifact found -- already deleted or expired"
+          fi
 
       - name: Tell Telegram this job failed, and which step
         # Every failure mode before this reached you as silence: the run went
