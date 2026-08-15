@@ -384,18 +384,23 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
 
-      - name: Commit permanent Cloudinary link + videoId to ledger
+      - name: Commit permanent Cloudinary link + youtube.json + videoId to ledger
         # CLOUDINARY_LINK.txt is what crosspost_decision.yml reads whenever
         # Facebook/Instagram eventually get approved via Telegram -- could be
         # minutes or weeks later, well past the ~7-day artifact retention, so
         # this has to be committed to git, not just printed to a log.
+        # youtube.json committed for the same reason -- it's what
+        # _fb_ig_upload.py reads to build the FB/IG caption (title +
+        # description + hashtags), and until now it only ever lived in the
+        # artifact, which the very next step deletes.
         id: commit
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
           CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log 2>/dev/null | cut -d= -f2-)
           [ -n "$CLOUDINARY_LINK" ] && echo -n "$CLOUDINARY_LINK" > "$DAY_DIR/CLOUDINARY_LINK.txt"
-          git add _pipeline/cases_used.json "$DAY_DIR/YOUTUBE_UPLOADED" "$DAY_DIR/CLOUDINARY_LINK.txt" 2>/dev/null
+          [ -f youtube.json ] && cp youtube.json "$DAY_DIR/youtube.json"
+          git add _pipeline/cases_used.json "$DAY_DIR/YOUTUBE_UPLOADED" "$DAY_DIR/CLOUDINARY_LINK.txt" "$DAY_DIR/youtube.json" 2>/dev/null
           git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin "HEAD:${GITHUB_REF_NAME}"
@@ -469,19 +474,25 @@ jobs:
           DRIVE_LINK=$(grep -o 'drive_link=.*' /tmp/drive.log | cut -d= -f2-)
           CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2-)
           VIDEO_ID="$VIDEO_ID" DRIVE_LINK="$DRIVE_LINK" CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
-          import json, os, urllib.request
+          import json, os, sys, urllib.request
           # title/hashtags come from this day's own youtube.json (same file
           # already in the artifact from the render job) rather than a shell
           # env var, since titles are free-form LLM output that can contain
           # quotes -- reading the file directly sidesteps shell-quoting entirely.
+          # download-artifact (no path: given) lands the artifact FLATTENED at
+          # cwd -- upload-artifact's own multi-path listing collapsed to the
+          # least common ancestor (DAY_DIR) when it was uploaded -- so
+          # youtube.json is bare './youtube.json', NOT '$DAY_DIR/youtube.json'.
+          # That join silently 404'd here for a long time (caught by the bare
+          # except below), which is why title/hashtags kept coming back empty.
           title, hashtags = None, None
           try:
-              meta = json.load(open(os.path.join(os.environ.get('DAY_DIR', ''), 'youtube.json')))
+              meta = json.load(open('youtube.json'))
               title = meta.get('title') or None
               tags = meta.get('tags') or []
               hashtags = ' '.join('#' + t.replace(' ', '') for t in tags) or None
-          except Exception:
-              pass
+          except Exception as e:
+              print(f'youtube.json read failed: {e}', file=sys.stderr)
           body = json.dumps({
               'day': os.environ['DAY'],
               'case': os.environ.get('CASE_NAME', ''),
