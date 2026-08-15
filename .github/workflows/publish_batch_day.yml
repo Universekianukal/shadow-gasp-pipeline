@@ -94,11 +94,13 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
 
-      - name: Commit permanent Cloudinary link + videoId + publish markers to ledger, mark day published in the queue
+      - name: Commit permanent Cloudinary link + youtube.json + videoId + publish markers to ledger, mark day published in the queue
         # CLOUDINARY_LINK.txt is what crosspost_decision.yml reads whenever
         # Facebook/Instagram eventually get approved via Telegram -- could be
         # minutes or weeks later, well past the artifact retention window, so
         # this has to be committed to git, not just printed to a log.
+        # youtube.json committed for the same reason -- it's what
+        # _fb_ig_upload.py reads to build the FB/IG caption.
         id: commit
         env:
           DAY: ${{ github.event.inputs.day }}
@@ -107,6 +109,7 @@ jobs:
           git config user.email "bot@users.noreply.github.com"
           CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log 2>/dev/null | cut -d= -f2-)
           [ -n "$CLOUDINARY_LINK" ] && echo -n "$CLOUDINARY_LINK" > "$DAY_DIR/CLOUDINARY_LINK.txt"
+          [ -f youtube.json ] && cp youtube.json "$DAY_DIR/youtube.json"
           python3 - <<PYEOF
           import json, os
           path = "_pipeline/batch/queue.json"
@@ -118,7 +121,7 @@ jobs:
           q.setdefault(day, {})["status"] = "published"
           json.dump(q, open(path, "w"), indent=2)
           PYEOF
-          git add _pipeline/batch/queue.json _pipeline/cases_used.json "$DAY_DIR/YOUTUBE_UPLOADED" "$DAY_DIR/CLOUDINARY_LINK.txt" 2>/dev/null
+          git add _pipeline/batch/queue.json _pipeline/cases_used.json "$DAY_DIR/YOUTUBE_UPLOADED" "$DAY_DIR/CLOUDINARY_LINK.txt" "$DAY_DIR/youtube.json" 2>/dev/null
           git diff --cached --quiet || git commit -q -m "published: ${{ steps.pick.outputs.case }}"
           # Commit first, THEN rebase-pull: this merges our commit on top of
           # anything that landed on origin/main since checkout (e.g. another
@@ -193,15 +196,18 @@ jobs:
           DRIVE_LINK=$(grep -o 'drive_link=.*' /tmp/drive.log | cut -d= -f2-)
           CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2-)
           VIDEO_ID="$VIDEO_ID" DRIVE_LINK="$DRIVE_LINK" CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
-          import json, os, urllib.request
+          import json, os, sys, urllib.request
+          # download-artifact (no path: given) lands the artifact FLATTENED at
+          # cwd -- youtube.json is bare './youtube.json', NOT '$DAY_DIR/youtube.json'
+          # (see finish_batch_day.yml's matching fix for the full explanation).
           title, hashtags = None, None
           try:
-              meta = json.load(open(os.path.join(os.environ.get('DAY_DIR', ''), 'youtube.json')))
+              meta = json.load(open('youtube.json'))
               title = meta.get('title') or None
               tags = meta.get('tags') or []
               hashtags = ' '.join('#' + t.replace(' ', '') for t in tags) or None
-          except Exception:
-              pass
+          except Exception as e:
+              print(f'youtube.json read failed: {e}', file=sys.stderr)
           body = json.dumps({
               'day': os.environ['DAY'],
               'case': os.environ.get('CASE_NAME', ''),
