@@ -1,0 +1,78 @@
+name: shadow_gasp resend notify (one-off, manual only)
+
+# Re-sends the "day N is LIVE on YouTube" Telegram message from a day's
+# already-committed youtube.json/CLOUDINARY_LINK.txt -- for cases like the
+# 2026-08-15 title/hashtags path bug, where the original notify silently sent
+# an incomplete message and the source files have since been fixed/backfilled
+# in git. Re-attaches fresh FB/IG Approve/Reject buttons too (harmless if
+# already decided -- crosspost_decision.yml's marker-file guard makes a
+# second Approve a no-op).
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 14)"
+        required: true
+      video_id:
+        description: "YouTube video id (e.g. HxkKGV7ya48)"
+        required: true
+      notify_chat_id:
+        description: "Telegram chat id (blank uses the Worker's default)"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  resend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve day dir + case
+        id: pick
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
+          CASE=$(python3 -c "import json; print(json.load(open('_pipeline/batch/day$DAY/pick.json'))['case'])")
+          echo "case=$CASE" >> "$GITHUB_OUTPUT"
+
+      - name: Resend
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          VIDEO_ID: ${{ github.event.inputs.video_id }}
+          CASE_NAME: ${{ steps.pick.outputs.case }}
+          NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          CLOUDINARY_LINK=$(cat "$DAY_DIR/CLOUDINARY_LINK.txt" 2>/dev/null || echo "")
+          python3 -c "
+          import json, os, urllib.request
+          title, hashtags = None, None
+          try:
+              meta = json.load(open(os.path.join(os.environ['DAY_DIR'], 'youtube.json')))
+              title = meta.get('title') or None
+              tags = meta.get('tags') or []
+              hashtags = ' '.join('#' + t.replace(' ', '') for t in tags) or None
+          except Exception as e:
+              print(f'youtube.json read failed: {e}')
+          body = json.dumps({
+              'day': os.environ['DAY'],
+              'case': os.environ.get('CASE_NAME', ''),
+              'title': title,
+              'hashtags': hashtags,
+              'video_id': os.environ.get('VIDEO_ID') or None,
+              'cloudinary_link': os.environ.get('CLOUDINARY_LINK') or None,
+              'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
+          }).encode()
+          req = urllib.request.Request(
+              'https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/uploaded',
+              data=body, method='POST',
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'},
+          )
+          urllib.request.urlopen(req).read()
+          "
