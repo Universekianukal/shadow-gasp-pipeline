@@ -244,15 +244,25 @@ jobs:
           echo "HYPERFRAMES_BROWSER_PATH=$p" >> "$GITHUB_ENV"
 
       - name: Render (retry — Puppeteer detaches intermittently on this comp)
+        # Bumped from a hard-pinned hyperframes@0.6.80 to @latest (2026-08-15):
+        # every render on this comp was dying identically at 100% frames
+        # streamed -- ffmpeg finished a fully valid encode, then got SIGTERM'd
+        # at an almost perfectly fixed ~710-730s mark, 6/6 attempts across 2
+        # separate dispatches. That's a fixed internal-timeout bug, not the
+        # random Puppeteer flakiness this retry loop exists for. Also dropped
+        # --low-memory-mode/--protocol-timeout/--player-ready-timeout -- none
+        # of the three are in @latest's documented render flags, so they were
+        # already stale holdovers from whatever CLI version this pin started
+        # life on; --workers 1 already minimizes Chrome instance count.
         working-directory: ${{ env.DAY_DIR }}
         run: |
           for attempt in 1 2 3; do
             echo "=== render attempt $attempt ==="
-            npx --yes hyperframes@0.6.80 render \
+            npx --yes hyperframes@latest render \
               --fps 30 -o final.mp4 \
-              --workers 1 --low-memory-mode \
+              --workers 1 \
               --quality high \
-              --browser-timeout 300 --protocol-timeout 900000 --player-ready-timeout 180000 \
+              --browser-timeout 300 \
               && break
             echo "attempt $attempt failed"
             [ "$attempt" = "3" ] && exit 1
