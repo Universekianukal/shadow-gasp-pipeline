@@ -28,18 +28,10 @@ on:
         description: "If no Flow hook video is committed, generate one with CogVideoX (~50 min Kaggle GPU) instead of falling back to a static Ken Burns still"
         type: boolean
         default: false
-      crosspost:
-        description: "Also post to Facebook + Instagram. Turn OFF when republishing a fixed render, or the socials get a duplicate of a post that is already there."
-        type: boolean
-        default: true
       youtube_upload:
-        description: "Upload to YouTube. Turn OFF when re-rendering a day that's already live on YouTube (e.g. re-grading for a crosspost-only re-run) so it isn't uploaded twice."
+        description: "Upload to YouTube. Turn OFF when re-rendering a day that's already live on YouTube (e.g. re-grading a render) so it isn't uploaded twice."
         type: boolean
         default: true
-      force_crosspost:
-        description: "Re-post to Facebook/Instagram even if this day already has one. Normally auto-skipped once a day is marked posted -- this is what should have stopped the 2026-08-10 day07 duplicate-post incident that tanked Facebook reach for days. Only turn on if you deliberately need a second post."
-        type: boolean
-        default: false
       force_youtube_upload:
         description: "Re-upload to YouTube even if this day already has a video. Normally auto-skipped once a day is marked uploaded."
         type: boolean
@@ -363,31 +355,6 @@ jobs:
           set -o pipefail
           python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
 
-      - name: Cross-post to Facebook + Instagram (best-effort, never fails the YouTube upload)
-        # Skippable because YouTube can be re-uploaded over a bad render while
-        # Instagram cannot: its Content Publishing API has no delete endpoint,
-        # so every re-run leaves a duplicate the user has to remove by hand.
-        # Also auto-skipped per-platform if this day already has a
-        # FB_POSTED/IG_POSTED marker committed -- see _fb_ig_upload.py. This
-        # is the actual fix for the 2026-08-10 day07 incident: a re-render
-        # for a color-grade fix re-crossposted without anyone remembering to
-        # pass crosspost=false, duplicate-posting to Facebook and tanking
-        # reach on the Page for days afterward.
-        if: ${{ github.event.inputs.crosspost != 'false' }}
-        continue-on-error: true
-        env:
-          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-          DAY_DIR: ${{ env.DAY_DIR }}
-          FORCE_CROSSPOST: ${{ github.event.inputs.force_crosspost }}
-          # Facebook honors this natively (scheduled Page post). Instagram's
-          # API can't schedule at all -- see _fb_ig_upload.py's docstring --
-          # so IG is skipped and logged when this is set, not faked.
-          PUBLISH_AT: ${{ github.event.inputs.publish_at }}
-        run: python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
-
       - name: Upload to Drive (real playable link for Telegram — Telegram's own 50MB bot-file limit can't take the ~100MB render directly)
         id: drive
         continue-on-error: true
@@ -406,11 +373,17 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
 
-      - name: Commit videoId + publish markers to ledger
+      - name: Commit permanent Cloudinary link + videoId to ledger
+        # CLOUDINARY_LINK.txt is what crosspost_decision.yml reads whenever
+        # Facebook/Instagram eventually get approved via Telegram -- could be
+        # minutes or weeks later, well past the ~7-day artifact retention, so
+        # this has to be committed to git, not just printed to a log.
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add _pipeline/cases_used.json "$DAY_DIR/FB_POSTED" "$DAY_DIR/IG_POSTED" "$DAY_DIR/YOUTUBE_UPLOADED" 2>/dev/null
+          CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log 2>/dev/null | cut -d= -f2-)
+          [ -n "$CLOUDINARY_LINK" ] && echo -n "$CLOUDINARY_LINK" > "$DAY_DIR/CLOUDINARY_LINK.txt"
+          git add _pipeline/cases_used.json "$DAY_DIR/YOUTUBE_UPLOADED" "$DAY_DIR/CLOUDINARY_LINK.txt" 2>/dev/null
           git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin "HEAD:${GITHUB_REF_NAME}"
@@ -447,23 +420,19 @@ jobs:
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
         run: |
-          # video_id only exists when youtube_upload wasn't skipped; fb_post_id/
-          # ig_media_id only exist when crosspost ran. A youtube_upload=false
-          # crosspost-only re-run (e.g. re-grading a day already live on
-          # YouTube) has no upload.log at all, so this used to silently exit
-          # here with nothing to report -- the run succeeded but Telegram
-          # never heard about it. Now it notifies as long as ANY of the three
-          # actually happened, and only truly skips if literally nothing did.
+          # video_id only exists when youtube_upload wasn't skipped. Facebook/
+          # Instagram no longer post from this job at all -- the Worker
+          # attaches FB/IG Approve/Reject buttons to this same message once
+          # video_id is present (see /batch/uploaded's fbIgDecisionKeyboard);
+          # actual posting happens later via crosspost_decision.yml.
           VIDEO_ID=$(grep -o 'video_id=.*' /tmp/upload.log 2>/dev/null | cut -d= -f2)
-          FB_POST_ID=$(grep -o 'fb_post_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
-          IG_MEDIA_ID=$(grep -o 'ig_media_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
-          if [ -z "$VIDEO_ID" ] && [ -z "$FB_POST_ID" ] && [ -z "$IG_MEDIA_ID" ]; then
-            echo "no video_id, fb_post_id, or ig_media_id found — nothing published this run, skipping notify"
+          if [ -z "$VIDEO_ID" ]; then
+            echo "no video_id found — nothing published this run, skipping notify"
             exit 0
           fi
           DRIVE_LINK=$(grep -o 'drive_link=.*' /tmp/drive.log | cut -d= -f2-)
           CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log | cut -d= -f2-)
-          VIDEO_ID="$VIDEO_ID" FB_POST_ID="$FB_POST_ID" IG_MEDIA_ID="$IG_MEDIA_ID" DRIVE_LINK="$DRIVE_LINK" CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
+          VIDEO_ID="$VIDEO_ID" DRIVE_LINK="$DRIVE_LINK" CLOUDINARY_LINK="$CLOUDINARY_LINK" python3 -c "
           import json, os, urllib.request
           # title/hashtags come from this day's own youtube.json (same file
           # already in the artifact from the render job) rather than a shell
@@ -483,8 +452,6 @@ jobs:
               'title': title,
               'hashtags': hashtags,
               'video_id': os.environ.get('VIDEO_ID') or None,
-              'fb_post_id': os.environ.get('FB_POST_ID') or None,
-              'ig_media_id': os.environ.get('IG_MEDIA_ID') or None,
               'drive_link': os.environ.get('DRIVE_LINK') or None,
               'cloudinary_link': os.environ.get('CLOUDINARY_LINK') or None,
               'chat_id': os.environ.get('NOTIFY_CHAT_ID') or None,
