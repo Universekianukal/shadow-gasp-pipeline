@@ -1,0 +1,134 @@
+name: shadow_gasp crosspost decision (Facebook / Instagram approve or reject)
+
+# Dispatched by a tap on the "FB: Approve/Reject" or "IG: Approve/Reject"
+# buttons the shadow-gasp-bot Worker attaches to every "day N is LIVE on
+# YouTube" Telegram message (see /batch/uploaded's fbIgDecisionKeyboard).
+# There is no expiry on those buttons -- the callback_data carries day +
+# platform + decision directly (no KV draft to go stale), so this can be
+# dispatched any number of days after the original render, using the
+# permanent Cloudinary link committed as CLOUDINARY_LINK.txt rather than a
+# GitHub Actions artifact (those expire in days; this must not).
+#
+# YouTube is intentionally untouched by this workflow -- /publish and the
+# daily 04:30/05:15 queue both only ever handle YouTube now. Facebook and
+# Instagram ONLY go out through this approve/reject flow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 41)"
+        required: true
+      platform:
+        description: "fb or ig"
+        required: true
+      decision:
+        description: "approve or reject"
+        required: true
+      notify_chat_id:
+        description: "Telegram chat id to confirm the outcome to (blank for manual runs)"
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  decide:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve day dir
+        run: |
+          DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
+
+      - name: Reject -- mark it, no post
+        if: github.event.inputs.decision == 'reject'
+        run: |
+          MARK=$([ "${{ github.event.inputs.platform }}" = "fb" ] && echo FB_REJECTED || echo IG_REJECTED)
+          touch "$DAY_DIR/$MARK"
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add "$DAY_DIR/$MARK"
+          git diff --cached --quiet || git commit -q -m "day ${{ github.event.inputs.day }}: ${{ github.event.inputs.platform }} rejected via Telegram"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main -q && git push origin HEAD:main && break
+            echo "push conflict, retry $i"
+            sleep $((RANDOM % 8 + 3))
+          done
+
+      - name: Python deps
+        if: github.event.inputs.decision == 'approve'
+        run: pip install --quiet requests
+
+      - name: Approve -- post now, from the permanent Cloudinary link
+        id: approve
+        if: github.event.inputs.decision == 'approve'
+        env:
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: |
+          set -o pipefail
+          test -f "$DAY_DIR/CLOUDINARY_LINK.txt" || { echo "::error::$DAY_DIR/CLOUDINARY_LINK.txt missing -- was this day published before the CLOUDINARY_LINK.txt commit step existed?"; exit 1; }
+          VIDEO_URL=$(cat "$DAY_DIR/CLOUDINARY_LINK.txt")
+          PLATFORM="${{ github.event.inputs.platform }}" VIDEO_URL="$VIDEO_URL" DAY_DIR="$DAY_DIR" \
+            python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
+
+      - name: Commit post marker
+        if: github.event.inputs.decision == 'approve' && success()
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          MARK=$([ "${{ github.event.inputs.platform }}" = "fb" ] && echo FB_POSTED || echo IG_POSTED)
+          git add "$DAY_DIR/$MARK"
+          git diff --cached --quiet || git commit -q -m "day ${{ github.event.inputs.day }}: ${{ github.event.inputs.platform }} posted via Telegram approve"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main -q && git push origin HEAD:main && break
+            echo "push conflict, retry $i"
+            sleep $((RANDOM % 8 + 3))
+          done
+
+      - name: Tell Telegram this failed
+        if: failure()
+        continue-on-error: true
+        env:
+          BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT: ${{ github.event.inputs.notify_chat_id }}
+          DAY: ${{ github.event.inputs.day }}
+          JOB: crosspost_decision
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          STEP=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+                 --jq '.jobs[] | select(.name=="decide") | .steps[] | select(.conclusion=="failure") | .name' \
+                 2>/dev/null | head -1)
+          printf '{"day":"%s","job":"%s","step":"%s","run_url":"%s","chat_id":"%s"}' \
+            "$DAY" "$JOB" "${STEP:-unknown}" "$RUN_URL" "$CHAT" > /tmp/failed.json
+          curl -sS -X POST "$BASE/batch/failed" \
+            -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json" \
+            --data @/tmp/failed.json || true
+
+      - name: Notify Telegram of the outcome
+        if: always()
+        continue-on-error: true
+        env:
+          BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          CHAT: ${{ github.event.inputs.notify_chat_id }}
+          DAY: ${{ github.event.inputs.day }}
+          PLATFORM: ${{ github.event.inputs.platform }}
+          DECISION: ${{ github.event.inputs.decision }}
+        run: |
+          REF_ID=""
+          if [ "$DECISION" = "approve" ]; then
+            REF_ID=$(grep -o 'fb_post_id=.*\|ig_media_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
+          fi
+          printf '{"day":"%s","platform":"%s","decision":"%s","ref_id":"%s","chat_id":"%s"}' \
+            "$DAY" "$PLATFORM" "$DECISION" "$REF_ID" "$CHAT" > /tmp/decision.json
+          curl -sS -X POST "$BASE/batch/crosspost-decided" \
+            -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json" \
+            --data @/tmp/decision.json || echo "could not reach the bot"
