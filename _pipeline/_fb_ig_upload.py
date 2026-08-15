@@ -1,35 +1,23 @@
-"""Cross-post final.mp4 to the shadow_gasp Facebook Page and Instagram
-alongside the YouTube upload. Mirrors _youtube_upload.py's shape (same
-VIDEO_PATH/META_PATH, same "print the id line before anything that can fail"
-rule from the Telegram-notify bug — see shadow-gasp-telegram-notify-fix).
+"""Post final.mp4 (via its permanent Cloudinary URL, from _cloudinary_upload.py)
+to either the shadow_gasp Facebook Page or Instagram account -- never both in
+one run. Split out of the old combined script so each platform can be
+approved or rejected independently from Telegram, at any point after render
+(see crosspost_decision.yml) -- there is no PUBLISH_AT/scheduling concept
+here anymore: /publish only ever schedules YouTube now, and Facebook/
+Instagram both go out immediately, the moment a human taps Approve in
+Telegram, however long after render that happens to be.
 
-Facebook accepts a direct binary upload, so no public hosting is needed there.
-Instagram's Graph API only accepts a video_url, so the file is temporarily
-staged on Cloudinary, referenced, polled until Instagram finishes processing
-it, published, then deleted from Cloudinary regardless of outcome.
+Credentials from env vars (GitHub Actions secrets): FB_PAGE_ACCESS_TOKEN.
 
-Credentials come from env vars (GitHub Actions secrets):
-  FB_PAGE_ACCESS_TOKEN
-  CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
-    (same account/var names as everydayhypehq/scripts/upload_to_cloudinary.py)
-
-IDs are hardcoded, not env vars, because they identify a fixed destination
-(this channel's Page/IG account), same as how VIDEO_PATH is hardcoded above.
-
-PUBLISH_AT (RFC3339 UTC, e.g. 2026-07-30T23:45:00Z), same env var
-_youtube_upload.py already reads: Facebook's API natively supports scheduled
-Page video posts (published=false + scheduled_publish_time), so that part is
-honored here. Instagram's Graph API has NO scheduling support at all, even
-for approved third-party apps -- a published container goes live immediately,
-full stop. Rather than fake it (posting to IG now while FB waits would just
-be a confusing, inconsistent launch), IG is skipped entirely when PUBLISH_AT
-is set; it needs to be posted separately, by hand, at the real time.
+Required env vars:
+  PLATFORM    "fb" or "ig"
+  VIDEO_URL   permanent Cloudinary URL (from _cloudinary_upload.py, never deleted)
+  DAY_DIR     the day's own directory, for the FB_POSTED/IG_POSTED marker and youtube.json
 """
 import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
 
 import requests
 
@@ -37,21 +25,8 @@ FB_PAGE_ID = "1164008466785123"
 IG_USER_ID = "17841425663819735"
 GRAPH = "https://graph.facebook.com/v19.0"
 
-VIDEO_PATH = "final.mp4"
-META_PATH = "youtube.json"
-
-# Live inside the day's own directory (committed to git after a successful
-# post) so a re-render of an already-published day skips re-crossposting by
-# default instead of silently duplicating the post -- this is what actually
-# happened on day07 (Max Headroom) on 2026-08-10: a re-render for a
-# color-grade fix re-posted to Facebook a second time within 2 hours, and the
-# duplicate-content signal tanked reach on the page for days afterward. Set
-# FORCE_CROSSPOST=true to override on purpose. Separate FB/IG markers so a
-# partial failure (e.g. IG times out after FB succeeds) only needs to retry
-# the platform that actually failed.
+META_FILENAME = "youtube.json"
 DAY_DIR = os.environ.get("DAY_DIR", ".")
-FB_MARKER_PATH = os.path.join(DAY_DIR, "FB_POSTED")
-IG_MARKER_PATH = os.path.join(DAY_DIR, "IG_POSTED")
 
 POLL_INTERVAL_S = 10
 POLL_TIMEOUT_S = 600  # IG container processing can take a few minutes for longer videos
@@ -59,13 +34,9 @@ POLL_TIMEOUT_S = 600  # IG container processing can take a few minutes for longe
 
 def build_caption(meta):
     """Title + first paragraph of the description + hashtags, IG-caption-length
-    shaped. youtube.json's description already ends with 'Subscribe now 👇' —
-    kept as-is rather than re-appending a CTA.
-
-    youtube.json's "tags" are plain lowercase keywords with no "#" (they're
-    meant for YouTube's separate tags field, per _gen_youtube_meta.py's
-    prompt) — this is the only place they get turned into real hashtags, for
-    Facebook/Instagram where hashtags are part of the caption text itself.
+    shaped. youtube.json's "tags" are plain lowercase keywords with no "#"
+    (meant for YouTube's separate tags field) -- this is the only place they
+    get turned into real hashtags, for Facebook/Instagram captions.
     """
     title = meta["title"]
     first_para = meta["description"].split("\n\n")[0].strip()
@@ -78,60 +49,21 @@ def build_caption(meta):
     return caption
 
 
-def post_to_facebook(token, caption, publish_at_epoch):
-    data = {"description": caption, "access_token": token}
-    if publish_at_epoch:
-        # Meta requires at least 10 minutes and at most ~75 days out; anything
-        # outside that range comes back as a normal API error, surfaced as-is
-        # rather than pre-validated here.
-        data["published"] = "false"
-        data["scheduled_publish_time"] = publish_at_epoch
-    with open(VIDEO_PATH, "rb") as f:
-        resp = requests.post(
-            f"{GRAPH}/{FB_PAGE_ID}/videos",
-            data=data,
-            files={"source": f},
-            timeout=600,
-        )
+def post_to_facebook(token, caption, video_url):
+    # file_url instead of a multipart binary upload -- the permanent
+    # Cloudinary link means there's no need to have final.mp4 on disk at all,
+    # which matters here since this can run days after the original render's
+    # artifact has expired.
+    resp = requests.post(
+        f"{GRAPH}/{FB_PAGE_ID}/videos",
+        data={"description": caption, "file_url": video_url, "access_token": token},
+        timeout=600,
+    )
     resp.raise_for_status()
     post_id = resp.json()["id"]
-    if publish_at_epoch:
-        print(f"Facebook scheduled for {datetime.fromtimestamp(publish_at_epoch, tz=timezone.utc).isoformat()}: https://facebook.com/{post_id}")
-    else:
-        print(f"Facebook posted: https://facebook.com/{post_id}")
+    print(f"Facebook posted: https://facebook.com/{post_id}")
     print(f"fb_post_id={post_id}")
     return post_id
-
-
-def upload_to_cloudinary():
-    import cloudinary
-    import cloudinary.uploader
-
-    cloudinary.config(
-        cloud_name=os.environ["CLOUDINARY_CLOUD_NAME"],
-        api_key=os.environ["CLOUDINARY_API_KEY"],
-        api_secret=os.environ["CLOUDINARY_API_SECRET"],
-        secure=True,
-    )
-    resp = cloudinary.uploader.upload_large(
-        VIDEO_PATH,
-        resource_type="video",
-        folder="shadow_gasp/ig_staging",
-        public_id=f"ig_{int(time.time())}",
-    )
-    return resp["public_id"], resp["secure_url"]
-
-
-def delete_from_cloudinary(public_id):
-    import cloudinary
-    import cloudinary.uploader
-
-    try:
-        cloudinary.uploader.destroy(public_id, resource_type="video")
-        print(f"Cloudinary staging asset deleted: {public_id}")
-    except Exception as e:
-        # Non-fatal: a leftover staging asset costs quota, not correctness.
-        print(f"Cloudinary cleanup failed ({public_id}): {e}", file=sys.stderr)
 
 
 def post_to_instagram(token, caption, video_url):
@@ -178,47 +110,33 @@ def post_to_instagram(token, caption, video_url):
 
 
 def main():
-    if not os.path.isfile(VIDEO_PATH):
-        print(f"{VIDEO_PATH} not found", file=sys.stderr)
+    platform = os.environ.get("PLATFORM", "").strip().lower()
+    if platform not in ("fb", "ig"):
+        print("PLATFORM must be 'fb' or 'ig'", file=sys.stderr)
         sys.exit(1)
 
-    meta = json.load(open(META_PATH, encoding="utf-8"))
+    video_url = os.environ.get("VIDEO_URL", "").strip()
+    if not video_url:
+        print("VIDEO_URL not set", file=sys.stderr)
+        sys.exit(1)
+
+    meta = json.load(open(os.path.join(DAY_DIR, META_FILENAME), encoding="utf-8"))
     caption = build_caption(meta)
     token = os.environ["FB_PAGE_ACCESS_TOKEN"]
-
-    publish_at = os.environ.get("PUBLISH_AT", "").strip()
-    publish_at_epoch = None
-    if publish_at:
-        publish_at_epoch = int(datetime.fromisoformat(publish_at.replace("Z", "+00:00")).timestamp())
-
     force = os.environ.get("FORCE_CROSSPOST", "").strip().lower() == "true"
+
     os.makedirs(DAY_DIR, exist_ok=True)
+    marker_path = os.path.join(DAY_DIR, "FB_POSTED" if platform == "fb" else "IG_POSTED")
+    if os.path.exists(marker_path) and not force:
+        print(f"{marker_path} present -- already posted, skipping to avoid a duplicate "
+              f"(set FORCE_CROSSPOST=true to force a repost)")
+        return
 
-    # Facebook first: it's a direct upload with no external staging, so it
-    # can't fail because of anything Cloudinary-related.
-    if os.path.exists(FB_MARKER_PATH) and not force:
-        print(f"{FB_MARKER_PATH} present -- already posted to Facebook for this day, "
-              f"skipping to avoid a duplicate post (set FORCE_CROSSPOST=true to force a repost)")
+    if platform == "fb":
+        post_to_facebook(token, caption, video_url)
     else:
-        post_to_facebook(token, caption, publish_at_epoch)
-        open(FB_MARKER_PATH, "w").close()
-
-    if publish_at_epoch:
-        print(f"Instagram skipped: PUBLISH_AT is set but Instagram's API has no scheduling support. "
-              f"Post it by hand at {publish_at} instead.")
-        return
-
-    if os.path.exists(IG_MARKER_PATH) and not force:
-        print(f"{IG_MARKER_PATH} present -- already posted to Instagram for this day, "
-              f"skipping to avoid a duplicate post (set FORCE_CROSSPOST=true to force a repost)")
-        return
-
-    public_id, video_url = upload_to_cloudinary()
-    try:
         post_to_instagram(token, caption, video_url)
-        open(IG_MARKER_PATH, "w").close()
-    finally:
-        delete_from_cloudinary(public_id)
+    open(marker_path, "w").close()
 
 
 if __name__ == "__main__":
