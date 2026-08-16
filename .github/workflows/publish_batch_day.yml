@@ -56,6 +56,12 @@ jobs:
       - name: Python deps
         run: pip install --quiet google-api-python-client google-auth-oauthlib requests cloudinary
 
+      - name: Restore Sheets service-account key (for the real-time status stamp)
+        run: |
+          mkdir -p _pipeline/_local
+          printf '%s' '${{ secrets.SHEETS_SA_KEY }}' > _pipeline/_local/sheets_sa_key.json
+          python3 -c "import json; json.load(open('_pipeline/_local/sheets_sa_key.json'))"
+
       - uses: actions/download-artifact@v4
         with:
           name: batch-day-${{ github.event.inputs.day }}-final
@@ -75,6 +81,21 @@ jobs:
         run: |
           set -o pipefail
           python3 _pipeline/_youtube_upload.py | tee /tmp/upload.log
+
+      - name: Stamp sheet in real time (YouTube status)
+        # So the sheet reflects "published" the moment it happens instead of
+        # waiting for the next sync_youtube_status.yml poll (up to 15 min).
+        if: steps.upload.outcome == 'success'
+        continue-on-error: true
+        env:
+          DAY: ${{ github.event.inputs.day }}
+        run: |
+          VIDEO_ID=$(grep -o 'video_id=.*' /tmp/upload.log 2>/dev/null | cut -d= -f2)
+          if [ -z "$VIDEO_ID" ]; then
+            echo "no video_id in upload.log, nothing to stamp"
+          else
+            VIDEO_ID="$VIDEO_ID" python3 _pipeline/_stamp_youtube_sheet.py
+          fi
 
       - name: Upload to Drive (real playable link for Telegram)
         id: drive
