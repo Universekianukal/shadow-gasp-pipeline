@@ -46,6 +46,15 @@ jobs:
           DAY=$(printf "%02d" "${{ github.event.inputs.day }}")
           echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
 
+      - name: Python deps (Sheets, for the real-time status stamp)
+        run: pip install --quiet google-api-python-client google-auth
+
+      - name: Restore Sheets service-account key (for the real-time status stamp)
+        run: |
+          mkdir -p _pipeline/_local
+          printf '%s' '${{ secrets.SHEETS_SA_KEY }}' > _pipeline/_local/sheets_sa_key.json
+          python3 -c "import json; json.load(open('_pipeline/_local/sheets_sa_key.json'))"
+
       - name: Reject -- mark it, no post
         if: github.event.inputs.decision == 'reject'
         run: |
@@ -90,6 +99,18 @@ jobs:
             echo "push conflict, retry $i"
             sleep $((RANDOM % 8 + 3))
           done
+
+      - name: Stamp sheet in real time (FB/IG status)
+        # So the sheet reflects the decision the moment it happens -- FB/IG
+        # have no equivalent poll to sync/_youtube_status.yml since there's
+        # no "list every post" API used here.
+        if: (github.event.inputs.decision == 'reject') || (github.event.inputs.decision == 'approve' && steps.approve.outcome == 'success')
+        continue-on-error: true
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          PLATFORM: ${{ github.event.inputs.platform }}
+          DECISION: ${{ github.event.inputs.decision }}
+        run: python3 _pipeline/_stamp_crosspost_sheet.py
 
       - name: Tell Telegram this failed
         if: failure()
