@@ -12,7 +12,7 @@ import sys
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-SA_KEY_PATH = os.path.join("_local", "sheets_sa_key.json")
+SA_KEY_PATH = os.path.join("_pipeline", "_local", "sheets_sa_key.json")
 SHEET_ID = "1aPoXPKlC9cCStUqULzR46FmvUaL8jxQbFsDWEDXn3jM"
 SHEET_TAB = "Batch"
 
