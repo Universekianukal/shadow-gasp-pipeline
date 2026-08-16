@@ -1,0 +1,37 @@
+name: shadow_gasp sync YouTube publish status to sheet
+
+# Safety net for YouTube-scheduled publishes (PUBLISH_AT), which flip a video
+# from private to public on YouTube's own clock with no webhook to catch the
+# moment. Real-time stamps for pipeline-driven events (upload, FB/IG
+# approve/reject) happen directly in publish_batch_day.yml and
+# crosspost_decision.yml -- this just reconciles what YouTube says every 15
+# minutes so nothing silently drifts out of sync. See _sync_youtube_status.py.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python deps
+        run: pip install --quiet google-api-python-client google-auth
+
+      - name: Restore Sheets service-account key
+        run: |
+          mkdir -p _pipeline/_local
+          printf '%s' '${{ secrets.SHEETS_SA_KEY }}' > _pipeline/_local/sheets_sa_key.json
+          python3 -c "import json; json.load(open('_pipeline/_local/sheets_sa_key.json'))"
+
+      - name: Reconcile YouTube status
+        working-directory: _pipeline
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: python3 _sync_youtube_status.py
