@@ -95,6 +95,12 @@ def main():
         else:
             status_label = info["status"].capitalize()
             published = info["publishedAt"]
+        # append_sheet_row (pregen) never ran for every day (sheet_logged is
+        # false for several), so some rows we're about to touch have no
+        # Day/Case label at all yet -- fill those in too so the status
+        # columns don't land on an otherwise-blank row.
+        updates.append({"range": f"{SHEET_TAB}!A{row}", "values": [[day]]})
+        updates.append({"range": f"{SHEET_TAB}!B{row}", "values": [[state[str(day)]["case"]]]})
         updates.append({"range": f"{SHEET_TAB}!I{row}", "values": [[status_label]]})
         updates.append({"range": f"{SHEET_TAB}!L{row}", "values": [[vid]]})
         if published:
