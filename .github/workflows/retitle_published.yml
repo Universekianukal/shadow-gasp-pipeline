@@ -1,0 +1,74 @@
+name: shadow_gasp retitle published video
+
+# Changes the title of a day's video AFTER it's live on YouTube (videos.update,
+# requires the full "youtube" OAuth scope -- see _youtube_update_title.py).
+# If the day hasn't uploaded yet, the script no-ops (prints NOT_PUBLISHED) --
+# the pre-upload case is already handled by the Worker's commitTitleOverride,
+# which runs on every title_apply regardless, so this workflow only matters
+# for already-published days.
+
+on:
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Batch day number (e.g. 13)"
+        required: true
+      new_title:
+        description: "New title to set"
+        required: true
+      notify_chat_id:
+        description: "Telegram chat ID to report the result to"
+        required: false
+
+jobs:
+  retitle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python deps
+        run: pip install --quiet google-api-python-client google-auth requests
+
+      - name: Write sheets service account key
+        run: |
+          mkdir -p _pipeline/_local
+          printf '%s' '${{ secrets.SHEETS_SA_KEY }}' > _pipeline/_local/sheets_sa_key.json
+          python3 -c "import json; json.load(open('_pipeline/_local/sheets_sa_key.json'))"
+
+      - name: Retitle if published
+        id: retitle
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          NEW_TITLE: ${{ github.event.inputs.new_title }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          python3 _pipeline/_youtube_update_title.py | tee /tmp/retitle_out.txt
+
+      - name: Report to Telegram bot
+        if: ${{ github.event.inputs.notify_chat_id != '' }}
+        env:
+          DAY: ${{ github.event.inputs.day }}
+          NEW_TITLE: ${{ github.event.inputs.new_title }}
+          NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          out = open('/tmp/retitle_out.txt').read()
+          if 'NOT_PUBLISHED' in out:
+              text = f\"Day {os.environ['DAY']} hasn't uploaded to YouTube yet -- the style-picker draft is saved and will be used when it renders, nothing live to retitle.\"
+          elif 'video_id=' in out:
+              vid = [l for l in out.splitlines() if l.startswith('video_id=')][0].split('=', 1)[1]
+              text = f\"✅ Live YouTube title updated for day {os.environ['DAY']}: https://youtu.be/{vid}\"
+          else:
+              text = f\"❌ Couldn't retitle day {os.environ['DAY']} -- check the retitle_published workflow log.\"
+          body = json.dumps({'chat_id': os.environ['NOTIFY_CHAT_ID'], 'text': text}).encode()
+          req = urllib.request.Request(
+              'https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/notify-raw',
+              data=body, method='POST',
+              headers={'X-Batch-Notify-Secret': os.environ['BATCH_NOTIFY_SECRET'], 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'},
+          )
+          urllib.request.urlopen(req).read()
+          "
