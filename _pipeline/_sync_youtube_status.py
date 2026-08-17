@@ -44,7 +44,11 @@ def get_youtube():
         client_id=os.environ["YOUTUBE_CLIENT_ID"],
         client_secret=os.environ["YOUTUBE_CLIENT_SECRET"],
         token_uri="https://oauth2.googleapis.com/token",
-        scopes=["https://www.googleapis.com/auth/youtube.readonly"],
+        # Must match the scope the current refresh token was actually minted
+        # with (see _youtube_auth_remint.py) -- Google's refresh endpoint
+        # rejects a scope string that wasn't in the token's original grant,
+        # even a logical subset like .readonly of the full scope.
+        scopes=["https://www.googleapis.com/auth/youtube"],
     )
     return build("youtube", "v3", credentials=creds)
 
