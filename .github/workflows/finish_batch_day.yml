@@ -1,4 +1,5 @@
 name: shadow_gasp finish batch day (render + publish)
+run-name: "day ${{ inputs.day }} (upload=${{ inputs.upload }})"
 
 # Takes a batch day that already has its hook video + TTS narration added
 # (_pipeline/batch/dayNN/ with tc_narration.wav and images/01.mp4 committed —
