@@ -288,6 +288,46 @@ jobs:
             final_graded.mp4
           mv final_graded.mp4 final.mp4
 
+      - name: Cap final.mp4 under Cloudinary's 100MB free-plan limit
+        # Cloudinary's free plan hard-rejects any video over 104857600 bytes
+        # ("File size too large. Got 105521118. Maximum is 104857600." killed
+        # day24). The grade above re-encodes at CRF 18, which for a ~2min
+        # render lands right on the edge of that limit -- some days squeak
+        # under, some don't. Rather than let it be luck, re-encode at a
+        # computed bitrate whenever the graded file is too big.
+        #
+        # Deliberately applied to the ONE final.mp4 that every platform
+        # uploads, not just the Cloudinary copy -- the whole pipeline assumes
+        # YouTube/FB/IG/Cloudinary all ship byte-identical video, and the
+        # quality delta from ~105MB to ~90MB at this resolution is invisible.
+        #
+        # Single-pass ABR with maxrate == target and a 2x bufsize, so the
+        # output size is bounded rather than merely "usually about right".
+        working-directory: ${{ env.DAY_DIR }}
+        run: |
+          set -o pipefail
+          LIMIT=104857600      # Cloudinary's actual hard cap
+          TARGET=94371840      # 90 MiB -- headroom for container overhead
+          SIZE=$(stat -c%s final.mp4)
+          echo "graded size: $SIZE bytes (limit $LIMIT)"
+          if [ "$SIZE" -le "$LIMIT" ]; then
+            echo "under the limit, leaving as-is"
+            exit 0
+          fi
+          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 final.mp4)
+          VB=$(python3 -c "print(max(500000, int($TARGET * 8 / float('$DUR')) - 128000))")
+          echo "over the limit — re-encoding at ${VB}bps video for ${DUR}s"
+          ffmpeg -y -i final.mp4 \
+            -c:v libx264 -b:v "$VB" -maxrate "$VB" -bufsize "$((VB * 2))" \
+            -preset medium -pix_fmt yuv420p \
+            -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+            -c:a aac -b:a 128k \
+            final_capped.mp4
+          NEW=$(stat -c%s final_capped.mp4)
+          echo "re-encoded size: $NEW bytes"
+          [ "$NEW" -le "$LIMIT" ] || { echo "still over the limit after re-encode"; exit 1; }
+          mv final_capped.mp4 final.mp4
+
       - name: Verify (duration, live frames, audio present)
         working-directory: ${{ env.DAY_DIR }}
         run: |
@@ -374,7 +414,14 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
-        run: python3 _pipeline/_drive_upload.py "shadow_gasp_day${{ github.event.inputs.day }}.mp4" | tee /tmp/drive.log
+        # pipefail for the same reason the YouTube step has it: without it the
+        # exit status is tee's, so a dead DRIVE_REFRESH_TOKEN (invalid_grant,
+        # day24) painted this step green while no link was ever produced.
+        # continue-on-error keeps that from failing the whole job -- Drive is
+        # a convenience link, not the deliverable -- it just goes visibly red.
+        run: |
+          set -o pipefail
+          python3 _pipeline/_drive_upload.py "shadow_gasp_day${{ github.event.inputs.day }}.mp4" | tee /tmp/drive.log
 
       - name: Upload to Cloudinary (direct no-login download link for Telegram)
         id: cloudinary
@@ -383,7 +430,12 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-        run: python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
+        # pipefail: see the Drive step above. The 100MB rejection that broke
+        # day24 was raised, printed to stderr, and then completely hidden by
+        # tee's zero exit status.
+        run: |
+          set -o pipefail
+          python3 _pipeline/_cloudinary_upload.py "shadow_gasp_day${{ github.event.inputs.day }}" | tee /tmp/cloudinary.log
 
       - name: Commit permanent Cloudinary link + youtube.json + videoId to ledger
         # CLOUDINARY_LINK.txt is what crosspost_decision.yml reads whenever
@@ -395,13 +447,29 @@ jobs:
         # description + hashtags), and until now it only ever lived in the
         # artifact, which the very next step deletes.
         id: commit
+        # The `git add A B C D 2>/dev/null` this used to be was a trap: when
+        # the Cloudinary upload failed, CLOUDINARY_LINK.txt was never written,
+        # git add died on the unmatched pathspec with exit 128, and 2>/dev/null
+        # ate the message -- so the step failed with no explanation, the ledger
+        # stamp never landed, and the day looked broken for an unrelated
+        # reason. Stage only the paths that actually exist, and let git's
+        # stderr through so a real failure is readable in the log.
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
-          CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log 2>/dev/null | cut -d= -f2-)
-          [ -n "$CLOUDINARY_LINK" ] && echo -n "$CLOUDINARY_LINK" > "$DAY_DIR/CLOUDINARY_LINK.txt"
-          [ -f youtube.json ] && cp youtube.json "$DAY_DIR/youtube.json"
-          git add _pipeline/cases_used.json "$DAY_DIR/YOUTUBE_UPLOADED" "$DAY_DIR/CLOUDINARY_LINK.txt" "$DAY_DIR/youtube.json" 2>/dev/null
+          CLOUDINARY_LINK=$(grep -o 'cloudinary_link=.*' /tmp/cloudinary.log 2>/dev/null | cut -d= -f2- || true)
+          if [ -n "$CLOUDINARY_LINK" ]; then
+            echo -n "$CLOUDINARY_LINK" > "$DAY_DIR/CLOUDINARY_LINK.txt"
+          else
+            echo "::warning::no Cloudinary link — FB/IG crossposting for this day will have nothing to read"
+          fi
+          if [ -f youtube.json ]; then cp youtube.json "$DAY_DIR/youtube.json"; fi
+          for f in _pipeline/cases_used.json \
+                   "$DAY_DIR/YOUTUBE_UPLOADED" \
+                   "$DAY_DIR/CLOUDINARY_LINK.txt" \
+                   "$DAY_DIR/youtube.json"; do
+            if [ -e "$f" ]; then git add "$f"; fi
+          done
           git diff --cached --quiet || git commit -m "published: ${{ needs.render.outputs.case }}"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
           git push origin "HEAD:${GITHUB_REF_NAME}"
