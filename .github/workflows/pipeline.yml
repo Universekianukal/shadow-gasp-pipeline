@@ -230,7 +230,19 @@ jobs:
           DAY: ${{ steps.day.outputs.day }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
           GH_TOKEN: ${{ github.token }}
+        # The step-name lookup races the API: this step starts milliseconds
+        # after the failing one exits, and the runner has not necessarily
+        # reported that step's conclusion to the service yet -- so the query
+        # matches nothing and the alert says 'step: unknown', which is exactly
+        # the detail the alert exists to provide (day47, 2026-08-23). Poll a
+        # few times before giving up.
         run: |
-          STEP=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs"                  --jq '.jobs[] | select(.name=="build") | .steps[] | select(.conclusion=="failure") | .name'                  2>/dev/null | head -1)
+          for attempt in 1 2 3 4 5; do
+            STEP=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" \
+                     --jq '.jobs[] | select(.name=="build") | .steps[] | select(.conclusion=="failure") | .name' \
+                     2>/dev/null | head -1)
+            [ -n "$STEP" ] && break
+            sleep 3
+          done
           printf '{"day":"%s","job":"build (daily cron)","step":"%s","run_url":"%s","chat_id":""}'             "${DAY:-not yet reserved}" "${STEP:-unknown}"             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /tmp/failed.json
           curl -sS -X POST "https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/failed"             -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET" -H "Content-Type: application/json"             --data @/tmp/failed.json || true
