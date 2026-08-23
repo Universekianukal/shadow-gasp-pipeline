@@ -147,7 +147,36 @@ def main():
             sys.exit(1)
 
     out_dir = os.path.join(KERNEL_DIR, "out")
-    subprocess.run(["kaggle", "kernels", "output", KERNEL_ID, "-p", out_dir], check=True)
+    os.makedirs(out_dir, exist_ok=True)
+
+    # `kaggle kernels output` downloads the kernel's files one at a time and
+    # aborts the whole command on the first connection that drops. Day47 got
+    # 6 of 16 stills before a ConnectionResetError(104) killed it, throwing
+    # away a kernel run that had already reached COMPLETE and ~30 minutes of
+    # wall clock -- the images existed on Kaggle the whole time, only the
+    # download failed. Retry, and accept a non-zero exit as long as all 16
+    # files actually landed, since each attempt only has to fill the gaps.
+    def missing_stills():
+        return [i for i in range(1, 17)
+                if not os.path.exists(os.path.join(out_dir, f"{i:02d}.jpeg"))]
+
+    for attempt in range(1, 5):
+        rc = subprocess.run(["kaggle", "kernels", "output", KERNEL_ID, "-p", out_dir]).returncode
+        missing = missing_stills()
+        if not missing:
+            if rc != 0:
+                print(f"attempt {attempt}: kaggle exited {rc}, but all 16 stills are present — continuing")
+            break
+        print(f"attempt {attempt}: output fetch failed (exit {rc}), "
+              f"still missing {len(missing)} stills: {missing}", file=sys.stderr)
+        if attempt < 4:
+            time.sleep(15 * attempt)
+    else:
+        raise SystemExit(
+            f"kaggle kernels output failed after 4 attempts; still missing stills {missing_stills()}. "
+            f"The kernel itself completed — retry the job, or fetch manually with: "
+            f"kaggle kernels output {KERNEL_ID} -p <dir>"
+        )
 
     for i in range(1, 17):
         src = os.path.join(out_dir, f"{i:02d}.jpeg")
