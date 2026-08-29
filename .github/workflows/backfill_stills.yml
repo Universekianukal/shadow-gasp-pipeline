@@ -23,6 +23,11 @@ on:
         description: "Batch day number to re-render (e.g. 34)"
         required: true
         type: string
+      replace_hook_clip:
+        description: "Allow re-rendering a day that already has a Flow hook clip (the clip will need remaking)"
+        required: false
+        default: "false"
+        type: string
 
 permissions:
   contents: write
@@ -59,6 +64,14 @@ jobs:
             echo "::error::$DAY_DIR is already published to YouTube. Re-rendering it cannot replace the live video (the pipeline's OAuth token is upload-only), so this would burn a GPU run for no effect. Refusing."
             exit 1
           fi
+          # A hook clip was animated in Google Flow FROM the current shot1. Once
+          # shot1 is re-rendered the clip no longer matches its own still, and a
+          # new Flow clip has to be made by hand. That is the user's time, not
+          # just GPU time, so it needs an explicit opt-in.
+          if [ -f "$DAY_DIR/images/seq/01.mp4" ] && [ "${{ inputs.replace_hook_clip }}" != "true" ]; then
+            echo "::error::$DAY_DIR already has a hook clip (images/seq/01.mp4) animated from the current shot1. Re-rendering the stills would leave that clip mismatched against its own still, and a replacement would have to be made in Flow by hand. Re-run with replace_hook_clip=true to accept that."
+            exit 1
+          fi
           echo "day_dir=$DAY_DIR" >> "$GITHUB_OUTPUT"
           echo "day_num=$DAY_NUM" >> "$GITHUB_OUTPUT"
 
@@ -66,9 +79,15 @@ jobs:
         working-directory: ${{ steps.guard.outputs.day_dir }}
         run: |
           set -euo pipefail
-          # _gen_flux_images.py returns early if images/seq/16.jpeg exists.
-          rm -rf images/seq _kaggle_flux_kernel
+          # _gen_flux_images.py returns early if images/seq/16.jpeg exists, so
+          # the old stills have to go. Delete ONLY the .jpeg stills: images/seq
+          # also holds 01.mp4, the Flow hook clip the user made by hand. An
+          # earlier `rm -rf images/seq` here destroyed day34's clip (it survived
+          # only because the commit never pushed). Days 34/35/37 have clips.
+          rm -f images/seq/*.jpeg
+          rm -rf _kaggle_flux_kernel
           mkdir -p images/seq
+          echo "kept in images/seq:"; ls -la images/seq
 
       - name: 16 stills — PixArt-Sigma on Kaggle GPU
         working-directory: ${{ steps.guard.outputs.day_dir }}
@@ -102,11 +121,18 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A -f "${{ steps.guard.outputs.day_dir }}/images/seq" \
-                        "${{ steps.guard.outputs.day_dir }}/shot1.jpeg"
+          # Stage the whole day dir, not just images/seq + shot1: the stills
+          # step copies _gen_flux_images.py into it, and that file is tracked
+          # for days 34+. Leaving it modified-but-unstaged made every
+          # `git pull --rebase` below abort with "cannot pull with rebase: You
+          # have unstaged changes", which is what failed day34's first run
+          # after a successful 20-minute GPU render.
+          git add -A -f "${{ steps.guard.outputs.day_dir }}"
           if git diff --cached --quiet; then
             echo "no change to commit"; exit 0
           fi
+          # Anything still unstaged at this point would break the rebase again.
+          git status --porcelain
           git commit -m "batch: day ${{ steps.guard.outputs.day_num }} stills re-rendered on PixArt-Sigma"
           for attempt in 1 2 3; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
