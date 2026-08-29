@@ -38,6 +38,10 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the published-day guard below reads `published:`
+          # commit subjects, which a depth-1 checkout does not have.
+          fetch-depth: 0
 
       - name: Python deps
         # Pinned to match pipeline.yml / batch_pregen.yml / regen_shot.yml —
@@ -64,6 +68,39 @@ jobs:
             echo "::error::$DAY_DIR is already published to YouTube. Re-rendering it cannot replace the live video (the pipeline's OAuth token is upload-only), so this would burn a GPU run for no effect. Refusing."
             exit 1
           fi
+          # The YOUTUBE_UPLOADED marker is NOT sufficient on its own: it was
+          # introduced partway through, so days published by the older path
+          # (34, 35, 37) never got one. Only day41 carries it. The reliable
+          # signal is a `published: <case>` commit whose subject matches this
+          # day's case in state.json -- that is how days 34/35/37 were found to
+          # be live after a backfill had already rendered day34 for nothing.
+          # Matched inside Python, not via `grep -F`: these case strings carry
+          # em-dashes and curly quotes, and shelling the comparison out made the
+          # match silently fail on day34 under a non-UTF-8 shell.
+          python3 - "$DAY_NUM" <<'PY'
+          import json, subprocess, sys
+          n = int(sys.argv[1])
+          s = json.load(open('_pipeline/batch/state.json', encoding='utf-8'))
+          case = ''
+          for k, v in (s.get('days', s)).items():
+              if int(''.join(c for c in k if c.isdigit()) or 0) == n:
+                  case = (v.get('case') or '').strip()
+                  break
+          if not case:
+              print(f'day {n}: no case in state.json, skipping the published check')
+              sys.exit(0)
+          subjects = subprocess.run(
+              ['git', 'log', '--format=%s'], capture_output=True, text=True,
+              encoding='utf-8', errors='replace', check=True).stdout.splitlines()
+          published = {x[len('published:'):].strip() for x in subjects
+                       if x.startswith('published:')}
+          if case in published:
+              print(f'::error::day {n} ("{case}") already has a "published:" commit '
+                    '— it is live on YouTube. Re-rendering cannot replace the live '
+                    'video, so this would burn a GPU run for no effect. Refusing.')
+              sys.exit(1)
+          print(f'day {n} is not published — proceeding')
+          PY
           # A hook clip was animated in Google Flow FROM the current shot1. Once
           # shot1 is re-rendered the clip no longer matches its own still, and a
           # new Flow clip has to be made by hand. That is the user's time, not
