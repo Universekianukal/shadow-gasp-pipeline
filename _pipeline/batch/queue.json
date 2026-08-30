@@ -1,16 +1,21 @@
 {
- "41": {
-  "status": "published",
-  "notify_chat_id": "8692339206",
-  "queued_at": "2026-08-15T19:13:19.193Z",
-  "render_run_id": "31914367293"
- },
- "53": {
-  "status": "held",
-  "notify_chat_id": "8692339206",
-  "queued_at": "2026-08-29T21:04:09.052Z",
-  "held_reason": "stills being re-rendered on PixArt-Sigma; existing hook clip was animated from the superseded FLUX shot1 and must be replaced before this day renders",
-  "held_at": "2026-08-29T21:20:00Z",
-  "prev_status": "pending_render"
- }
+  "32": {
+    "status": "pending_render",
+    "notify_chat_id": "8692339206",
+    "queued_at": "2026-08-30T18:12:35.019Z"
+  },
+  "41": {
+    "status": "published",
+    "notify_chat_id": "8692339206",
+    "queued_at": "2026-08-15T19:13:19.193Z",
+    "render_run_id": "31914367293"
+  },
+  "53": {
+    "status": "held",
+    "notify_chat_id": "8692339206",
+    "queued_at": "2026-08-29T21:04:09.052Z",
+    "held_reason": "stills being re-rendered on PixArt-Sigma; existing hook clip was animated from the superseded FLUX shot1 and must be replaced before this day renders",
+    "held_at": "2026-08-29T21:20:00Z",
+    "prev_status": "pending_render"
+  }
 }
