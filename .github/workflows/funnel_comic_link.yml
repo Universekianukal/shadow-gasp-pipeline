@@ -1,0 +1,87 @@
+name: shadow_gasp funnel comic link into published video
+
+# Adds a comic's Gumroad link to the description of the already-published video it was made
+# from. This is the step that makes a comic sellable at all: the short already has the audience,
+# and without this the product is published to nobody. NORJAK sat on Gumroad with 0 sales while
+# the D.B. Cooper video never mentioned it existed.
+#
+# Dispatched by the shadow-gasp-bot Worker when the "Funnel to YouTube" button is tapped on a
+# comic draft, or run by hand for a back-catalogue comic.
+#
+# Safe to re-run: _youtube_append_link.py is idempotent (it looks for the URL in the existing
+# description first) and refuses to link a Gumroad draft, which would 404 for real viewers.
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "Published YouTube video id (e.g. ZwARHhTmZwo)"
+        required: true
+      product_url:
+        description: "Gumroad permalink (https://shadowgasp.gumroad.com/l/...)"
+        required: true
+      product_name:
+        description: "Display name, e.g. SHADOW GASP #2: HEAVEN'S GATE"
+        required: true
+      pages:
+        description: "Page count for the blurb (optional, e.g. 80)"
+        required: false
+        default: ""
+      position:
+        description: "top (default, converts better) or bottom"
+        required: false
+        default: "top"
+      allow_draft:
+        description: "true to link a product that is not publicly reachable yet (default false)"
+        required: false
+        default: "false"
+      notify_chat_id:
+        description: "Telegram chat ID to report the result to"
+        required: false
+        default: ""
+
+jobs:
+  funnel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python deps
+        run: pip install --quiet google-api-python-client google-auth requests
+
+      - name: Append the comic link
+        id: funnel
+        env:
+          VIDEO_ID: ${{ github.event.inputs.video_id }}
+          PRODUCT_URL: ${{ github.event.inputs.product_url }}
+          PRODUCT_NAME: ${{ github.event.inputs.product_name }}
+          PAGES: ${{ github.event.inputs.pages }}
+          POSITION: ${{ github.event.inputs.position }}
+          ALLOW_DRAFT: ${{ github.event.inputs.allow_draft }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          set -o pipefail
+          python3 _pipeline/_youtube_append_link.py 2>&1 | tee /tmp/funnel_out.txt
+
+      - name: Report to Telegram
+        if: ${{ always() && github.event.inputs.notify_chat_id != '' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
+          VIDEO_ID: ${{ github.event.inputs.video_id }}
+          OUTCOME: ${{ steps.funnel.outcome }}
+        run: |
+          BODY=$(tail -c 800 /tmp/funnel_out.txt 2>/dev/null || echo "no output")
+          if [ "$OUTCOME" = "success" ]; then
+            TEXT="🔗 Comic link added to https://youtu.be/${VIDEO_ID}
+          ${BODY}"
+          else
+            TEXT="❌ Couldn't add the comic link to https://youtu.be/${VIDEO_ID}
+          ${BODY}"
+          fi
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${CHAT_ID}" \
+            --data-urlencode "text=${TEXT}" \
+            -o /dev/null
