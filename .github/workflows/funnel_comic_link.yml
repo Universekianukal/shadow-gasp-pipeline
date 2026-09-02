@@ -35,6 +35,10 @@ on:
         description: "top (default, converts better) or bottom"
         required: false
         default: "top"
+      replace:
+        description: "true to strip an existing block and rewrite it (use when the copy changed)"
+        required: false
+        default: "false"
       allow_draft:
         description: "true to link a product that is not publicly reachable yet (default false)"
         required: false
@@ -63,6 +67,7 @@ jobs:
           HOOK: ${{ github.event.inputs.hook }}
           POSITION: ${{ github.event.inputs.position }}
           ALLOW_DRAFT: ${{ github.event.inputs.allow_draft }}
+          REPLACE: ${{ github.event.inputs.replace }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
