@@ -12,6 +12,7 @@ Env:
   HOOK           optional one-line hook from the script (promo_hook)
   POSITION       "top" (default) or "bottom"
   ALLOW_DRAFT    "true" to skip the published-product check (default false)
+  REPLACE        "true" to strip an existing block and re-write it (for copy changes)
 
 Requires the full "youtube" OAuth scope, same as _youtube_update_title.py -- videos.update
 403s under the upload-only scope. Re-mint via _youtube_auth_remint.py if that happens.
@@ -110,10 +111,24 @@ def main():
     snippet = items[0]["snippet"]
     description = snippet.get("description", "")
 
-    if product_url in description:
+    replace = os.environ.get("REPLACE", "").lower() == "true"
+    if product_url in description and not replace:
         print(f"ALREADY_LINKED: {product_url} is already in {video_id}'s description, nothing to do")
         print(f"video_id={video_id}")
         return
+
+    if product_url in description:
+        # REPLACE: strip the old block so improved copy can go in. Without this the idempotency
+        # guard makes the wording permanent -- the first version told viewers the comic was
+        # "from the same research as this video", which describes it as a duplicate of the free
+        # thing they just watched. Match only OUR lines, never the author's own description.
+        keep = [ln for ln in description.split("\n")
+                if ln.strip() != product_url
+                and not ln.startswith("\U0001f4d5")
+                and "from the same research as this video" not in ln
+                and not ln.startswith("The whole story as a")]
+        description = "\n".join(keep).strip()
+        print(f"REPLACING the existing block in {video_id}", flush=True)
 
     block = link_block(product_name, product_url,
                        os.environ.get("PAGES", "").strip(),
