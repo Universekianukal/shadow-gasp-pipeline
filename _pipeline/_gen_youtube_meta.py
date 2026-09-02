@@ -5,7 +5,7 @@ import json
 import os
 import re
 
-from anthropic import Anthropic
+import _llm  # provider shim: Anthropic or Fireworks, see _pipeline/_llm.py
 
 MODEL = "claude-sonnet-5"
 
@@ -50,7 +50,7 @@ def generate(client, script):
 
 def main():
     script = open("tc_narration.txt").read()
-    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = _llm.client()
     meta = generate(client, script)
 
     # A title picked via the Telegram style-picker (see worker.js's
