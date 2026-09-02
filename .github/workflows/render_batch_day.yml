@@ -180,8 +180,13 @@ jobs:
         working-directory: ${{ env.DAY_DIR }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Anthropic credits ran out. _pipeline/_llm.py speaks both dialects; 'auto' uses
+          # Anthropic when its key is present and Fireworks otherwise. Pin with the repo
+          # variable SHORT_LLM_PROVIDER.
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
         run: |
-          cp ../../_gen_youtube_meta.py .
+          cp ../../_gen_youtube_meta.py ../../_llm.py .
           python3 _gen_youtube_meta.py
 
       - name: Cache HyperFrames
