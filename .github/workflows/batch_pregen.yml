@@ -51,6 +51,12 @@ jobs:
         working-directory: _pipeline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Anthropic credits ran out, which stops this pipeline dead: script, title and
+          # case pick all go through it. _pipeline/_llm.py speaks both dialects and
+          # 'auto' uses Anthropic when its key is present, Fireworks otherwise. Set the
+          # repo variable SHORT_LLM_PROVIDER to 'anthropic' to force it back later.
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
           KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
