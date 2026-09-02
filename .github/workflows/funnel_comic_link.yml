@@ -74,8 +74,13 @@ jobs:
           OUTCOME: ${{ steps.funnel.outcome }}
         run: |
           BODY=$(tail -c 800 /tmp/funnel_out.txt 2>/dev/null || echo "no output")
-          if [ "$OUTCOME" = "success" ]; then
-            TEXT="🔗 Comic link added to https://youtu.be/${VIDEO_ID}
+          # Distinguish "I added it" from "it was already there". Both are successes, but
+          # reporting both as "added" makes /funnel useless as a way to CHECK a link.
+          if [ "$OUTCOME" = "success" ] && grep -q "ALREADY_LINKED" /tmp/funnel_out.txt 2>/dev/null; then
+            TEXT="✅ Already linked — https://youtu.be/${VIDEO_ID} already carries this comic. Nothing changed.
+          ${BODY}"
+          elif [ "$OUTCOME" = "success" ]; then
+            TEXT="🔗 Comic link ADDED to https://youtu.be/${VIDEO_ID}
           ${BODY}"
           else
             TEXT="❌ Couldn't add the comic link to https://youtu.be/${VIDEO_ID}
