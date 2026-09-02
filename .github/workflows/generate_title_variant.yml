@@ -37,6 +37,11 @@ jobs:
       - name: Draft title
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Anthropic credits ran out. _pipeline/_llm.py speaks both dialects; 'auto' uses
+          # Anthropic when its key is present and Fireworks otherwise. Pin with the repo
+          # variable SHORT_LLM_PROVIDER.
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
           STYLE: ${{ github.event.inputs.style }}
         run: |
           cat > /tmp/draft_title.py << 'PYEOF'
@@ -44,7 +49,12 @@ jobs:
           import os
           import re
 
-          from anthropic import Anthropic
+          import sys
+
+          # This script is written to /tmp and run from there, so _pipeline is not on
+          # sys.path -- the shim import needs the workspace path spelled out.
+          sys.path.insert(0, os.path.join(os.environ.get("GITHUB_WORKSPACE", "."), "_pipeline"))
+          import _llm  # provider shim: Anthropic or Fireworks
 
           STYLE_PROMPTS = {
               "shock": "Lean hard into shock value -- the most disturbing, "
@@ -81,7 +91,7 @@ jobs:
           )
 
           script = open(os.path.join(os.environ.get("DAY_DIR", ""), "narration.txt")).read()
-          client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+          client = _llm.client()
           resp = client.messages.create(
               model="claude-sonnet-5", max_tokens=1024, system=sys_prompt,
               messages=[{"role": "user", "content": script}],
