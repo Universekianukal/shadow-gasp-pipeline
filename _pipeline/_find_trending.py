@@ -17,6 +17,8 @@ import urllib.parse
 import urllib.request
 import datetime as dt
 
+import _llm  # provider shim: Anthropic or Fireworks
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 QUERIES = [
     "unsolved mystery case",
@@ -159,29 +161,20 @@ covered. For each, note which breakout video(s) suggested it and why it's trendi
 breakout titles are too vague to identify a specific real case, say so honestly instead of
 guessing. Keep it under 300 words, plain text, no markdown headers."""
 
-    body = json.dumps({
-        "model": "claude-sonnet-5",
-        # claude-sonnet-5 spends output budget on reasoning blocks BEFORE
-        # emitting text -- a small cap can return zero text (stop_reason
-        # max_tokens, only a thinking block). max_tokens is a CAP not a
-        # charge, so headroom here is free. See mindunlocked-growth-agents
-        # memory's max_tokens-starvation entry -- same bug, same fix.
-        "max_tokens": 4096,
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode()
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages", data=body, method="POST",
-        headers={
-            "x-api-key": os.environ["ANTHROPIC_API_KEY"],
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
+    # Routed through the shim so this keeps working without Anthropic credits. The
+    # hand-rolled request this replaces spoke only Anthropic's dialect.
+    resp = _llm.client().messages.create(
+        model="claude-sonnet-5",
+        # A reasoning model spends output budget on thinking BEFORE emitting text, so a
+        # small cap can return zero text. max_tokens is a CAP not a charge -- headroom
+        # here is free. See mindunlocked-growth-agents' max_tokens-starvation entry.
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}],
     )
-    with urllib.request.urlopen(req) as r:
-        resp = json.loads(r.read())
-    text_blocks = [b["text"] for b in resp.get("content", []) if b.get("type") == "text"]
+    text_blocks = [b.text for b in resp.content if b.type == "text"]
     if not text_blocks:
-        raise RuntimeError(f"no text block in Claude response: {resp}")
+        raise RuntimeError(
+            f"no text block in the model response (stop_reason={resp.stop_reason})")
     return text_blocks[0]
 
 
