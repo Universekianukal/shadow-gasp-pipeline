@@ -44,6 +44,12 @@ jobs:
         id: pick
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Anthropic credits ran out, which stops this pipeline dead: script, title and
+          # case pick all go through it. _pipeline/_llm.py speaks both dialects and
+          # 'auto' uses Anthropic when its key is present, Fireworks otherwise. Set the
+          # repo variable SHORT_LLM_PROVIDER to 'anthropic' to force it back later.
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
           CASE: ${{ github.event.inputs.case }}
         run: python3 _pipeline/_pick_case.py # writes CASE to GITHUB_ENV and step output
 
@@ -112,11 +118,17 @@ jobs:
         working-directory: ${{ env.DAY_DIR }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Anthropic credits ran out, which stops this pipeline dead: script, title and
+          # case pick all go through it. _pipeline/_llm.py speaks both dialects and
+          # 'auto' uses Anthropic when its key is present, Fireworks otherwise. Set the
+          # repo variable SHORT_LLM_PROVIDER to 'anthropic' to force it back later.
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
           CASE: ${{ steps.pick.outputs.case }}
           # Reserve the case in the channel-wide ledger, not a copy inside the day dir.
           CASES_LEDGER: ${{ github.workspace }}/_pipeline/cases_used.json
         run: |
-          cp ../../_gen_video_content.py .
+          cp ../../_gen_video_content.py ../../_llm.py .
           python3 _gen_video_content.py
           cp tc_narration.txt narration.txt
           cat narration.txt
