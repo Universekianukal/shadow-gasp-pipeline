@@ -11,7 +11,7 @@ import os
 import re
 import datetime
 
-from anthropic import Anthropic
+import _llm  # provider shim: Anthropic or Fireworks, see _pipeline/_llm.py
 
 MODEL = "claude-sonnet-5"
 # The ledger is channel-wide state, so it must not follow this script when it
@@ -220,7 +220,7 @@ def main():
         return
 
     case = os.environ["CASE"]
-    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = _llm.client()
     d = generate(client, case)
 
     open("tc_narration.txt", "w", encoding="utf-8").write(d["narration"].strip() + "\n")
