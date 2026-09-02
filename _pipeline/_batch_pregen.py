@@ -27,7 +27,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from anthropic import Anthropic
+import _llm  # provider shim: Anthropic or Fireworks, see _pipeline/_llm.py
 
 import _gen_video_content as gvc
 import _pick_case as pc
@@ -353,7 +353,7 @@ def main():
     os.makedirs(BATCH_DIR, exist_ok=True)
     state = load_state()
 
-    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = _llm.client()
     sheets = get_sheets_service()
 
     ledger = gvc.load_ledger()
