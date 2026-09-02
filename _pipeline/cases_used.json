@@ -591,7 +591,7 @@
    "publishedAt": "2026-08-14"
   },
   {
-   "videoId": "4STsCyk0M0A",
+   "videoId": null,
    "case": "The Green Bicycle Case (Bella Wright murder, Leicestershire, England, 1919)",
    "publishedAt": "2026-08-14"
   },
@@ -674,6 +674,11 @@
    "videoId": null,
    "case": "The Monster Study (University of Iowa, 1939)",
    "publishedAt": "2026-09-01"
+  },
+  {
+   "videoId": null,
+   "case": "The Glico Morinaga case (Japan, 1984-1985)",
+   "publishedAt": "2026-09-02"
   }
  ]
 }
