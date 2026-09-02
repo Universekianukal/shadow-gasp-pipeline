@@ -18,7 +18,7 @@ import os
 import re
 import sys
 
-from anthropic import Anthropic
+import _llm  # provider shim: Anthropic or Fireworks, see _pipeline/_llm.py
 
 MODEL = "claude-sonnet-5"
 LEDGER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cases_used.json")
@@ -147,7 +147,7 @@ def main():
         print(f"CASE already set, keeping it: {case}")
     else:
         used = load_used()
-        d = pick(Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"]), used)
+        d = pick(_llm.client(), used)
         case = d["case"]
         print(f"Picked: {case}\n  angle:   {d['angle']}\n  why now: {d['why_now']}")
         print(f"  (excluded {len(used)} already-published cases)")
