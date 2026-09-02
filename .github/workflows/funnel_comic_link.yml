@@ -27,6 +27,10 @@ on:
         description: "Page count for the blurb (optional, e.g. 80)"
         required: false
         default: ""
+      hook:
+        description: "One-line hook from the script (promo_hook) -- answers 'why read this when I watched the video?'"
+        required: false
+        default: ""
       position:
         description: "top (default, converts better) or bottom"
         required: false
@@ -56,6 +60,7 @@ jobs:
           PRODUCT_URL: ${{ github.event.inputs.product_url }}
           PRODUCT_NAME: ${{ github.event.inputs.product_name }}
           PAGES: ${{ github.event.inputs.pages }}
+          HOOK: ${{ github.event.inputs.hook }}
           POSITION: ${{ github.event.inputs.position }}
           ALLOW_DRAFT: ${{ github.event.inputs.allow_draft }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
