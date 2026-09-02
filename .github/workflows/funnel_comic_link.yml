@@ -86,7 +86,13 @@ jobs:
             TEXT="❌ Couldn't add the comic link to https://youtu.be/${VIDEO_ID}
           ${BODY}"
           fi
-          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+          # -f, and no /dev/null. With no token this posted to api.telegram.org/bot/sendMessage,
+          # took a 404, exited 0 and reported SUCCESS -- so the report never arrived and the step
+          # looked fine. A notifier that cannot notify has to say so.
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "ERROR: TELEGRAM_BOT_TOKEN is not set in this repo -- cannot report" >&2
+            exit 1
+          fi
+          curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${CHAT_ID}" \
-            --data-urlencode "text=${TEXT}" \
-            -o /dev/null
+            --data-urlencode "text=${TEXT}"
