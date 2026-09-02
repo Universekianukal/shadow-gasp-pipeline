@@ -9,6 +9,7 @@ Env:
   PRODUCT_URL    the Gumroad permalink (https://shadowgasp.gumroad.com/l/...)
   PRODUCT_NAME   display name, e.g. "SHADOW GASP #2: HEAVEN'S GATE"
   PAGES          optional page count for the blurb, e.g. "80"
+  HOOK           optional one-line hook from the script (promo_hook)
   POSITION       "top" (default) or "bottom"
   ALLOW_DRAFT    "true" to skip the published-product check (default false)
 
@@ -38,16 +39,27 @@ from googleapiclient.discovery import build
 DESCRIPTION_LIMIT = 5000
 
 
-def link_block(name, url, pages=""):
-    # "An 80-page", not "A 80-page" -- 8, 11 and 18 read with a leading vowel sound. This is
-    # public-facing copy on a channel's video description, so it has to scan.
-    article = "An" if pages and pages.lstrip("0")[:1] in ("8",) or pages in ("11", "18") else "A"
-    detail = f"{article} {pages}-page" if pages else "A full-length"
-    return (
-        f"\U0001f4d5 READ THE COMIC: {name}\n"
-        f"{url}\n"
-        f"{detail} documentary comic on this case, from the same research as this video.\n"
-    )
+def link_block(name, url, pages="", hook=""):
+    """The block written into the video description.
+
+    This has to answer "why read this when I just watched the video?". The first version said
+    the comic was "from the same research as this video", which is accurate and is exactly the
+    wrong thing to tell a viewer -- it describes the comic as a duplicate of the thing they have
+    already consumed for free.
+
+    So: lead with the case's own hook (the script writes one for precisely this job), then name
+    what the comic actually adds -- length and form. A few minutes of video cannot carry fifty
+    pages of drawn narrative, and that difference is the entire offer.
+    """
+    size = f"{pages}-page " if pages else ""
+    lines = [f"📕 THE COMIC — {name}"]
+    if hook:
+        lines.append(hook.strip())
+    lines.append(
+        f"The whole story as a {size}illustrated book: the people, the timeline and the detail "
+        "there was never room for here.")
+    lines.append(url)
+    return "\n".join(lines) + "\n"
 
 
 def gumroad_is_published(url):
@@ -103,7 +115,9 @@ def main():
         print(f"video_id={video_id}")
         return
 
-    block = link_block(product_name, product_url, os.environ.get("PAGES", "").strip())
+    block = link_block(product_name, product_url,
+                       os.environ.get("PAGES", "").strip(),
+                       os.environ.get("HOOK", "").strip())
     new_description = (
         f"{block}\n{description}" if position == "top" else f"{description}\n\n{block}"
     ).strip()
