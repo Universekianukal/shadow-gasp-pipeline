@@ -502,7 +502,17 @@ def notify_pregen_done(new_days_done, through_day, batch_complete=False):
         req = urllib.request.Request(
             "https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/pregen_done",
             data=body, method="POST",
-            headers={"X-Batch-Notify-Secret": secret, "Content-Type": "application/json"},
+            # ⚠️ The User-Agent is NOT decoration. Cloudflare's bot protection fingerprints
+            # Python urllib's default UA and blocks it at the edge with 403 / "error code:
+            # 1010" -- before the request ever reaches the Worker or its secret check. curl
+            # sails through, which is why a manual curl test does NOT prove this works and why
+            # the same secret succeeds from the /batch/failed step (that one uses curl).
+            # Three other call sites were patched for this on 2026-08-13; this one was missed,
+            # and day 58's "pregen chunk done" message died here with a 403.
+            headers={"X-Batch-Notify-Secret": secret, "Content-Type": "application/json",
+                     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                    "Chrome/120.0.0.0 Safari/537.36")},
         )
         urllib.request.urlopen(req).read()
     except Exception as e:
