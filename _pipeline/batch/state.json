@@ -1,350 +1,351 @@
 {
-  "days": {
-    "1": {
-      "case": "School of Turin - Antwerp Diamond Heist",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "2": {
-      "case": "The Sodder Fire — Five Children, No Bones",
-      "angle": "",
-      "sheet_logged": true,
-      "done": true
-    },
-    "3": {
-      "case": "The Somerton Man / Taman Shud Case (Adelaide, 1948)",
-      "angle": "A well-dressed corpse with no ID, a torn scrap of poetry sewn into his trouser pocket, and an unbreakable code — solved in 2022 by DNA genealogy as engineer Carl 'Charles' Webb, yet the code and his reason for dying on that beach remain unexplained.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "4": {
-      "case": "The Boy in the Box (Philadelphia, 1957) / Joseph Augustus Zarelli",
-      "angle": "A murdered child lay unidentified in Philadelphia's files for 65 years despite a nationwide flyer campaign, a 1998 exhumation, and a $50,000+ reward, until 2022 genetic genealogy finally named him—but never his killer.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "5": {
-      "case": "Flannan Isles Lighthouse Disappearance (1900, Scotland)",
-      "angle": "Three lighthouse keepers vanish without a trace from a locked, storm-battered tower 20 miles off the Scottish coast, leaving behind an overturned chair, an unfinished log entry, and one missing oilskin coat — the ultimate empty-room mystery with a lighthouse as the crime scene.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "6": {
-      "case": "The Amber Room (looted 1941, still missing)",
-      "angle": "Focus on the bizarre curse-like trail of searchers who died or vanished chasing it, ending on the fact that Russia just rebuilt an exact replica because the original six tons of amber panels have never been found.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "7": {
-      "case": "Max Headroom Broadcast Intrusion (Chicago, Nov 22 1987)",
-      "angle": "Someone hijacked two TV stations' signals the same night to broadcast a masked, distorted Max Headroom parody spouting gibberish and getting spanked with a flyswatter — a felony requiring precise transmitter-level access that's never been traced to anyone, decades later.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "8": {
-      "case": "The Circleville Letters (Circleville, Ohio, 1976-1994)",
-      "angle": "An anonymous stalker mailed hundreds of threatening letters naming real local secrets, then escalated to rigging a loaded, booby-trapped shotgun on a rural road that nearly killed the very man later convicted as the culprit.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "9": {
-      "case": "The Watcher (2014-2019, Westfield, New Jersey)",
-      "angle": "A family bought their $1.3M dream house and immediately started receiving letters from someone claiming to have watched it for generations, and despite endless press and even a Netflix show, the author was never definitively identified.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "10": {
-      "case": "SS Baychimo ghost ship (Arctic Canada, 1931-1969)",
-      "angle": "The crew didn't lose the ship to a storm - they deliberately abandoned it as unsalvageable in a blizzard in October 1931, and it then kept drifting the Arctic ice pack fully intact for nearly 38 years, spotted and boarded by different crews who found it eerily undamaged before it vanished for good.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "11": {
-      "case": "Chicago Tylenol Murders (1982)",
-      "angle": "Seven people died from cyanide-laced Tylenol capsules in a case that reshaped every pill bottle in America yet was never solved, with the prime suspect only ever convicted of extortion for demanding $1 million to 'stop the killings.'",
-      "sheet_logged": true,
-      "done": true
-    },
-    "12": {
-      "case": "The Springfield Three disappearance (Springfield, Missouri, 1992)",
-      "angle": "Three women vanish from a single house overnight without a trace of struggle, and the physical evidence—rearranged furniture, a still-running shower—suggests they knew whoever took them.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "13": {
-      "case": "The Yuba County Five (California, 1978)",
-      "angle": "Five young men with intellectual disabilities vanish after leaving a basketball game, and one is found dead in a snow-locked forest ranger station 19 miles away wearing six shirts and three pairs of pants but no shoes, with the other four never found.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "14": {
-      "case": "The Lufthansa Heist (JFK Airport, Dec 11 1978)",
-      "angle": "Frame it not as the Goodfellas robbery everyone knows but as an unsolved murder spree — of the roughly dozen people connected to the $5.875 million cash-and-jewelry job, almost all were dead within a couple years, and no one was ever convicted for the actual theft.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "15": {
-      "case": "Bella in the Wych Elm (Hagley Wood, England, 1943)",
-      "angle": "A woman's skeleton stuffed inside a hollowed-out tree trunk was found by boys hunting birds' nests, and before anyone released details to the press, cryptic graffiti reading 'Who put Bella in the Wych Elm' began appearing on walls across the region.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "16": {
-      "case": "The Axeman of New Orleans (1918-1919)",
-      "angle": "The killer broke into homes at night, chiseled out door panels to enter, attacked victims with the homeowner's own axe left at the scene, then sent a letter to newspapers claiming to be a demon from hell who would spare any household playing jazz music on a specific night in March 1919, and the entire city complied.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "17": {
-      "case": "The Great Brink's Robbery (Boston, Jan 17 1950)",
-      "angle": "Eleven masked men in Halloween-store rubber faces cracked five padlocks and a vault to steal $2.775 million, then the perfect crime nearly stayed perfect because one conspirator didn't crack until six days before the statute of limitations expired.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "18": {
-      "case": "SS Ourang Medan phantom freighter (reported 1947, Strait of Malacca)",
-      "angle": "A distress call describes the entire crew dead with corpses frozen mid-scream and no visible wounds, then the ship allegedly explodes and sinks before anyone can board it, and no primary-source record of the vessel or the rescue ships has ever been found.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "19": {
-      "case": "The Beaumont Children disappearance (Glenelg Beach, Australia, 1966)",
-      "angle": "Three siblings vanish from a crowded public beach in broad daylight, and decades later police excavate a suspect's former factory floor based on a psychic's tip — only to find nothing, leaving Australia's most haunting cold case still open.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "20": {
-      "case": "The Baker Street Bank Robbery (1971, London)",
-      "angle": "Thieves tunneled from a rented shop into a Lloyds vault over a bank-holiday weekend, but the real mystery is why the British government slapped a D-Notice on the story mid-investigation, burying it before anyone was caught.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "21": {
-      "case": "The Portuguese Bank Note Crisis (Alfredo Vaz dos Reis, 1925)",
-      "angle": "A conman forged a contract with the Bank of Portugal's own London printer to legally print hundreds of thousands of real banknotes, becoming one of history's few counterfeiters whose money wasn't fake at all — and the fallout helped topple a government.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "22": {
-      "case": "The Overtoun Bridge dog deaths (Milton, Scotland, since 1960s)",
-      "angle": "A single stone bridge where over 50 dogs have leapt to their deaths from the exact same parapet, and the leading explanation is an eerily specific mink-scent theory rather than anything supernatural, which subverts the haunted-bridge setup viewers expect",
-      "sheet_logged": true,
-      "done": true
-    },
-    "23": {
-      "case": "Dozier School for Boys (Marianna, Florida, 1900-2011)",
-      "angle": "A reform school ran for over a century with a legacy of beatings and disappearances, until 2012 forensic anthropologists used ground-penetrating radar to find 55 unmarked graves — nearly double the number the state had ever officially admitted to.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "24": {
-      "case": "The Voynich Manuscript (carbon-dated 1404-1438)",
-      "angle": "A 240-page book in an unbreakable, unknown script and botanical drawings of plants that don't exist has defeated every codebreaker and AI model for over a century, and the twist is modern radiocarbon dating proved it's not a hoax at all but a genuine medieval document nobody can read",
-      "sheet_logged": true,
-      "done": true
-    },
-    "25": {
-      "case": "The Mary Celeste (1872)",
-      "angle": "A ship found perfectly seaworthy mid-Atlantic — sails set, cargo intact, captain's dinner still warm — with every soul vanished and only the lifeboat missing, and the likely answer is a terrifying miscalculation about nine leaking barrels of alcohol, not pirates or mutiny.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "26": {
-      "case": "SS Waratah disappearance (1909, South Africa)",
-      "angle": "A 500-foot ocean liner carrying 211 people vanished without a single body, life raft, or piece of debris ever recovered, despite calm seas and multiple ships nearby the night before.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "27": {
-      "case": "The Millennium Dome Diamond Heist (Nov 7, 2000, London)",
-      "angle": "A gang bulldozed a JCB digger through the Millennium Dome's wall to grab £350 million in diamonds including the De Beers Millennium Star, unaware police were hiding inside disguised as cleaners and filming the whole raid for a live sting.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "28": {
-      "case": "Disappearance of Harold Holt (1967, Australia)",
-      "angle": "A sitting Prime Minister wades into rough surf at Cheviot Beach and is never seen again, and the government's official response is to name a public swimming pool after him.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "29": {
-      "case": "The Antikythera Mechanism recovery (1901, Greece)",
-      "angle": "A shipwreck looted by sponge divers off Crete yielded a corroded bronze lump that sat ignored for decades before turning out to be a 2,000-year-old analog computer more advanced than anything built for the next 1,000 years — the mystery isn't who made it, it's how that knowledge vanished.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "30": {
-      "case": "The Taos Hum and disappearance of the Ourang Medan investigation aside — instead: The Cerro Gordo silver mine embezzlement and murder of Louis D. Gordon (Cerro Gordo, California, 1877-79)",
-      "angle": "A boomtown silver mine's payroll superintendent was found shot in a locked office with the safe untouched, and the official ruling of suicide unraveled decades later when mine ledgers revealed a skimming scheme involving three partners who all died within two years of each other.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "31": {
-      "case": "The Toxic Lady (Gloria Ramirez ER incident, Riverside CA, 1994)",
-      "angle": "A dying woman is wheeled into an ER, and within minutes nurses and doctors start fainting, seizing, and vomiting from her body itself, forcing a hazmat evacuation of the whole department — and to this day nobody can prove what actually poisoned them.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "32": {
-      "case": "The Georgia Guidestones bombing (2022)",
-      "angle": "A cryptic 19-foot granite monument inscribed with rules for surviving apocalypse stood untouched for 42 years — then in July 2022 someone detonated it hours after a state senator called for its destruction, and the bomber was never found.",
-      "sheet_logged": true,
-      "done": true
-    },
-    "33": {
-      "case": "The Boston Molasses Flood (January 15, 1919)",
-      "angle": "backfill: republished with a Flow hook video (watermark removed) in place of the original hookless publish",
-      "sheet_logged": false,
-      "done": true
-    },
-    "34": {
-      "case": "Kham Group / Air Force B-52 disappearance aside — the SS Cotopaxi (1925, disappeared off Florida, resurfaced 2020 as wreck 'Bear Wreck')",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "35": {
-      "case": "Villisca Axe Murders (Villisca, Iowa, June 10, 1912)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "36": {
-      "case": "MV Kaz II 'Ghost Yacht' (Great Barrier Reef, 2007)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "37": {
-      "case": "The Zanzibar Ghost Ship / MV Salamis mystery – actually pick: The Ourang Medan (already covered) — switching to: The Dyatlov Pass Incident (Ural Mountains, USSR, Feb 1959)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "38": {
-      "case": "The Sinking of the Edmund Fitzgerald (Lake Superior, November 10, 1975)",
-      "angle": "",
-      "sheet_logged": true,
-      "done": true
-    },
-    "39": {
-      "case": "The Phantom of Heilbronn (Germany/Austria/France, 1993-2009)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "40": {
-      "case": "The Green Bicycle Case (Bella Wright murder, Leicestershire, England, 1919)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "41": {
-      "case": "The Collyer Brothers (Harlem, NYC, March 1947)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "42": {
-      "case": "The Zong Massacre (1781, British slave ship)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "43": {
-      "case": "USS Cyclops disappearance (1918)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "44": {
-      "case": "Disappearance of Michael Rockefeller (Netherlands New Guinea, 1961)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "45": {
-      "case": "The Dancing Plague of 1518 (Strasbourg, Holy Roman Empire)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "46": {
-      "case": "The Tichborne Claimant (England, 1866-1874)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "47": {
-      "case": "The Beale Ciphers (Bedford County, Virginia, 1820s)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "48": {
-      "case": "Disappearance of Frederick Valentich (Bass Strait, Australia, Oct 21 1978)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "49": {
-      "case": "The Alcatraz Escape (Frank Morris & the Anglin Brothers, June 11 1962)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "50": {
-      "case": "Hatton Garden Safe Deposit Burglary (April 2015, London)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "51": {
-      "case": "The Collar Bomb Heist / Murder of Brian Wells (Erie, Pennsylvania, 2003)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "52": {
-      "case": "Cicada 3301 (2012-2014 internet puzzle mystery)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "53": {
-      "case": "The Cleveland Torso Murderer / Kingsbury Run Murders (1935-1938)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "54": {
-      "case": "Disappearance of Jean Spangler (Hollywood, Oct 7, 1949)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "55": {
-      "case": "David Hahn, \"The Radioactive Boy Scout\" (Commerce Township, Michigan, 1994)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "56": {
-      "case": "The Monster Study (University of Iowa, 1939)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "57": {
-      "case": "The Glico Morinaga case (Japan, 1984-1985)",
-      "angle": "",
-      "sheet_logged": false,
-      "done": true
-    },
-    "58": {
-      "case": "Roberto Calvi / 'God's Banker' death at Blackfriars Bridge (London, 1982)",
-      "angle": "A Vatican-connected banker found hanging from scaffolding under a London bridge with bricks stuffed in his pockets and foreign currency on his person — ruled suicide, then reclassified as murder years later, with the killer still unknown."
-    }
+ "days": {
+  "1": {
+   "case": "School of Turin - Antwerp Diamond Heist",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "2": {
+   "case": "The Sodder Fire \u2014 Five Children, No Bones",
+   "angle": "",
+   "sheet_logged": true,
+   "done": true
+  },
+  "3": {
+   "case": "The Somerton Man / Taman Shud Case (Adelaide, 1948)",
+   "angle": "A well-dressed corpse with no ID, a torn scrap of poetry sewn into his trouser pocket, and an unbreakable code \u2014 solved in 2022 by DNA genealogy as engineer Carl 'Charles' Webb, yet the code and his reason for dying on that beach remain unexplained.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "4": {
+   "case": "The Boy in the Box (Philadelphia, 1957) / Joseph Augustus Zarelli",
+   "angle": "A murdered child lay unidentified in Philadelphia's files for 65 years despite a nationwide flyer campaign, a 1998 exhumation, and a $50,000+ reward, until 2022 genetic genealogy finally named him\u2014but never his killer.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "5": {
+   "case": "Flannan Isles Lighthouse Disappearance (1900, Scotland)",
+   "angle": "Three lighthouse keepers vanish without a trace from a locked, storm-battered tower 20 miles off the Scottish coast, leaving behind an overturned chair, an unfinished log entry, and one missing oilskin coat \u2014 the ultimate empty-room mystery with a lighthouse as the crime scene.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "6": {
+   "case": "The Amber Room (looted 1941, still missing)",
+   "angle": "Focus on the bizarre curse-like trail of searchers who died or vanished chasing it, ending on the fact that Russia just rebuilt an exact replica because the original six tons of amber panels have never been found.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "7": {
+   "case": "Max Headroom Broadcast Intrusion (Chicago, Nov 22 1987)",
+   "angle": "Someone hijacked two TV stations' signals the same night to broadcast a masked, distorted Max Headroom parody spouting gibberish and getting spanked with a flyswatter \u2014 a felony requiring precise transmitter-level access that's never been traced to anyone, decades later.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "8": {
+   "case": "The Circleville Letters (Circleville, Ohio, 1976-1994)",
+   "angle": "An anonymous stalker mailed hundreds of threatening letters naming real local secrets, then escalated to rigging a loaded, booby-trapped shotgun on a rural road that nearly killed the very man later convicted as the culprit.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "9": {
+   "case": "The Watcher (2014-2019, Westfield, New Jersey)",
+   "angle": "A family bought their $1.3M dream house and immediately started receiving letters from someone claiming to have watched it for generations, and despite endless press and even a Netflix show, the author was never definitively identified.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "10": {
+   "case": "SS Baychimo ghost ship (Arctic Canada, 1931-1969)",
+   "angle": "The crew didn't lose the ship to a storm - they deliberately abandoned it as unsalvageable in a blizzard in October 1931, and it then kept drifting the Arctic ice pack fully intact for nearly 38 years, spotted and boarded by different crews who found it eerily undamaged before it vanished for good.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "11": {
+   "case": "Chicago Tylenol Murders (1982)",
+   "angle": "Seven people died from cyanide-laced Tylenol capsules in a case that reshaped every pill bottle in America yet was never solved, with the prime suspect only ever convicted of extortion for demanding $1 million to 'stop the killings.'",
+   "sheet_logged": true,
+   "done": true
+  },
+  "12": {
+   "case": "The Springfield Three disappearance (Springfield, Missouri, 1992)",
+   "angle": "Three women vanish from a single house overnight without a trace of struggle, and the physical evidence\u2014rearranged furniture, a still-running shower\u2014suggests they knew whoever took them.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "13": {
+   "case": "The Yuba County Five (California, 1978)",
+   "angle": "Five young men with intellectual disabilities vanish after leaving a basketball game, and one is found dead in a snow-locked forest ranger station 19 miles away wearing six shirts and three pairs of pants but no shoes, with the other four never found.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "14": {
+   "case": "The Lufthansa Heist (JFK Airport, Dec 11 1978)",
+   "angle": "Frame it not as the Goodfellas robbery everyone knows but as an unsolved murder spree \u2014 of the roughly dozen people connected to the $5.875 million cash-and-jewelry job, almost all were dead within a couple years, and no one was ever convicted for the actual theft.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "15": {
+   "case": "Bella in the Wych Elm (Hagley Wood, England, 1943)",
+   "angle": "A woman's skeleton stuffed inside a hollowed-out tree trunk was found by boys hunting birds' nests, and before anyone released details to the press, cryptic graffiti reading 'Who put Bella in the Wych Elm' began appearing on walls across the region.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "16": {
+   "case": "The Axeman of New Orleans (1918-1919)",
+   "angle": "The killer broke into homes at night, chiseled out door panels to enter, attacked victims with the homeowner's own axe left at the scene, then sent a letter to newspapers claiming to be a demon from hell who would spare any household playing jazz music on a specific night in March 1919, and the entire city complied.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "17": {
+   "case": "The Great Brink's Robbery (Boston, Jan 17 1950)",
+   "angle": "Eleven masked men in Halloween-store rubber faces cracked five padlocks and a vault to steal $2.775 million, then the perfect crime nearly stayed perfect because one conspirator didn't crack until six days before the statute of limitations expired.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "18": {
+   "case": "SS Ourang Medan phantom freighter (reported 1947, Strait of Malacca)",
+   "angle": "A distress call describes the entire crew dead with corpses frozen mid-scream and no visible wounds, then the ship allegedly explodes and sinks before anyone can board it, and no primary-source record of the vessel or the rescue ships has ever been found.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "19": {
+   "case": "The Beaumont Children disappearance (Glenelg Beach, Australia, 1966)",
+   "angle": "Three siblings vanish from a crowded public beach in broad daylight, and decades later police excavate a suspect's former factory floor based on a psychic's tip \u2014 only to find nothing, leaving Australia's most haunting cold case still open.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "20": {
+   "case": "The Baker Street Bank Robbery (1971, London)",
+   "angle": "Thieves tunneled from a rented shop into a Lloyds vault over a bank-holiday weekend, but the real mystery is why the British government slapped a D-Notice on the story mid-investigation, burying it before anyone was caught.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "21": {
+   "case": "The Portuguese Bank Note Crisis (Alfredo Vaz dos Reis, 1925)",
+   "angle": "A conman forged a contract with the Bank of Portugal's own London printer to legally print hundreds of thousands of real banknotes, becoming one of history's few counterfeiters whose money wasn't fake at all \u2014 and the fallout helped topple a government.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "22": {
+   "case": "The Overtoun Bridge dog deaths (Milton, Scotland, since 1960s)",
+   "angle": "A single stone bridge where over 50 dogs have leapt to their deaths from the exact same parapet, and the leading explanation is an eerily specific mink-scent theory rather than anything supernatural, which subverts the haunted-bridge setup viewers expect",
+   "sheet_logged": true,
+   "done": true
+  },
+  "23": {
+   "case": "Dozier School for Boys (Marianna, Florida, 1900-2011)",
+   "angle": "A reform school ran for over a century with a legacy of beatings and disappearances, until 2012 forensic anthropologists used ground-penetrating radar to find 55 unmarked graves \u2014 nearly double the number the state had ever officially admitted to.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "24": {
+   "case": "The Voynich Manuscript (carbon-dated 1404-1438)",
+   "angle": "A 240-page book in an unbreakable, unknown script and botanical drawings of plants that don't exist has defeated every codebreaker and AI model for over a century, and the twist is modern radiocarbon dating proved it's not a hoax at all but a genuine medieval document nobody can read",
+   "sheet_logged": true,
+   "done": true
+  },
+  "25": {
+   "case": "The Mary Celeste (1872)",
+   "angle": "A ship found perfectly seaworthy mid-Atlantic \u2014 sails set, cargo intact, captain's dinner still warm \u2014 with every soul vanished and only the lifeboat missing, and the likely answer is a terrifying miscalculation about nine leaking barrels of alcohol, not pirates or mutiny.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "26": {
+   "case": "SS Waratah disappearance (1909, South Africa)",
+   "angle": "A 500-foot ocean liner carrying 211 people vanished without a single body, life raft, or piece of debris ever recovered, despite calm seas and multiple ships nearby the night before.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "27": {
+   "case": "The Millennium Dome Diamond Heist (Nov 7, 2000, London)",
+   "angle": "A gang bulldozed a JCB digger through the Millennium Dome's wall to grab \u00a3350 million in diamonds including the De Beers Millennium Star, unaware police were hiding inside disguised as cleaners and filming the whole raid for a live sting.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "28": {
+   "case": "Disappearance of Harold Holt (1967, Australia)",
+   "angle": "A sitting Prime Minister wades into rough surf at Cheviot Beach and is never seen again, and the government's official response is to name a public swimming pool after him.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "29": {
+   "case": "The Antikythera Mechanism recovery (1901, Greece)",
+   "angle": "A shipwreck looted by sponge divers off Crete yielded a corroded bronze lump that sat ignored for decades before turning out to be a 2,000-year-old analog computer more advanced than anything built for the next 1,000 years \u2014 the mystery isn't who made it, it's how that knowledge vanished.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "30": {
+   "case": "The Taos Hum and disappearance of the Ourang Medan investigation aside \u2014 instead: The Cerro Gordo silver mine embezzlement and murder of Louis D. Gordon (Cerro Gordo, California, 1877-79)",
+   "angle": "A boomtown silver mine's payroll superintendent was found shot in a locked office with the safe untouched, and the official ruling of suicide unraveled decades later when mine ledgers revealed a skimming scheme involving three partners who all died within two years of each other.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "31": {
+   "case": "The Toxic Lady (Gloria Ramirez ER incident, Riverside CA, 1994)",
+   "angle": "A dying woman is wheeled into an ER, and within minutes nurses and doctors start fainting, seizing, and vomiting from her body itself, forcing a hazmat evacuation of the whole department \u2014 and to this day nobody can prove what actually poisoned them.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "32": {
+   "case": "The Georgia Guidestones bombing (2022)",
+   "angle": "A cryptic 19-foot granite monument inscribed with rules for surviving apocalypse stood untouched for 42 years \u2014 then in July 2022 someone detonated it hours after a state senator called for its destruction, and the bomber was never found.",
+   "sheet_logged": true,
+   "done": true
+  },
+  "33": {
+   "case": "The Boston Molasses Flood (January 15, 1919)",
+   "angle": "backfill: republished with a Flow hook video (watermark removed) in place of the original hookless publish",
+   "sheet_logged": false,
+   "done": true
+  },
+  "34": {
+   "case": "Kham Group / Air Force B-52 disappearance aside \u2014 the SS Cotopaxi (1925, disappeared off Florida, resurfaced 2020 as wreck 'Bear Wreck')",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "35": {
+   "case": "Villisca Axe Murders (Villisca, Iowa, June 10, 1912)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "36": {
+   "case": "MV Kaz II 'Ghost Yacht' (Great Barrier Reef, 2007)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "37": {
+   "case": "The Zanzibar Ghost Ship / MV Salamis mystery \u2013 actually pick: The Ourang Medan (already covered) \u2014 switching to: The Dyatlov Pass Incident (Ural Mountains, USSR, Feb 1959)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "38": {
+   "case": "The Cannonball Run / Zinoviev Letter aside \u2014 pick: The Sinking of the Edmund Fitzgerald (Lake Superior, November 10, 1975)",
+   "angle": "",
+   "sheet_logged": true,
+   "done": true
+  },
+  "39": {
+   "case": "The Phantom of Heilbronn (Germany/Austria/France, 1993-2009)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "40": {
+   "case": "The Green Bicycle Case (Bella Wright murder, Leicestershire, England, 1919)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "41": {
+   "case": "The Collyer Brothers (Harlem, NYC, March 1947)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "42": {
+   "case": "The Zong Massacre (1781, British slave ship)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "43": {
+   "case": "USS Cyclops disappearance (1918)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "44": {
+   "case": "Disappearance of Michael Rockefeller (Netherlands New Guinea, 1961)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "45": {
+   "case": "The Dancing Plague of 1518 (Strasbourg, Holy Roman Empire)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "46": {
+   "case": "The Tichborne Claimant (England, 1866-1874)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "47": {
+   "case": "The Beale Ciphers (Bedford County, Virginia, 1820s)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "48": {
+   "case": "Disappearance of Frederick Valentich (Bass Strait, Australia, Oct 21 1978)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "49": {
+   "case": "The Alcatraz Escape (Frank Morris & the Anglin Brothers, June 11 1962)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "50": {
+   "case": "Hatton Garden Safe Deposit Burglary (April 2015, London)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "51": {
+   "case": "The Collar Bomb Heist / Murder of Brian Wells (Erie, Pennsylvania, 2003)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "52": {
+   "case": "Cicada 3301 (2012-2014 internet puzzle mystery)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "53": {
+   "case": "The Cleveland Torso Murderer / Kingsbury Run Murders (1935-1938)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "54": {
+   "case": "Disappearance of Jean Spangler (Hollywood, Oct 7, 1949)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "55": {
+   "case": "David Hahn, \"The Radioactive Boy Scout\" (Commerce Township, Michigan, 1994)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "56": {
+   "case": "The Monster Study (University of Iowa, 1939)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "57": {
+   "case": "The Glico Morinaga case (Japan, 1984-1985)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": true
+  },
+  "58": {
+   "case": "Roberto Calvi / 'God's Banker' death at Blackfriars Bridge (London, 1982)",
+   "angle": "A Vatican-connected banker found hanging from scaffolding under a London bridge with bricks stuffed in his pockets and foreign currency on his person \u2014 ruled suicide, then reclassified as murder years later, with the killer still unknown.",
+   "sheet_logged": true
   }
+ }
 }
