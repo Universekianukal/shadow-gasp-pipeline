@@ -56,7 +56,13 @@ Respond with ONLY the JSON object — no markdown code fences, no other text."""
 
 
 # Escalated on truncation. A retry that repeats the failing parameter is not a retry.
-BUDGETS = (1024, 4096, 16000)
+# 32000 is a backstop, not a plan: day 58 already needed 16,000, so the ladder had no
+# headroom left. PROMPT_EXCLUSIONS below is the actual fix; this just buys room to notice.
+BUDGETS = (1024, 4096, 16000, 32000)
+
+# How many recent cases to show the model. The full history is still enforced after the
+# pick by is_duplicate(); this bounds only the PROMPT, which is what was growing forever.
+PROMPT_EXCLUSIONS = 60
 
 
 def extract_json(text):
@@ -109,10 +115,26 @@ def load_used():
 
 
 def pick(client, used):
-    exclusion = "\n".join(f"- {c}" for c in used)
+    # ⭐ SHOW THE MODEL A WINDOW, NOT THE WHOLE LEDGER.
+    #
+    # Every published case went into the prompt, and that list grows by one EVERY DAY. It is
+    # what the reasoning budget is actually spent on: day 58 needed 16,000 tokens where 1,024
+    # sufficed a few months ago, and 4,096 was not enough. A budget ladder cannot outrun a
+    # prompt that grows without bound -- it only moves the failure later.
+    #
+    # Safe because the full history is still enforced, just AFTER the pick rather than inside
+    # the prompt: is_duplicate() below checks the answer against every case ever used and
+    # retries with the specific clash named. The window steers the model away from recent
+    # territory; correctness never depended on it being complete.
+    #
+    # The tail is the useful end -- `used` runs oldest to newest, and a model asked for a
+    # fresh case is likelier to collide with the last few weeks than with something from May.
+    shown = used[-PROMPT_EXCLUSIONS:]
+    exclusion = "\n".join(f"- {c}" for c in shown)
     msg = (
-        f"The channel has already published these {len(used)} cases. "
-        f"Pick something genuinely different:\n\n{exclusion}"
+        f"The channel has published {len(used)} cases in total. These are the {len(shown)} "
+        f"most recent -- pick something genuinely different from them, and from anything "
+        f"closely similar:\n\n{exclusion}"
     )
     messages = [{"role": "user", "content": msg}]
     budget = BUDGETS[0]
