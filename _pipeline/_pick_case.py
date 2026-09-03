@@ -55,6 +55,10 @@ Return JSON:
 Respond with ONLY the JSON object — no markdown code fences, no other text."""
 
 
+# Escalated on truncation. A retry that repeats the failing parameter is not a retry.
+BUDGETS = (1024, 4096, 16000)
+
+
 def extract_json(text):
     t = text.strip()
     if t.startswith("```"):
@@ -111,17 +115,46 @@ def pick(client, used):
         f"Pick something genuinely different:\n\n{exclusion}"
     )
     messages = [{"role": "user", "content": msg}]
+    budget = BUDGETS[0]
     for attempt in range(4):
         resp = client.messages.create(
-            model=MODEL, max_tokens=1024, system=SYS, messages=messages
+            model=MODEL, max_tokens=budget, system=SYS, messages=messages
         )
         # A response can come back with no text block at all (seen in practice
         # once the exclusion list got long) -- that used to crash the whole
         # batch run with an uncaught StopIteration instead of just retrying
         # like every other malformed-response case here does.
         raw = next((b.text for b in resp.content if b.type == "text"), None)
-        if raw is None:
-            print(f"attempt {attempt + 1}: response had no text block (stop_reason={resp.stop_reason}), retrying", file=sys.stderr)
+
+        # ⭐ TRUNCATION IS NOT A MALFORMED RESPONSE, AND MUST NOT BE RETRIED UNCHANGED.
+        #
+        # glm-5p2 is a reasoning model: it can spend an entire small budget thinking and return
+        # EMPTY content with finish_reason="length". _llm.py reports that faithfully as
+        # stop_reason="max_tokens" -- the same recoverable condition as Anthropic truncation --
+        # but this loop only checked for an ABSENT text block, so an empty string fell through
+        # to json.loads("") and was reported as "invalid JSON". Every retry then went out at the
+        # same 1024 tokens, which cannot fix a budget problem: four guaranteed failures, an
+        # error message pointing at a JSON bug that never existed, and the day queue silently
+        # stopping at 57 (run 33780705411, 2026-09-03).
+        #
+        # 1024 was always thin for a reasoning model. The 32,000-token failure recorded in
+        # _llm.py predates FIREWORKS_REASONING_EFFORT being capped to "low", so escalating from
+        # here is the honest first move -- and if it is still empty at the ceiling, the log now
+        # says exactly that instead of blaming the JSON.
+        if resp.stop_reason == "max_tokens" or not (raw or "").strip():
+            bigger = next((b for b in BUDGETS if b > budget), None)
+            if bigger is None:
+                print(f"attempt {attempt + 1}: STILL no content at the {budget:,}-token "
+                      f"ceiling (stop_reason={resp.stop_reason}) -- the budget is not the "
+                      f"problem; suspect the {len(used)}-case exclusion list in the prompt",
+                      file=sys.stderr)
+            else:
+                print(f"attempt {attempt + 1}: model returned no content "
+                      f"(stop_reason={resp.stop_reason}) -- reasoning consumed the "
+                      f"{budget:,}-token budget; retrying with {bigger:,}", file=sys.stderr)
+                budget = bigger
+            # Deliberately does NOT append this exchange. There is nothing to correct, and an
+            # empty assistant turn is junk context that makes the next attempt worse.
             continue
         try:
             d = extract_json(raw)
