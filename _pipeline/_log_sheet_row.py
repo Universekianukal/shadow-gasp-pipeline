@@ -17,6 +17,19 @@ Usage:
     python3 _log_sheet_row.py 33-57       # a range, for backfilling
     python3 _log_sheet_row.py 33-57 --dry-run
 
+
+⚠️ ROWS ARE POSITIONAL: day N lives on sheet row N+1.
+
+That is not a style choice, it is what _sync_youtube_status.py assumes when it writes the video
+columns (`row = day + 1`). append_sheet_row used values().append instead, which puts a row at the
+BOTTOM in write order. The two agree only while days are appended in strict order into an empty
+sheet -- true for days 1-32, which is why nobody noticed. The moment days arrive out of order, or
+are backfilled later, the conventions diverge: the sync writes a day's video ID at day+1 while its
+label row sits somewhere near the bottom, and the sheet grows duplicates (days 39 and 41 each
+appeared twice) and holes (days 40 and 42 had no positional row at all).
+
+So this writes with values().update at an explicit row, and never appends.
+
 Idempotent by state.json's `sheet_logged` flag, so re-running cannot double-log a day. Reads
 the title from the day's meta.json and points at the shot-1 still already committed for it.
 """
@@ -44,6 +57,93 @@ def days_from(spec):
     return out
 
 
+
+def read_sheet(svc):
+    return svc.spreadsheets().values().get(
+        spreadsheetId=bp.SHEET_ID, range=f"{bp.SHEET_TAB}!A1:M200"
+    ).execute().get("values", [])
+
+
+def row_for(day_num, state, cell_cache):
+    """The full A..M row a day should have: regenerated labels, existing status preserved.
+
+    Columns I..M (YT status, FB/IG posted, video id, published at) are written by other jobs and
+    must never be clobbered by a relabel, so they are carried over from whichever existing row
+    for this day holds the most data.
+    """
+    day = state["days"][str(day_num)]
+    base = cell_cache.get(day_num, [""] * 13)
+    day_dir = os.path.join(bp.BATCH_DIR, f"day{day_num:02d}")
+    title = day["case"]
+    meta_path = os.path.join(day_dir, "meta.json")
+    if os.path.exists(meta_path):
+        try:
+            title = json.load(open(meta_path, encoding="utf-8")).get("title_working") or title
+        except Exception:
+            pass
+    rel = os.path.relpath(day_dir, os.path.dirname(bp.PIPELINE_DIR)).replace("\\", "/")
+    shot1 = ""
+    if os.path.exists(os.path.join(day_dir, "shot1.jpeg")):
+        shot1 = f"https://raw.githubusercontent.com/{bp.GITHUB_REPO}/{bp.GITHUB_BRANCH}/{rel}/shot1.jpeg"
+
+    out = list(base) + [""] * (13 - len(base))
+    out[0] = day_num                                   # A day
+    out[1] = day["case"]                               # B case  (relabelled)
+    out[2] = out[2] or "Images done"                   # C
+    out[3] = title                                     # D title (relabelled)
+    out[4] = shot1 or out[4]                           # E still
+    out[5] = out[5] or "Pending"                       # F
+    out[7] = out[7] or day.get("angle", "")            # H notes
+    return out[:13]
+
+
+def repair(args):
+    """One row per day, in its positional slot, with nothing lost and nothing duplicated."""
+    state = bp.load_state()
+    svc = bp.get_sheets_service()
+    rows = read_sheet(svc)
+
+    # Harvest the richest existing row per day, so status columns survive the rewrite.
+    cache = {}
+    for r in rows[1:]:
+        cells = (r + [""] * 13)[:13]
+        try:
+            d = int(str(cells[0]).strip())
+        except (ValueError, TypeError):
+            continue
+        if len([c for c in cells if c]) > len([c for c in cache.get(d, []) if c]):
+            cache[d] = cells
+
+    days = sorted(int(k) for k in state["days"])
+    last = days[-1]
+    print(f"{len(rows)} rows on the sheet; {len(days)} days; positional block will be rows 2-{last + 1}")
+    dupes = [d for d in days if sum(1 for r in rows[1:] if str((r + [''])[0]).strip() == str(d)) > 1]
+    print(f"days currently duplicated: {dupes or 'none'}")
+    print(f"rows below the block to clear: {max(0, len(rows) - (last + 1))}")
+
+    data = []
+    for d in days:
+        want = row_for(d, state, cache)
+        cur = cache.get(d)
+        moved = "" if cur and str((rows[d] + [''] * 2)[0] if len(rows) > d else '') == str(d) else "  <-- moves"
+        if args.dry_run and d >= last - 6:
+            print(f"  row{d + 1:>3} <- day {d:<3} {str(want[1])[:40]:42} vid={want[11] or '-'}{moved}")
+        data.append({"range": f"{bp.SHEET_TAB}!A{d + 1}:M{d + 1}", "values": [want]})
+
+    if len(rows) > last + 1:
+        data.append({"range": f"{bp.SHEET_TAB}!A{last + 2}:M{len(rows)}",
+                     "values": [[""] * 13 for _ in range(len(rows) - (last + 1))]})
+
+    if args.dry_run:
+        print(f"\nwould write {len(days)} positional rows and blank {max(0, len(rows) - (last + 1))} stray rows")
+        return
+    svc.spreadsheets().values().batchUpdate(
+        spreadsheetId=bp.SHEET_ID,
+        body={"valueInputOption": "USER_ENTERED", "data": data},
+    ).execute()
+    print(f"rewrote {len(days)} rows positionally and cleared {max(0, len(rows) - (last + 1))} stray rows")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("days", help="day number, or a range like 33-57")
@@ -53,6 +153,10 @@ def main():
     # Read-only view of what is actually in the sheet. Needed because two different
     # conventions decide where a day's row lives (see the note in the module docstring),
     # and neither can be checked from state.json.
+    if args.days == "repair":
+        repair(args)
+        return
+
     if args.days == "dump":
         svc = bp.get_sheets_service()
         vals = svc.spreadsheets().values().get(
@@ -101,7 +205,20 @@ def main():
             logged += 1
             continue
 
-        bp.append_sheet_row(sheets, n, day["case"], title, shot1, day.get("angle", ""))
+        # POSITIONAL, never append -- see the module docstring.
+        rows = read_sheet(sheets)
+        cache = {}
+        for r in rows[1:]:
+            cells = (r + [""] * 13)[:13]
+            try:
+                cache.setdefault(int(str(cells[0]).strip()), cells)
+            except (ValueError, TypeError):
+                pass
+        sheets.spreadsheets().values().update(
+            spreadsheetId=bp.SHEET_ID, range=f"{bp.SHEET_TAB}!A{n + 1}:M{n + 1}",
+            valueInputOption="USER_ENTERED",
+            body={"values": [row_for(n, state, cache)]},
+        ).execute()
         day["sheet_logged"] = True
         state["days"][key] = day
         bp.save_state(state)
