@@ -1,0 +1,48 @@
+name: shadow_gasp sweep comic links
+
+# Links any comic that became publishable AFTER its video went out.
+#
+# The auto-funnel fires once, when a day uploads. If the comic is still a Gumroad draft at that
+# moment the funnel job refuses -- correctly, a draft URL 404s for viewers -- and nothing ever
+# comes back, so the comic stays unlinked for good. That window is not rare: whether a comic is
+# ready depends on a human reviewing the art, which does not align with a 05:15 cron.
+#
+# The cron lives HERE rather than in the Worker because the Cloudflare account is already at the
+# free plan's 5-cron-trigger cap -- the same reason sweep_hook_waits.yml runs from Actions.
+#
+# The Worker does the work; this only pokes it.
+
+on:
+  schedule:
+    # Every six hours. A missed link costs reach, not correctness, so this does not need to be
+    # tight -- and each run can dispatch real funnel jobs, so it should not be chatty either.
+    - cron: "20 */6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the Worker to sweep
+        env:
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          # The User-Agent is required, not decoration: Cloudflare fingerprints a bare client and
+          # blocks it at the edge with 403 / error 1010, before the Worker's secret check runs.
+          # curl is not flagged, but a default one has been before -- be explicit.
+          curl -fsS -X POST "https://shadow-gasp-bot.everydayhypehq.workers.dev/comic/sweep" \
+            -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            --data '{}' | tee /tmp/sweep.json
+          echo
+          python3 - <<'PY'
+          import json
+          d = json.load(open('/tmp/sweep.json'))
+          print(f"funnelled: {len(d.get('sent', []))}")
+          for x in d.get('sent', []):
+              print("  ", x)
+          print(f"skipped:   {len(d.get('skipped', []))}")
+          for x in d.get('skipped', []):
+              print("  ", x)
+          PY
