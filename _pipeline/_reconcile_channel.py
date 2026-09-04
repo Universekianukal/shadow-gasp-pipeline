@@ -104,10 +104,13 @@ def main():
         # Fetch the real publish dates as well. Setting only the videoId leaves publishedAt
         # null, and that date is what every "newest first" view sorts by -- a linked video with
         # no date still reads as a hole in the record, which is the symptom that started this.
-        # Semicolons when present, because a case NAME may contain commas
-        # ("Cerro Gordo silver mine death (1878, California)") and the day=id form never does.
-        sep = ";" if ";" in args.apply else ","
-        pairs = [p.strip().partition("=") for p in args.apply.split(sep) if p.strip()]
+        # ⚠️ ALWAYS semicolons. This used to fall back to "," when no semicolon was present,
+        # which is a guess about the input rather than a property of it -- and case names contain
+        # commas. "The Sinking of the Edmund Fitzgerald (Lake Superior, November 10, 1975)=..."
+        # split into three fragments and wrote all three into the ledger as separate cases, the
+        # last one carrying the real video id. A separator that is sometimes one thing and
+        # sometimes another is a trap for whoever types the next command, including me.
+        pairs = [p.strip().partition("=") for p in args.apply.split(";") if p.strip()]
         want = [v.strip() for _, _, v in pairs]
         dates = {}
         try:
