@@ -102,7 +102,10 @@ def main():
         # Fetch the real publish dates as well. Setting only the videoId leaves publishedAt
         # null, and that date is what every "newest first" view sorts by -- a linked video with
         # no date still reads as a hole in the record, which is the symptom that started this.
-        pairs = [p.strip().partition("=") for p in args.apply.split(",") if p.strip()]
+        # Semicolons when present, because a case NAME may contain commas
+        # ("Cerro Gordo silver mine death (1878, California)") and the day=id form never does.
+        sep = ";" if ";" in args.apply else ","
+        pairs = [p.strip().partition("=") for p in args.apply.split(sep) if p.strip()]
         want = [v.strip() for _, _, v in pairs]
         dates = {}
         try:
@@ -115,15 +118,27 @@ def main():
             print(f"WARNING: could not fetch publish dates ({e}); writing ids only")
 
         n = 0
-        for day, _, vid in pairs:
-            day, vid = day.strip(), vid.strip()
-            case = state[day]["case"].strip()
+        for left, _, vid in pairs:
+            left, vid = left.strip(), vid.strip()
+            # A day number, or a case name outright. Manual uploads and anything published
+            # before the batch system have no day at all -- Isdal Woman and the Cerro Gordo mine
+            # death are both ledger-only -- so the day form cannot express them.
+            if left.isdigit():
+                case = state[left]["case"].strip()
+                label = f"day {left}"
+            else:
+                case, label = left, "case"
             entry = by_case.get(case)
             if not entry:
+                # A second video for a story that already has one gets its OWN entry, the way
+                # Operation Nimrod and David Koresh each carry a teaser and a long-form. The
+                # ledger holds one id per entry, so two videos means two entries.
                 entry = {"videoId": None, "case": case, "publishedAt": None}
                 ledger["cases"].append(entry)
+                by_case[case] = entry
+                print(f"  (new ledger entry: {case[:56]})")
             when = dates.get(vid)
-            print(f"day {day}: {entry.get('videoId')} -> {vid}"
+            print(f"{label}: {entry.get('videoId')} -> {vid}"
                   f"{'  published ' + when if when else '  (no date)'}   ({case[:44]})")
             entry["videoId"] = vid
             if when:
