@@ -89,6 +89,9 @@ def main():
     ap.add_argument("--apply", default="", help="day=videoId pairs, comma separated")
     ap.add_argument("--all", action="store_true",
                     help="print every channel video with its current ledger linkage")
+    ap.add_argument("--describe", default="",
+                    help="comma-separated video ids: print each one's full story text and the "
+                         "ledger cases closest to it")
     args = ap.parse_args()
 
     state = json.load(open(STATE_PATH, encoding="utf-8"))["days"]
@@ -128,6 +131,35 @@ def main():
             n += 1
         json.dump(ledger, open(LEDGER_PATH, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         print(f"\nwrote {n} videoId(s) to the ledger")
+        return
+
+    if args.describe:
+        # A title is marketing copy; the DESCRIPTION is the story. Matching on titles is what
+        # made the automatic guesses wrong half the time, so read what the video actually says
+        # and rank ledger cases against that instead.
+        yt = get_youtube()
+        ids = [i.strip() for i in args.describe.split(",") if i.strip()]
+        r = yt.videos().list(part="snippet", id=",".join(ids)).execute()
+        case_toks = {c["case"]: toks(c["case"]) for c in ledger["cases"]}
+        for v in r["items"]:
+            sn = v["snippet"]
+            body = f"{sn['title']} {sn.get('description', '')}"
+            print("=" * 78)
+            print(f"{v['id']}   published {sn.get('publishedAt', '')[:10]}")
+            print(f"TITLE: {sn['title']}")
+            print("STORY:")
+            for line in (sn.get("description") or "(no description)").splitlines()[:14]:
+                if line.strip():
+                    print(f"   {line.strip()[:96]}")
+            if sn.get("tags"):
+                print(f"TAGS : {', '.join(sn['tags'][:12])}")
+            bt = toks(body)
+            ranked = sorted(((len(bt & t) / max(len(t), 1), c) for c, t in case_toks.items()),
+                            reverse=True)[:4]
+            print("CLOSEST LEDGER CASES:")
+            for score, case in ranked:
+                cur = by_case.get(case, {}).get("videoId")
+                print(f"   {score:.2f}  {case[:58]:60} current id: {cur or '-'}")
         return
 
     yt = get_youtube()
