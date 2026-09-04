@@ -50,6 +50,19 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
+    # Read-only view of what is actually in the sheet. Needed because two different
+    # conventions decide where a day's row lives (see the note in the module docstring),
+    # and neither can be checked from state.json.
+    if args.days == "dump":
+        svc = bp.get_sheets_service()
+        vals = svc.spreadsheets().values().get(
+            spreadsheetId=bp.SHEET_ID, range=f"{bp.SHEET_TAB}!A1:M80").execute().get("values", [])
+        print(f"{len(vals)} sheet rows (A1:M80)")
+        for i, row in enumerate(vals, 1):
+            cells = (row + [""] * 13)[:13]
+            print(f"  row{i:>3} | A={cells[0]!r:>6} B={cells[1][:34]!r:36} I={cells[8][:12]!r:14} L={cells[11][:12]!r}")
+        return
+
     state = bp.load_state()
     sheets = None if args.dry_run else bp.get_sheets_service()
 
