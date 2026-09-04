@@ -17,7 +17,7 @@ on:
         description: "Video ids to explain, comma separated (prints each story + closest cases)"
         default: ""
       apply:
-        description: "Confirmed pairs, e.g. 33=H_u0xC8ay_A,34=KzDYKoxFev8. Blank = review only."
+        description: "Confirmed pairs, SEMICOLON separated: 33=H_u0xC8ay_A;34=KzDYKoxFev8. Blank = review only."
         default: ""
 
 permissions:
