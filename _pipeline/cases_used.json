@@ -688,7 +688,7 @@
     {
       "videoId": "72LmvE4fYmc",
       "case": "The Sinking of the Edmund Fitzgerald (Lake Superior, November 10, 1975)",
-      "publishedAt": null
+      "publishedAt": "2026-09-03"
     },
     {
       "videoId": "nWOlgHlVDMs",
@@ -699,21 +699,6 @@
       "videoId": "UJy2YloIuSA",
       "case": "Radium Girls (full long-form documentary)",
       "publishedAt": "2026-08-01"
-    },
-    {
-      "videoId": "",
-      "case": "The Sinking of the Edmund Fitzgerald (Lake Superior",
-      "publishedAt": null
-    },
-    {
-      "videoId": "",
-      "case": "November 10",
-      "publishedAt": null
-    },
-    {
-      "videoId": "72LmvE4fYmc",
-      "case": "1975)",
-      "publishedAt": "2026-09-03"
     }
   ]
 }
