@@ -371,9 +371,9 @@
       "publishedAt": "2026-07-28"
     },
     {
-      "videoId": null,
+      "videoId": "BfhX4oA3DhI",
       "case": "Isdal Woman (Norway, 1970)",
-      "publishedAt": "2026-07-30"
+      "publishedAt": "2026-07-29"
     },
     {
       "videoId": null,
@@ -689,6 +689,16 @@
       "videoId": "72LmvE4fYmc",
       "case": "The Sinking of the Edmund Fitzgerald (Lake Superior, November 10, 1975)",
       "publishedAt": null
+    },
+    {
+      "videoId": "nWOlgHlVDMs",
+      "case": "Cerro Gordo silver mine death (1878, California)",
+      "publishedAt": "2026-08-29"
+    },
+    {
+      "videoId": "UJy2YloIuSA",
+      "case": "Radium Girls (full long-form documentary)",
+      "publishedAt": "2026-08-01"
     }
   ]
 }
