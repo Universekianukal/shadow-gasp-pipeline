@@ -1,0 +1,53 @@
+name: shadow_gasp log sheet rows (backfill)
+
+# Writes Batch-sheet rows for days that never logged their own.
+#
+# Two jobs create days and only one wrote to the sheet: _batch_pregen appends a row, while the
+# daily short workflow reserves a day with sheet_logged:False and never comes back. Rows exist
+# for days 1-32 (one pregen run on 2026-08-01) and then stop; 33-57 were all made by the daily
+# job. This is the repair pass. The daily job now logs its own row, so this should only ever be
+# needed for history or if a row write fails.
+#
+# Idempotent: _log_sheet_row.py skips any day already flagged sheet_logged.
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Day number or range, e.g. 59 or 33-57"
+        required: true
+      dry_run:
+        description: "true = list what would be written, touch nothing"
+        default: "true"
+
+permissions:
+  contents: write
+
+jobs:
+  log:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python deps
+        run: pip install --quiet google-api-python-client google-auth
+
+      - name: Restore Sheets service-account key
+        run: |
+          mkdir -p _pipeline/_local
+          printf '%s' '${{ secrets.SHEETS_SA_KEY }}' > _pipeline/_local/sheets_sa_key.json
+          python3 -c "import json; json.load(open('_pipeline/_local/sheets_sa_key.json'))"
+
+      - name: git identity (the script commits sheet_logged flags)
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+
+      - name: Log the rows
+        working-directory: _pipeline
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 _log_sheet_row.py "${{ github.event.inputs.days }}" --dry-run
+          else
+            python3 _log_sheet_row.py "${{ github.event.inputs.days }}"
+          fi
