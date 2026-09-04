@@ -117,13 +117,19 @@ def main():
         print(f"video_id={video_id}")
         return
 
-    if product_url in description:
+    if replace or product_url in description:
         # REPLACE: strip the old block so improved copy can go in. Without this the idempotency
         # guard makes the wording permanent -- the first version told viewers the comic was
         # "from the same research as this video", which describes it as a duplicate of the free
         # thing they just watched. Match only OUR lines, never the author's own description.
+        #
+        # ⚠️ Strips ANY shadowgasp comic block, not just one matching this product_url. The
+        # url-specific test could not fix the case that actually happened: /funnel pairs the
+        # video you name with the LATEST book, so OVERBOARD's link landed on the Operation
+        # Nimrod video. Re-running with the right product would have left the wrong block in
+        # place and stacked a second one under it -- two comics advertised on one video.
         keep = [ln for ln in description.split("\n")
-                if ln.strip() != product_url
+                if not ln.strip().startswith("https://shadowgasp.gumroad.com/l/")
                 and not ln.startswith("\U0001f4d5")
                 and "from the same research as this video" not in ln
                 and not ln.startswith("The whole story as a")]
