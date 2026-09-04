@@ -96,16 +96,35 @@ def main():
     by_case = {c["case"].strip(): c for c in ledger["cases"]}
 
     if args.apply:
+        # Fetch the real publish dates as well. Setting only the videoId leaves publishedAt
+        # null, and that date is what every "newest first" view sorts by -- a linked video with
+        # no date still reads as a hole in the record, which is the symptom that started this.
+        pairs = [p.strip().partition("=") for p in args.apply.split(",") if p.strip()]
+        want = [v.strip() for _, _, v in pairs]
+        dates = {}
+        try:
+            yt = get_youtube()
+            for i in range(0, len(want), 50):
+                r = yt.videos().list(part="snippet", id=",".join(want[i:i + 50])).execute()
+                for v in r["items"]:
+                    dates[v["id"]] = v["snippet"]["publishedAt"][:10]
+        except Exception as e:
+            print(f"WARNING: could not fetch publish dates ({e}); writing ids only")
+
         n = 0
-        for pair in args.apply.split(","):
-            day, _, vid = pair.strip().partition("=")
-            case = state[day.strip()]["case"].strip()
+        for day, _, vid in pairs:
+            day, vid = day.strip(), vid.strip()
+            case = state[day]["case"].strip()
             entry = by_case.get(case)
             if not entry:
                 entry = {"videoId": None, "case": case, "publishedAt": None}
                 ledger["cases"].append(entry)
-            print(f"day {day}: {entry.get('videoId')} -> {vid}   ({case[:48]})")
-            entry["videoId"] = vid.strip()
+            when = dates.get(vid)
+            print(f"day {day}: {entry.get('videoId')} -> {vid}"
+                  f"{'  published ' + when if when else '  (no date)'}   ({case[:44]})")
+            entry["videoId"] = vid
+            if when:
+                entry["publishedAt"] = when
             n += 1
         json.dump(ledger, open(LEDGER_PATH, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         print(f"\nwrote {n} videoId(s) to the ledger")
