@@ -89,6 +89,8 @@ def main():
     ap.add_argument("--apply", default="", help="day=videoId pairs, comma separated")
     ap.add_argument("--all", action="store_true",
                     help="print every channel video with its current ledger linkage")
+    ap.add_argument("--audit-links", action="store_true",
+                    help="every video carrying a comic link, beside the case that video is")
     ap.add_argument("--describe", default="",
                     help="comma-separated video ids: print each one's full story text and the "
                          "ledger cases closest to it")
@@ -146,6 +148,38 @@ def main():
             n += 1
         json.dump(ledger, open(LEDGER_PATH, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         print(f"\nwrote {n} videoId(s) to the ledger")
+        return
+
+    if args.audit_links:
+        # Every video carrying a comic link, beside the case that video actually is.
+        #
+        # ⚠️ /funnel pairs the video you NAME with the LATEST book, not with a book you choose.
+        # With several comics in flight -- normal now that books are built ahead of their shorts
+        # -- a link can land on the wrong video, silently and outward-facing. That happened once:
+        # OVERBOARD's link went onto the Operation Nimrod video. This is how you find the rest.
+        yt = get_youtube()
+        vids = channel_videos(yt)
+        vid_case = {c["videoId"]: c["case"] for c in ledger["cases"] if c.get("videoId")}
+        ids = [v["id"] for v in vids]
+        linked = []
+        for i in range(0, len(ids), 50):
+            r = yt.videos().list(part="snippet", id=",".join(ids[i:i + 50])).execute()
+            for v in r["items"]:
+                desc = v["snippet"].get("description", "") or ""
+                for line in desc.split("\n"):
+                    line = line.strip()
+                    if line.startswith("https://shadowgasp.gumroad.com/l/"):
+                        linked.append((v["id"], line.rsplit("/", 1)[-1],
+                                       v["snippet"]["title"], vid_case.get(v["id"], "?")))
+        print(f"{len(linked)} video(s) carry a comic link\n")
+        for vid, slug, title, case in sorted(linked, key=lambda x: x[1]):
+            print(f"  {vid}  comic: {slug:22}")
+            print(f"      video is : {case[:66]}")
+            print(f"      title    : {title[:66]}")
+        dupes = [v for v in {x[0] for x in linked} if sum(1 for y in linked if y[0] == v) > 1]
+        if dupes:
+            print(f"\n⚠️  videos carrying MORE THAN ONE comic link: {dupes}")
+        print("\nCheck each 'comic:' slug against the case beneath it -- a mismatch is a mislink.")
         return
 
     if args.describe:
