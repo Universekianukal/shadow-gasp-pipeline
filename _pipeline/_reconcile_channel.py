@@ -134,16 +134,16 @@ def main():
         # the orphans hid the other half of the question: whether the LINKED ones are linked to
         # the right case.
         vid_to_case = {c["videoId"]: c["case"] for c in ledger["cases"] if c.get("videoId")}
-        print("ALL CHANNEL VIDEOS (newest first)
-")
+        print("ALL CHANNEL VIDEOS (newest first)")
+        print("")
         for v in sorted(vids, key=lambda v: v["published"], reverse=True):
             case = vid_to_case.get(v["id"])
             day = day_of_case.get((case or "").strip())
             link = f"day {day:>3} | {case[:44]}" if case else "-- NOT IN LEDGER --"
             print(f"  {v['published'][:10]}  {v['id']}  {v['title'][:58]:60} {link}")
-        print(f"
-{len(vids)} videos | {sum(1 for v in vids if v['id'] in known)} linked | "
-              f"{sum(1 for v in vids if v['id'] not in known)} unlinked")
+        linked = sum(1 for v in vids if v["id"] in known)
+        print("")
+        print(f"{len(vids)} videos | {linked} linked | {len(vids) - linked} unlinked")
         return
 
     orphans = [v for v in vids if v["id"] not in known]
