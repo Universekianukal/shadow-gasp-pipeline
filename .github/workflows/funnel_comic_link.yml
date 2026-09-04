@@ -75,6 +75,24 @@ jobs:
           set -o pipefail
           python3 _pipeline/_youtube_append_link.py 2>&1 | tee /tmp/funnel_out.txt
 
+      # Tell the Worker the link now exists, so /links reflects reality. Nothing else writes
+      # `linked_at`: the field was read in /links and set by no code path at all, so a comic
+      # funnelled after its build reported "not linked yet" forever.
+      #
+      # The User-Agent is required, not decoration: Cloudflare fingerprints a bare client and
+      # blocks it at the edge with 403 / error 1010 before the Worker's secret check runs.
+      # Best-effort -- the link is already on YouTube by this point, and a bookkeeping call must
+      # not fail a successful funnel.
+      - name: Record the link in the comic record
+        if: ${{ steps.funnel.outcome == 'success' }}
+        env:
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          VIDEO_ID: ${{ github.event.inputs.video_id }}
+          PRODUCT_URL: ${{ github.event.inputs.product_url }}
+        run: |
+          curl -sS -X POST "https://shadow-gasp-bot.everydayhypehq.workers.dev/comic/linked"             -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET"             -H "Content-Type: application/json"             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"             --data "{\"product_url\":\"$PRODUCT_URL\",\"video_id\":\"$VIDEO_ID\"}" || true
+          echo
+
       - name: Report to Telegram
         if: ${{ always() && github.event.inputs.notify_chat_id != '' }}
         env:
