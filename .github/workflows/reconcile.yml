@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "review | all   (all = print every channel video with its current linkage)"
+        description: "review | all | audit   (audit = which comic link sits on which video; all = print every channel video with its current linkage)"
         default: "review"
       describe:
         description: "Video ids to explain, comma separated (prints each story + closest cases)"
@@ -39,6 +39,8 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.apply }}" ]; then
             python3 _reconcile_channel.py --apply "${{ github.event.inputs.apply }}"
+          elif [ "${{ github.event.inputs.mode }}" = "audit" ]; then
+            python3 _reconcile_channel.py --audit-links
           elif [ -n "${{ github.event.inputs.describe }}" ]; then
             python3 _reconcile_channel.py --describe "${{ github.event.inputs.describe }}"
           elif [ "${{ github.event.inputs.mode }}" = "all" ]; then
