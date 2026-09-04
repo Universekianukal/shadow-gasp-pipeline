@@ -87,6 +87,8 @@ def day_blobs(state):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", default="", help="day=videoId pairs, comma separated")
+    ap.add_argument("--all", action="store_true",
+                    help="print every channel video with its current ledger linkage")
     args = ap.parse_args()
 
     state = json.load(open(STATE_PATH, encoding="utf-8"))["days"]
@@ -126,6 +128,23 @@ def main():
         for day, case, vid in sorted(dead, key=lambda x: (x[0] or 999)):
             print(f"  day {str(day or '?'):>3}  {vid}  {case[:52]}")
         print()
+
+    if args.all:
+        # The whole channel, newest first, with what the ledger currently believes. Printing only
+        # the orphans hid the other half of the question: whether the LINKED ones are linked to
+        # the right case.
+        vid_to_case = {c["videoId"]: c["case"] for c in ledger["cases"] if c.get("videoId")}
+        print("ALL CHANNEL VIDEOS (newest first)
+")
+        for v in sorted(vids, key=lambda v: v["published"], reverse=True):
+            case = vid_to_case.get(v["id"])
+            day = day_of_case.get((case or "").strip())
+            link = f"day {day:>3} | {case[:44]}" if case else "-- NOT IN LEDGER --"
+            print(f"  {v['published'][:10]}  {v['id']}  {v['title'][:58]:60} {link}")
+        print(f"
+{len(vids)} videos | {sum(1 for v in vids if v['id'] in known)} linked | "
+              f"{sum(1 for v in vids if v['id'] not in known)} unlinked")
+        return
 
     orphans = [v for v in vids if v["id"] not in known]
     print(f"CHANNEL VIDEOS WITH NO LEDGER ENTRY: {len(orphans)}  (newest first)\n")
