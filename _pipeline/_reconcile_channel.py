@@ -139,7 +139,13 @@ def main():
         for v in sorted(vids, key=lambda v: v["published"], reverse=True):
             case = vid_to_case.get(v["id"])
             day = day_of_case.get((case or "").strip())
-            link = f"day {day:>3} | {case[:44]}" if case else "-- NOT IN LEDGER --"
+            # `day` is None for a ledger case that is not a batch day at all -- a manual upload,
+            # or anything published before the batch system existed. Those are exactly the rows
+            # worth seeing, so they must not crash the listing.
+            if not case:
+                link = "-- NOT IN LEDGER --"
+            else:
+                link = f"day {day:>3} | {case[:44]}" if day else f"no day  | {case[:44]}"
             print(f"  {v['published'][:10]}  {v['id']}  {v['title'][:58]:60} {link}")
         linked = sum(1 for v in vids if v["id"] in known)
         print("")
