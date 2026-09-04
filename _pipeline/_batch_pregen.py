@@ -314,11 +314,17 @@ def append_sheet_row(service, day_num, case, title, shot1_url, notes):
     row = [[day_num, case, "Images done", title, shot1_url, "Pending", "", notes]]
     for attempt in range(4):
         try:
-            service.spreadsheets().values().append(
+            # ⚠️ POSITIONAL, not append. _sync_youtube_status writes a day's video columns at
+            # `row = day + 1`, so a day's label row MUST live there too. append() puts it at the
+            # bottom in write order, which matches day+1 only while days are appended in strict
+            # order into an empty sheet -- true for days 1-32, which is why this went unnoticed.
+            # Once days arrived out of order the sheet grew duplicates (39 and 41 twice) and
+            # holes (40 and 42 had no positional row), with the video data on one row and the
+            # label on another.
+            service.spreadsheets().values().update(
                 spreadsheetId=SHEET_ID,
-                range=f"{SHEET_TAB}!A2",
+                range=f"{SHEET_TAB}!A{day_num + 1}:H{day_num + 1}",
                 valueInputOption="USER_ENTERED",
-                insertDataOption="INSERT_ROWS",
                 body={"values": row},
             ).execute()
             return
