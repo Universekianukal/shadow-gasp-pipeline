@@ -196,6 +196,26 @@ jobs:
           echo "Could not commit day $DAY content after 5 attempts — too much concurrent contention"
           exit 1
 
+      # ⚠️ The sheet only ever saw days that _batch_pregen made. This workflow reserves its
+      # day with sheet_logged:False and used to never come back, so every day it created --
+      # 33 through 57 -- is missing from the Batch sheet entirely. The sheet quietly stopped
+      # being the production tracker and became a record of one August afternoon.
+      #
+      # Best-effort: the day's content is already committed and pushed by this point, and a
+      # flaky Sheets write must not fail a finished day. The backfill workflow
+      # (log_sheet_rows.yml) can always catch up a day that missed.
+      - name: Log this day's row in the Batch sheet
+        continue-on-error: true
+        env:
+          DAY: ${{ steps.day.outputs.day }}
+        run: |
+          mkdir -p _pipeline/_local
+          printf '%s' '${{ secrets.SHEETS_SA_KEY }}' > _pipeline/_local/sheets_sa_key.json
+          pip install --quiet google-api-python-client google-auth
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          cd _pipeline && python3 _log_sheet_row.py "$DAY"
+
       - name: Ask the Telegram bot to request a Google Flow hook video
         # Best-effort, never fails the job: the day's content is already
         # safely committed by this point (previous step), so a notify
