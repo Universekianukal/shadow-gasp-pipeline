@@ -13,6 +13,9 @@ on:
       mode:
         description: "review | all   (all = print every channel video with its current linkage)"
         default: "review"
+      describe:
+        description: "Video ids to explain, comma separated (prints each story + closest cases)"
+        default: ""
       apply:
         description: "Confirmed pairs, e.g. 33=H_u0xC8ay_A,34=KzDYKoxFev8. Blank = review only."
         default: ""
@@ -36,6 +39,8 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.apply }}" ]; then
             python3 _reconcile_channel.py --apply "${{ github.event.inputs.apply }}"
+          elif [ -n "${{ github.event.inputs.describe }}" ]; then
+            python3 _reconcile_channel.py --describe "${{ github.event.inputs.describe }}"
           elif [ "${{ github.event.inputs.mode }}" = "all" ]; then
             python3 _reconcile_channel.py --all
           else
