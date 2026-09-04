@@ -8,6 +8,17 @@ name: shadow_gasp reconcile channel vs ledger
 # confirmed pairs to commit them.
 
 on:
+  # Detection only. A manual upload -- or a re-upload after PUBLISH_AT left a video private --
+  # is invisible to the pipeline: the new video is not in the ledger, so it never appears in
+  # /topics and can never become a comic. Three such videos sat unnoticed for a month
+  # (Cerro Gordo, Isdal Woman, the Radium Girls long-form), and three more days pointed at
+  # videos that had been deleted.
+  #
+  # Nothing here writes anything. It reports, and only when there is something to report --
+  # a job that says "all clear" every morning is a job you stop reading.
+  schedule:
+    - cron: "40 6 * * *"     # 06:40 UTC = 12:10 IST, well clear of the publish window
+
   workflow_dispatch:
     inputs:
       mode:
@@ -46,8 +57,47 @@ jobs:
           elif [ "${{ github.event.inputs.mode }}" = "all" ]; then
             python3 _reconcile_channel.py --all
           else
-            python3 _reconcile_channel.py
+            python3 _reconcile_channel.py | tee /tmp/reconcile.txt
           fi
+
+      # Report to Telegram ONLY when something is actually wrong. The findings have always been
+      # printed -- _sync_youtube_status has listed unmatched videos on every 15-minute run for
+      # weeks -- into a log nobody reads. That is how ten orphaned videos and three dead ids
+      # accumulated unnoticed. Same lesson as the OCR contact sheets and the panel bounds audit:
+      # a finding that does not reach a human is not a finding.
+      - name: Tell Telegram if the channel and the ledger disagree
+        if: ${{ always() && github.event.inputs.apply == '' && github.event.inputs.mode != 'audit' && github.event.inputs.mode != 'all' && github.event.inputs.describe == '' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+        run: |
+          [ -n "$CHAT_ID" ] || { echo "no TELEGRAM_CHAT_ID set, skipping notify"; exit 0; }
+          ORPHANS=$(grep -oE "NO LEDGER ENTRY: [0-9]+" /tmp/reconcile.txt | grep -oE "[0-9]+" || echo 0)
+          DEAD=$(grep -oE "NOT on the channel: [0-9]+" /tmp/reconcile.txt | grep -oE "[0-9]+" || echo 0)
+          if [ "${ORPHANS:-0}" -eq 0 ] && [ "${DEAD:-0}" -eq 0 ]; then
+            echo "channel and ledger agree, nothing to report"
+            exit 0
+          fi
+          export ORPHANS DEAD
+          python3 - <<'PY'
+          import json, os, urllib.request
+          body = open("/tmp/reconcile.txt", encoding="utf-8", errors="replace").read()[:2500]
+          head = (
+              f"⚠️ Channel and ledger disagree — {os.environ['ORPHANS']} video(s) "
+              f"with no ledger entry, {os.environ['DEAD']} ledger id(s) no longer on the channel.\n\n"
+              "A video the ledger does not know cannot become a comic: it never appears in "
+              "/topics. A dead id means a comic would funnel to a video that no longer exists.\n\n"
+              "Repair: run the Reconcile workflow with the confirmed pairs.\n\n"
+          )
+          data = json.dumps({"chat_id": os.environ["CHAT_ID"],
+                             "text": (head + body)[:4000],
+                             "disable_web_page_preview": True}).encode()
+          req = urllib.request.Request(
+              f"https://api.telegram.org/bot{os.environ['TELEGRAM_BOT_TOKEN']}/sendMessage",
+              data=data, method="POST", headers={"Content-Type": "application/json"})
+          print(urllib.request.urlopen(req).read().decode()[:200])
+          PY
+        continue-on-error: true
       - name: Commit the ledger if it changed
         if: github.event.inputs.apply != ''
         run: |
