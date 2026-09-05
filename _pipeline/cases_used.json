@@ -1,709 +1,709 @@
 {
-  "cases": [
-    {
-      "videoId": "ula5Affft-w",
-      "case": "Hanford Nuclear Reservation contamination cover-up",
-      "publishedAt": "2026-05-07"
-    },
-    {
-      "videoId": "aoCss-hRMas",
-      "case": "Andrei Chikatilo (Soviet serial killer)",
-      "publishedAt": "2026-05-08"
-    },
-    {
-      "videoId": "UU0auOfmakA",
-      "case": "Donner Party cannibalism (1846)",
-      "publishedAt": "2026-05-10"
-    },
-    {
-      "videoId": "6vGzwAaXR0s",
-      "case": "Alexander Litvinenko polonium poisoning (2006)",
-      "publishedAt": "2026-05-11"
-    },
-    {
-      "videoId": "zWKJrqzYcN4",
-      "case": "Hinterkaifeck murders (1922, Germany)",
-      "publishedAt": "2026-05-13"
-    },
-    {
-      "videoId": "KJH1FI6nKK0",
-      "case": "Issei Sagawa (\"Kobe cannibal,\" murder of Renee Hartevelt, Paris 1981)",
-      "publishedAt": "2026-05-14"
-    },
-    {
-      "videoId": "DC0eV3Q9SRc",
-      "case": "Edgewood Arsenal human experiments (1955-1975, US Army LSD/PCP/nerve agent testing on soldiers)",
-      "publishedAt": "2026-05-14"
-    },
-    {
-      "videoId": "frqp0luWxj4",
-      "case": "Robert Hanssen (FBI agent who spied for Russia for 22 years)",
-      "publishedAt": "2026-05-14"
-    },
-    {
-      "videoId": "HbT-k3lWfTI",
-      "case": "Harold Shipman (Britain's \"trusted doctor\" killer)",
-      "publishedAt": "2026-05-15"
-    },
-    {
-      "videoId": "Fsr46goNZvY",
-      "case": "Stanislav Petrov (1983 Soviet nuclear false-alarm incident)",
-      "publishedAt": "2026-05-15"
-    },
-    {
-      "videoId": "hMq_of4nIRY",
-      "case": "Operation Ivy Bells (US submarine tapping Soviet cables, betrayed by Ronald Pelton)",
-      "publishedAt": "2026-05-15"
-    },
-    {
-      "videoId": "WTjRcWnhM3w",
-      "case": "Demon Core (plutonium sphere, Harry Daghlian & Louis Slotin deaths)",
-      "publishedAt": "2026-05-17"
-    },
-    {
-      "videoId": "_Q5uZQyZkHc",
-      "case": "Paul Schaefer / Colonia Dignidad (Chile cult compound, child abuse, Pinochet-era secret prison)",
-      "publishedAt": "2026-05-19"
-    },
-    {
-      "videoId": "TQdNJDGYs8g",
-      "case": "Execution of the Romanov family (Russia's last royal family)",
-      "publishedAt": "2026-05-19"
-    },
-    {
-      "videoId": "2QLVxy1sx_I",
-      "case": "Lake Karachay (radioactive lake, USSR)",
-      "publishedAt": "2026-05-20"
-    },
-    {
-      "videoId": "KXx8I-KFrAc",
-      "case": "Unit 731 (Japan, WW2)",
-      "publishedAt": "2026-05-21"
-    },
-    {
-      "videoId": "Rcg7opfofnA",
-      "case": "Franklin's lost Arctic expedition (129 sailors)",
-      "publishedAt": "2026-05-22"
-    },
-    {
-      "videoId": "f7TUWHZOMa4",
-      "case": "Idi Amin's reign in Uganda",
-      "publishedAt": "2026-05-23"
-    },
-    {
-      "videoId": "l90iWESrj8g",
-      "case": "David Koresh / Waco / Branch Davidians (siege overview)",
-      "publishedAt": "2026-05-24"
-    },
-    {
-      "videoId": "GCOzF7EwZeU",
-      "case": "Castle Bravo nuclear test (1954, US lied about yield, Marshall Islands/Lucky Dragon fallout)",
-      "publishedAt": "2026-05-25"
-    },
-    {
-      "videoId": "kwUr0ss53LI",
-      "case": "Tuskegee Syphilis Study",
-      "publishedAt": "2026-05-26"
-    },
-    {
-      "videoId": "Cm5gtLzLdio",
-      "case": "Soviet punitive psychiatry (dissidents declared insane)",
-      "publishedAt": "2026-05-27"
-    },
-    {
-      "videoId": "44hL8IMTgq8",
-      "case": "Operation Paperclip (Nazi scientists & US space program)",
-      "publishedAt": "2026-05-28"
-    },
-    {
-      "videoId": "fOUfplWueDw",
-      "case": "Radium Girls",
-      "publishedAt": "2026-05-28"
-    },
-    {
-      "videoId": "ck513ep79b0",
-      "case": "Charles Whitman (UT Austin tower shooter, brain tumor)",
-      "publishedAt": "2026-05-29"
-    },
-    {
-      "videoId": "z1VoOuXtmVA",
-      "case": "Carlos the Jackal (Ilich Ramirez Sanchez, OPEC HQ siege 1975)",
-      "publishedAt": "2026-05-30"
-    },
-    {
-      "videoId": "rk0vnxAPNRA",
-      "case": "Korean War POW \"brainwashing\" (Chinese re-education of American prisoners, 1950s)",
-      "publishedAt": "2026-06-02"
-    },
-    {
-      "videoId": "0_6CSwGX_Eo",
-      "case": "Guatemala syphilis experiments (1946-1948, US doctors)",
-      "publishedAt": "2026-06-02"
-    },
-    {
-      "videoId": "GEKEzl8tqUE",
-      "case": "Aum Shinrikyo Tokyo subway sarin attack",
-      "publishedAt": "2026-06-02"
-    },
-    {
-      "videoId": "gnkzOW6z_EQ",
-      "case": "Robert Hansen (\"Butcher Baker,\" Alaska)",
-      "publishedAt": "2026-06-03"
-    },
-    {
-      "videoId": "MvXNDB_Y5iU",
-      "case": "Operation Nimrod / Iranian Embassy Siege (short teaser, precedes long-form version)",
-      "publishedAt": "2026-06-05"
-    },
-    {
-      "videoId": "ZwARHhTmZwo",
-      "case": "Heaven's Gate cult mass suicide",
-      "publishedAt": "2026-06-05"
-    },
-    {
-      "videoId": "Tl0e3DFDlJE",
-      "case": "Kursk submarine disaster (2000)",
-      "publishedAt": "2026-06-06"
-    },
-    {
-      "videoId": "_iEQUMHnKHM",
-      "case": "Rajneeshee bioterror attack (The Dalles, Oregon salmonella poisoning)",
-      "publishedAt": "2026-06-07"
-    },
-    {
-      "videoId": "lKz_v0AQhz8",
-      "case": "Bhopal disaster (Union Carbide gas leak)",
-      "publishedAt": "2026-06-08"
-    },
-    {
-      "videoId": "oQfkl0QAlIo",
-      "case": "Simo Häyhä (\"The White Death,\" Finnish sniper)",
-      "publishedAt": "2026-06-10"
-    },
-    {
-      "videoId": "pvY7SwGE8dk",
-      "case": "Assassination of Reinhard Heydrich (Operation Anthropoid)",
-      "publishedAt": "2026-06-11"
-    },
-    {
-      "videoId": "oXjDWMptXdE",
-      "case": "Byford Dolphin diving bell accident (1983)",
-      "publishedAt": "2026-06-12"
-    },
-    {
-      "videoId": "tBZlFJN7IBc",
-      "case": "Vela Incident (1979 South Atlantic double-flash, suspected Israel-South Africa nuclear test)",
-      "publishedAt": "2026-06-14"
-    },
-    {
-      "videoId": "kXt9WJVd_XA",
-      "case": "Able Archer 83 (NATO exercise nearly triggered Soviet nuclear first-strike response)",
-      "publishedAt": "2026-06-15"
-    },
-    {
-      "videoId": "DM7c6Rq5Stk",
-      "case": "Skull Valley / Rockwell Colt film set radiation (\"The Conqueror\" cancer cluster)",
-      "publishedAt": "2026-06-15"
-    },
-    {
-      "videoId": "7Zkluc91ICw",
-      "case": "Kim Philby (Cambridge Five double agent)",
-      "publishedAt": "2026-06-16"
-    },
-    {
-      "videoId": "SiOgw2TZBd4",
-      "case": "Operation Northwoods (declassified US false-flag plan)",
-      "publishedAt": "2026-06-17"
-    },
-    {
-      "videoId": "6D8FP6Omig4",
-      "case": "Georgi Markov assassination (Bulgarian umbrella poisoning)",
-      "publishedAt": "2026-06-18"
-    },
-    {
-      "videoId": "zfXpR-WBZQo",
-      "case": "The Moscow Signal / Project Pandora (Soviet microwave irradiation of US Moscow embassy, 1953-1976)",
-      "publishedAt": "2026-06-20"
-    },
-    {
-      "videoId": "794xWV3pyJ4",
-      "case": "David Koresh / Waco siege (full long-form documentary)",
-      "publishedAt": "2026-06-20"
-    },
-    {
-      "videoId": "UdtFMpe-bOY",
-      "case": "Wilhelm Gustloff sinking (1945, deadliest maritime disaster in history)",
-      "publishedAt": "2026-06-20"
-    },
-    {
-      "videoId": "k51Gx_7v4BQ",
-      "case": "Thomas Midgley Jr. (leaded gasoline & CFCs)",
-      "publishedAt": "2026-06-21"
-    },
-    {
-      "videoId": "37SdeNvfBQE",
-      "case": "Tybee Island H-bomb (1958 lost Mark 15 thermonuclear bomb, Georgia)",
-      "publishedAt": "2026-06-23"
-    },
-    {
-      "videoId": "2iCWOvs4yXI",
-      "case": "Fritz Haber (synthetic fertilizer & chemical weapons)",
-      "publishedAt": "2026-06-23"
-    },
-    {
-      "videoId": "JNufKBHNuaM",
-      "case": "USS Indianapolis sinking",
-      "publishedAt": "2026-06-24"
-    },
-    {
-      "videoId": "tskH3fPEdzQ",
-      "case": "Ted Kaczynski / Harvard MKULTRA experiments",
-      "publishedAt": "2026-06-25"
-    },
-    {
-      "videoId": "PQRmRHAGZoo",
-      "case": "MOVE bombing (Philadelphia, 1985)",
-      "publishedAt": "2026-06-26"
-    },
-    {
-      "videoId": "tfGcnEM8FXo",
-      "case": "Operation Nimrod / Iranian Embassy Siege 1980 (full long-form documentary)",
-      "publishedAt": "2026-06-27"
-    },
-    {
-      "videoId": "sZFPrrmIvqE",
-      "case": "Moscow theater hostage crisis (Nord-Ost siege, 2002)",
-      "publishedAt": "2026-06-27"
-    },
-    {
-      "videoId": "gy6jBeEO_Tc",
-      "case": "Nazi forced sterilization/T4 program (rehearsed on Germans first)",
-      "publishedAt": "2026-06-28"
-    },
-    {
-      "videoId": "MgA50MG6_fQ",
-      "case": "1979 Sverdlovsk anthrax leak (Soviet bioweapons)",
-      "publishedAt": "2026-06-29"
-    },
-    {
-      "videoId": "J6ZfFk1yEr8",
-      "case": "Qian Xuesen deportation (US-to-China missile scientist)",
-      "publishedAt": "2026-06-30"
-    },
-    {
-      "videoId": "daNotUnDcxM",
-      "case": "Air New Zealand Flight 901 (Mount Erebus disaster, 1979 Antarctica, pilots blamed for changed coordinates)",
-      "publishedAt": "2026-07-01"
-    },
-    {
-      "videoId": "CEXd8iUyjSI",
-      "case": "Stuxnet (cyberweapon vs. Iranian nuclear centrifuges)",
-      "publishedAt": "2026-07-02"
-    },
-    {
-      "videoId": "vP2tiB-PY1k",
-      "case": "Mir space station fire (1997)",
-      "publishedAt": "2026-07-03"
-    },
-    {
-      "videoId": "BygrzaPJGKQ",
-      "case": "Vitaly Kaloyev (2002 Uberlingen mid-air collision, killed air traffic controller Peter Nielsen)",
-      "publishedAt": "2026-07-04"
-    },
-    {
-      "videoId": "_wlwnRwfAMM",
-      "case": "Wouter Basson / Project Coast (South African apartheid-era chemical/biological weapons program)",
-      "publishedAt": "2026-07-05"
-    },
-    {
-      "videoId": "aaxwyuG8m_M",
-      "case": "US nuclear waste ocean dumping (Pacific)",
-      "publishedAt": "2026-07-07"
-    },
-    {
-      "videoId": "PANjiMisbqE",
-      "case": "Operation Gladio (NATO stay-behind army)",
-      "publishedAt": "2026-07-08"
-    },
-    {
-      "videoId": "790zEVBB7-4",
-      "case": "MKUltra Operation Midnight Climax (CIA safehouse brothels)",
-      "publishedAt": "2026-07-09"
-    },
-    {
-      "videoId": "B_k-vyKL68A",
-      "case": "Operation Sea-Spray (US Army San Francisco bacteria spraying test, 1950)",
-      "publishedAt": "2026-07-10"
-    },
-    {
-      "videoId": "8lkoEUnRL1c",
-      "case": "Pedro Lopez (\"Monster of the Andes,\" confessed 300 murders)",
-      "publishedAt": "2026-07-11"
-    },
-    {
-      "videoId": "0aMvjbSuI_Y",
-      "case": "Pont-Saint-Esprit mass poisoning (1951, France)",
-      "publishedAt": "2026-07-12"
-    },
-    {
-      "videoId": "J2PqQ2F9M4E",
-      "case": "Kang Kek Iew / \"Comrade Duch\" (Khmer Rouge S-21 prison chief, Cambodia)",
-      "publishedAt": "2026-07-13"
-    },
-    {
-      "videoId": "g-LStvtOO9I",
-      "case": "Korean Air Lines Flight 007 shootdown (Soviet pilot, black box hidden 9 years)",
-      "publishedAt": "2026-07-14"
-    },
-    {
-      "videoId": "loBvWLJGlE4",
-      "case": "Bath School disaster (Michigan, 1927)",
-      "publishedAt": "2026-07-15"
-    },
-    {
-      "videoId": "GfLwZtY9Wlk",
-      "case": "H.H. Holmes' Murder Castle",
-      "publishedAt": "2026-07-28"
-    },
-    {
-      "videoId": "1qmX_xAF3xU",
-      "case": "D.B. Cooper skyjacking",
-      "publishedAt": "2026-07-28"
-    },
-    {
-      "videoId": "BfhX4oA3DhI",
-      "case": "Isdal Woman (Norway, 1970)",
-      "publishedAt": "2026-07-29"
-    },
-    {
-      "videoId": null,
-      "case": "The Lead Masks Case (Rio de Janeiro, 1966)",
-      "publishedAt": "2026-07-30"
-    },
-    {
-      "videoId": "C8eELtx-CIg",
-      "case": "MV Joyita disappearance (1955, South Pacific)",
-      "publishedAt": "2026-07-30"
-    },
-    {
-      "videoId": null,
-      "case": "Isabella Stewart Gardner Museum heist (1990, Boston)",
-      "publishedAt": null
-    },
-    {
-      "videoId": "xdwSgL9hURM",
-      "case": "School of Turin - Antwerp Diamond Heist",
-      "publishedAt": "2026-07-30"
-    },
-    {
-      "videoId": "YywA2Vrby2U",
-      "case": "The Sodder Fire  Five Children, No Bones",
-      "publishedAt": "2026-08-01"
-    },
-    {
-      "videoId": "c89ca07SolM",
-      "case": "The Somerton Man / Taman Shud Case (Adelaide, 1948)",
-      "publishedAt": "2026-07-31"
-    },
-    {
-      "videoId": "bBdyw4lxpeU",
-      "case": "The Boy in the Box (Philadelphia, 1957) / Joseph Augustus Zarelli",
-      "publishedAt": "2026-08-06"
-    },
-    {
-      "videoId": "BUoQD--3RUU",
-      "case": "Flannan Isles Lighthouse Disappearance (1900, Scotland)",
-      "publishedAt": "2026-08-03"
-    },
-    {
-      "videoId": "fchnp3rXBaE",
-      "case": "The Amber Room (looted 1941, still missing)",
-      "publishedAt": "2026-08-07"
-    },
-    {
-      "videoId": "S2XAx6-Uz3U",
-      "case": "Max Headroom Broadcast Intrusion (Chicago, Nov 22 1987)",
-      "publishedAt": "2026-08-11"
-    },
-    {
-      "videoId": "iuxxqOXClVY",
-      "case": "The Circleville Letters (Circleville, Ohio, 1976-1994)",
-      "publishedAt": "2026-08-04"
-    },
-    {
-      "videoId": "aAvu-KmNYMA",
-      "case": "The Watcher (2014-2019, Westfield, New Jersey)",
-      "publishedAt": "2026-08-13"
-    },
-    {
-      "videoId": "Me_EecbtBpc",
-      "case": "SS Baychimo ghost ship (Arctic Canada, 1931-1969)",
-      "publishedAt": "2026-08-12"
-    },
-    {
-      "videoId": null,
-      "case": "Chicago Tylenol Murders (1982)",
-      "publishedAt": null
-    },
-    {
-      "videoId": "yzBkl-Cgs7s",
-      "case": "The Springfield Three disappearance (Springfield, Missouri, 1992)",
-      "publishedAt": "2026-08-14"
-    },
-    {
-      "videoId": "FtROmAutfMg",
-      "case": "The Yuba County Five (California, 1978)",
-      "publishedAt": "2026-08-16"
-    },
-    {
-      "videoId": "HxkKGV7ya48",
-      "case": "The Lufthansa Heist (JFK Airport, Dec 11 1978)",
-      "publishedAt": "2026-08-15"
-    },
-    {
-      "videoId": "4nYvp8kuWn0",
-      "case": "Bella in the Wych Elm (Hagley Wood, England, 1943)",
-      "publishedAt": "2026-08-17"
-    },
-    {
-      "videoId": "7ct_rHsNb28",
-      "case": "The Axeman of New Orleans (1918-1919)",
-      "publishedAt": "2026-08-18"
-    },
-    {
-      "videoId": "gZiPNWP6F88",
-      "case": "The Great Brink's Robbery (Boston, Jan 17 1950)",
-      "publishedAt": "2026-08-18"
-    },
-    {
-      "videoId": "IKM1QzePLkA",
-      "case": "SS Ourang Medan phantom freighter (reported 1947, Strait of Malacca)",
-      "publishedAt": "2026-08-19"
-    },
-    {
-      "videoId": "Jjyl_ccKmps",
-      "case": "The Beaumont Children disappearance (Glenelg Beach, Australia, 1966)",
-      "publishedAt": "2026-08-20"
-    },
-    {
-      "videoId": null,
-      "case": "The Baker Street Bank Robbery (1971, London)",
-      "publishedAt": null
-    },
-    {
-      "videoId": "UnZqMquNSwU",
-      "case": "The Portuguese Bank Note Crisis (Alfredo Vaz dos Reis, 1925)",
-      "publishedAt": "2026-08-21"
-    },
-    {
-      "videoId": "fqth_zWW7TM",
-      "case": "The Overtoun Bridge dog deaths (Milton, Scotland, since 1960s)",
-      "publishedAt": "2026-08-21"
-    },
-    {
-      "videoId": null,
-      "case": "Dozier School for Boys (Marianna, Florida, 1900-2011)",
-      "publishedAt": null
-    },
-    {
-      "videoId": "73scVUa-pDQ",
-      "case": "The Voynich Manuscript (carbon-dated 1404-1438)",
-      "publishedAt": "2026-08-22"
-    },
-    {
-      "videoId": "x5RZv6P2xTw",
-      "case": "The Mary Celeste (1872)",
-      "publishedAt": "2026-08-23"
-    },
-    {
-      "videoId": "Oq4aJkwJ0uo",
-      "case": "SS Waratah disappearance (1909, South Africa)",
-      "publishedAt": "2026-08-24"
-    },
-    {
-      "videoId": "t3TJUNjMsEc",
-      "case": "The Millennium Dome Diamond Heist (Nov 7, 2000, London)",
-      "publishedAt": "2026-08-25"
-    },
-    {
-      "videoId": "c8JTfjnEzag",
-      "case": "Disappearance of Harold Holt (1967, Australia)",
-      "publishedAt": "2026-08-26"
-    },
-    {
-      "videoId": "xYurp1ll0U0",
-      "case": "The Antikythera Mechanism recovery (1901, Greece)",
-      "publishedAt": "2026-08-27"
-    },
-    {
-      "videoId": null,
-      "case": "The Taos Hum and disappearance of the Ourang Medan investigation aside  instead: The Cerro Gordo silver mine embezzlement and murder of Louis D. Gordon (Cerro Gordo, California, 1877-79)",
-      "publishedAt": null
-    },
-    {
-      "videoId": null,
-      "case": "Kaspar Hauser (Nuremberg, 1828)",
-      "publishedAt": "2026-08-01"
-    },
-    {
-      "videoId": "yDuD85fB4do",
-      "case": "The Toxic Lady (Gloria Ramirez ER incident, Riverside CA, 1994)",
-      "publishedAt": "2026-08-29"
-    },
-    {
-      "videoId": "bWwDb5KgqwM",
-      "case": "The Georgia Guidestones bombing (2022)",
-      "publishedAt": "2026-08-30"
-    },
-    {
-      "videoId": null,
-      "case": "Oba Chandler case / murder of the Rogers-Fricker family (1989, Tampa Bay)",
-      "publishedAt": "2026-08-06"
-    },
-    {
-      "videoId": "H_u0xC8ay_A",
-      "case": "The Boston Molasses Flood (January 15, 1919)",
-      "publishedAt": "2026-08-08"
-    },
-    {
-      "videoId": "KzDYKoxFev8",
-      "case": "SS Cotopaxi (1925, disappeared off Florida; wreck identified 2020)",
-      "publishedAt": "2026-08-09"
-    },
-    {
-      "videoId": "vU_D1DSkvrs",
-      "case": "Villisca Axe Murders (Villisca, Iowa, June 10, 1912)",
-      "publishedAt": "2026-08-10"
-    },
-    {
-      "videoId": "u0XrykREgKg",
-      "case": "MV Kaz II 'Ghost Yacht' (Great Barrier Reef, 2007)",
-      "publishedAt": "2026-08-10"
-    },
-    {
-      "videoId": "7ArPABc6RxU",
-      "case": "The Dyatlov Pass Incident (Ural Mountains, USSR, February 1959)",
-      "publishedAt": "2026-08-12"
-    },
-    {
-      "videoId": "yKrdZ-JmRns",
-      "case": "The Phantom of Heilbronn (Germany/Austria/France, 1993-2009)",
-      "publishedAt": "2026-08-14"
-    },
-    {
-      "videoId": "4STsCyk0M0A",
-      "case": "The Green Bicycle Case (Bella Wright murder, Leicestershire, England, 1919)",
-      "publishedAt": "2026-09-02"
-    },
-    {
-      "videoId": "fLVuj3I182k",
-      "case": "The Collyer Brothers (Harlem, NYC, March 1947)",
-      "publishedAt": "2026-08-15"
-    },
-    {
-      "videoId": "3sUxBfxR2_s",
-      "case": "The Zong Massacre (1781, British slave ship)",
-      "publishedAt": "2026-08-16"
-    },
-    {
-      "videoId": null,
-      "case": "USS Cyclops disappearance (1918)",
-      "publishedAt": "2026-08-18"
-    },
-    {
-      "videoId": null,
-      "case": "Disappearance of Michael Rockefeller (Netherlands New Guinea, 1961)",
-      "publishedAt": "2026-08-20"
-    },
-    {
-      "videoId": null,
-      "case": "The Dancing Plague of 1518 (Strasbourg, Holy Roman Empire)",
-      "publishedAt": "2026-08-21"
-    },
-    {
-      "videoId": null,
-      "case": "The Tichborne Claimant (England, 1866-1874)",
-      "publishedAt": "2026-08-22"
-    },
-    {
-      "videoId": null,
-      "case": "The Beale Ciphers (Bedford County, Virginia, 1820s)",
-      "publishedAt": "2026-08-23"
-    },
-    {
-      "videoId": null,
-      "case": "Disappearance of Frederick Valentich (Bass Strait, Australia, Oct 21 1978)",
-      "publishedAt": "2026-08-24"
-    },
-    {
-      "videoId": null,
-      "case": "The Alcatraz Escape (Frank Morris & the Anglin Brothers, June 11 1962)",
-      "publishedAt": "2026-08-25"
-    },
-    {
-      "videoId": null,
-      "case": "Hatton Garden Safe Deposit Burglary (April 2015, London)",
-      "publishedAt": "2026-08-26"
-    },
-    {
-      "videoId": null,
-      "case": "The Collar Bomb Heist / Murder of Brian Wells (Erie, Pennsylvania, 2003)",
-      "publishedAt": "2026-08-27"
-    },
-    {
-      "videoId": null,
-      "case": "Cicada 3301 (2012-2014 internet puzzle mystery)",
-      "publishedAt": "2026-08-28"
-    },
-    {
-      "videoId": null,
-      "case": "The Cleveland Torso Murderer / Kingsbury Run Murders (1935-1938)",
-      "publishedAt": "2026-08-29"
-    },
-    {
-      "videoId": null,
-      "case": "Disappearance of Jean Spangler (Hollywood, Oct 7, 1949)",
-      "publishedAt": "2026-08-30"
-    },
-    {
-      "videoId": null,
-      "case": "David Hahn, \"The Radioactive Boy Scout\" (Commerce Township, Michigan, 1994)",
-      "publishedAt": "2026-08-31"
-    },
-    {
-      "videoId": null,
-      "case": "The Monster Study (University of Iowa, 1939)",
-      "publishedAt": "2026-09-01"
-    },
-    {
-      "videoId": null,
-      "case": "The Glico Morinaga case (Japan, 1984-1985)",
-      "publishedAt": "2026-09-02"
-    },
-    {
-      "videoId": null,
-      "case": "Roberto Calvi / 'God's Banker' death at Blackfriars Bridge (London, 1982)",
-      "publishedAt": null
-    },
-    {
-      "videoId": "72LmvE4fYmc",
-      "case": "The Sinking of the Edmund Fitzgerald (Lake Superior, November 10, 1975)",
-      "publishedAt": "2026-09-03"
-    },
-    {
-      "videoId": "nWOlgHlVDMs",
-      "case": "Cerro Gordo silver mine death (1878, California)",
-      "publishedAt": "2026-08-29"
-    },
-    {
-      "videoId": "UJy2YloIuSA",
-      "case": "Radium Girls (full long-form documentary)",
-      "publishedAt": "2026-08-01"
-    },
-    {
-      "videoId": null,
-      "case": "The Stolen Boeing 727 (N844AA, Luanda Airport, Angola, May 25 2003)",
-      "publishedAt": "2026-09-04"
-    }
-  ]
+ "cases": [
+  {
+   "videoId": "ula5Affft-w",
+   "case": "Hanford Nuclear Reservation contamination cover-up",
+   "publishedAt": "2026-05-07"
+  },
+  {
+   "videoId": "aoCss-hRMas",
+   "case": "Andrei Chikatilo (Soviet serial killer)",
+   "publishedAt": "2026-05-08"
+  },
+  {
+   "videoId": "UU0auOfmakA",
+   "case": "Donner Party cannibalism (1846)",
+   "publishedAt": "2026-05-10"
+  },
+  {
+   "videoId": "6vGzwAaXR0s",
+   "case": "Alexander Litvinenko polonium poisoning (2006)",
+   "publishedAt": "2026-05-11"
+  },
+  {
+   "videoId": "zWKJrqzYcN4",
+   "case": "Hinterkaifeck murders (1922, Germany)",
+   "publishedAt": "2026-05-13"
+  },
+  {
+   "videoId": "KJH1FI6nKK0",
+   "case": "Issei Sagawa (\"Kobe cannibal,\" murder of Renee Hartevelt, Paris 1981)",
+   "publishedAt": "2026-05-14"
+  },
+  {
+   "videoId": "DC0eV3Q9SRc",
+   "case": "Edgewood Arsenal human experiments (1955-1975, US Army LSD/PCP/nerve agent testing on soldiers)",
+   "publishedAt": "2026-05-14"
+  },
+  {
+   "videoId": "frqp0luWxj4",
+   "case": "Robert Hanssen (FBI agent who spied for Russia for 22 years)",
+   "publishedAt": "2026-05-14"
+  },
+  {
+   "videoId": "HbT-k3lWfTI",
+   "case": "Harold Shipman (Britain's \"trusted doctor\" killer)",
+   "publishedAt": "2026-05-15"
+  },
+  {
+   "videoId": "Fsr46goNZvY",
+   "case": "Stanislav Petrov (1983 Soviet nuclear false-alarm incident)",
+   "publishedAt": "2026-05-15"
+  },
+  {
+   "videoId": "hMq_of4nIRY",
+   "case": "Operation Ivy Bells (US submarine tapping Soviet cables, betrayed by Ronald Pelton)",
+   "publishedAt": "2026-05-15"
+  },
+  {
+   "videoId": "WTjRcWnhM3w",
+   "case": "Demon Core (plutonium sphere, Harry Daghlian & Louis Slotin deaths)",
+   "publishedAt": "2026-05-17"
+  },
+  {
+   "videoId": "_Q5uZQyZkHc",
+   "case": "Paul Schaefer / Colonia Dignidad (Chile cult compound, child abuse, Pinochet-era secret prison)",
+   "publishedAt": "2026-05-19"
+  },
+  {
+   "videoId": "TQdNJDGYs8g",
+   "case": "Execution of the Romanov family (Russia's last royal family)",
+   "publishedAt": "2026-05-19"
+  },
+  {
+   "videoId": "2QLVxy1sx_I",
+   "case": "Lake Karachay (radioactive lake, USSR)",
+   "publishedAt": "2026-05-20"
+  },
+  {
+   "videoId": "KXx8I-KFrAc",
+   "case": "Unit 731 (Japan, WW2)",
+   "publishedAt": "2026-05-21"
+  },
+  {
+   "videoId": "Rcg7opfofnA",
+   "case": "Franklin's lost Arctic expedition (129 sailors)",
+   "publishedAt": "2026-05-22"
+  },
+  {
+   "videoId": "f7TUWHZOMa4",
+   "case": "Idi Amin's reign in Uganda",
+   "publishedAt": "2026-05-23"
+  },
+  {
+   "videoId": "l90iWESrj8g",
+   "case": "David Koresh / Waco / Branch Davidians (siege overview)",
+   "publishedAt": "2026-05-24"
+  },
+  {
+   "videoId": "GCOzF7EwZeU",
+   "case": "Castle Bravo nuclear test (1954, US lied about yield, Marshall Islands/Lucky Dragon fallout)",
+   "publishedAt": "2026-05-25"
+  },
+  {
+   "videoId": "kwUr0ss53LI",
+   "case": "Tuskegee Syphilis Study",
+   "publishedAt": "2026-05-26"
+  },
+  {
+   "videoId": "Cm5gtLzLdio",
+   "case": "Soviet punitive psychiatry (dissidents declared insane)",
+   "publishedAt": "2026-05-27"
+  },
+  {
+   "videoId": "44hL8IMTgq8",
+   "case": "Operation Paperclip (Nazi scientists & US space program)",
+   "publishedAt": "2026-05-28"
+  },
+  {
+   "videoId": "fOUfplWueDw",
+   "case": "Radium Girls",
+   "publishedAt": "2026-05-28"
+  },
+  {
+   "videoId": "ck513ep79b0",
+   "case": "Charles Whitman (UT Austin tower shooter, brain tumor)",
+   "publishedAt": "2026-05-29"
+  },
+  {
+   "videoId": "z1VoOuXtmVA",
+   "case": "Carlos the Jackal (Ilich Ramirez Sanchez, OPEC HQ siege 1975)",
+   "publishedAt": "2026-05-30"
+  },
+  {
+   "videoId": "rk0vnxAPNRA",
+   "case": "Korean War POW \"brainwashing\" (Chinese re-education of American prisoners, 1950s)",
+   "publishedAt": "2026-06-02"
+  },
+  {
+   "videoId": "0_6CSwGX_Eo",
+   "case": "Guatemala syphilis experiments (1946-1948, US doctors)",
+   "publishedAt": "2026-06-02"
+  },
+  {
+   "videoId": "GEKEzl8tqUE",
+   "case": "Aum Shinrikyo Tokyo subway sarin attack",
+   "publishedAt": "2026-06-02"
+  },
+  {
+   "videoId": "gnkzOW6z_EQ",
+   "case": "Robert Hansen (\"Butcher Baker,\" Alaska)",
+   "publishedAt": "2026-06-03"
+  },
+  {
+   "videoId": "MvXNDB_Y5iU",
+   "case": "Operation Nimrod / Iranian Embassy Siege (short teaser, precedes long-form version)",
+   "publishedAt": "2026-06-05"
+  },
+  {
+   "videoId": "ZwARHhTmZwo",
+   "case": "Heaven's Gate cult mass suicide",
+   "publishedAt": "2026-06-05"
+  },
+  {
+   "videoId": "Tl0e3DFDlJE",
+   "case": "Kursk submarine disaster (2000)",
+   "publishedAt": "2026-06-06"
+  },
+  {
+   "videoId": "_iEQUMHnKHM",
+   "case": "Rajneeshee bioterror attack (The Dalles, Oregon salmonella poisoning)",
+   "publishedAt": "2026-06-07"
+  },
+  {
+   "videoId": "lKz_v0AQhz8",
+   "case": "Bhopal disaster (Union Carbide gas leak)",
+   "publishedAt": "2026-06-08"
+  },
+  {
+   "videoId": "oQfkl0QAlIo",
+   "case": "Simo Häyhä (\"The White Death,\" Finnish sniper)",
+   "publishedAt": "2026-06-10"
+  },
+  {
+   "videoId": "pvY7SwGE8dk",
+   "case": "Assassination of Reinhard Heydrich (Operation Anthropoid)",
+   "publishedAt": "2026-06-11"
+  },
+  {
+   "videoId": "oXjDWMptXdE",
+   "case": "Byford Dolphin diving bell accident (1983)",
+   "publishedAt": "2026-06-12"
+  },
+  {
+   "videoId": "tBZlFJN7IBc",
+   "case": "Vela Incident (1979 South Atlantic double-flash, suspected Israel-South Africa nuclear test)",
+   "publishedAt": "2026-06-14"
+  },
+  {
+   "videoId": "kXt9WJVd_XA",
+   "case": "Able Archer 83 (NATO exercise nearly triggered Soviet nuclear first-strike response)",
+   "publishedAt": "2026-06-15"
+  },
+  {
+   "videoId": "DM7c6Rq5Stk",
+   "case": "Skull Valley / Rockwell Colt film set radiation (\"The Conqueror\" cancer cluster)",
+   "publishedAt": "2026-06-15"
+  },
+  {
+   "videoId": "7Zkluc91ICw",
+   "case": "Kim Philby (Cambridge Five double agent)",
+   "publishedAt": "2026-06-16"
+  },
+  {
+   "videoId": "SiOgw2TZBd4",
+   "case": "Operation Northwoods (declassified US false-flag plan)",
+   "publishedAt": "2026-06-17"
+  },
+  {
+   "videoId": "6D8FP6Omig4",
+   "case": "Georgi Markov assassination (Bulgarian umbrella poisoning)",
+   "publishedAt": "2026-06-18"
+  },
+  {
+   "videoId": "zfXpR-WBZQo",
+   "case": "The Moscow Signal / Project Pandora (Soviet microwave irradiation of US Moscow embassy, 1953-1976)",
+   "publishedAt": "2026-06-20"
+  },
+  {
+   "videoId": "794xWV3pyJ4",
+   "case": "David Koresh / Waco siege (full long-form documentary)",
+   "publishedAt": "2026-06-20"
+  },
+  {
+   "videoId": "UdtFMpe-bOY",
+   "case": "Wilhelm Gustloff sinking (1945, deadliest maritime disaster in history)",
+   "publishedAt": "2026-06-20"
+  },
+  {
+   "videoId": "k51Gx_7v4BQ",
+   "case": "Thomas Midgley Jr. (leaded gasoline & CFCs)",
+   "publishedAt": "2026-06-21"
+  },
+  {
+   "videoId": "37SdeNvfBQE",
+   "case": "Tybee Island H-bomb (1958 lost Mark 15 thermonuclear bomb, Georgia)",
+   "publishedAt": "2026-06-23"
+  },
+  {
+   "videoId": "2iCWOvs4yXI",
+   "case": "Fritz Haber (synthetic fertilizer & chemical weapons)",
+   "publishedAt": "2026-06-23"
+  },
+  {
+   "videoId": "JNufKBHNuaM",
+   "case": "USS Indianapolis sinking",
+   "publishedAt": "2026-06-24"
+  },
+  {
+   "videoId": "tskH3fPEdzQ",
+   "case": "Ted Kaczynski / Harvard MKULTRA experiments",
+   "publishedAt": "2026-06-25"
+  },
+  {
+   "videoId": "PQRmRHAGZoo",
+   "case": "MOVE bombing (Philadelphia, 1985)",
+   "publishedAt": "2026-06-26"
+  },
+  {
+   "videoId": "tfGcnEM8FXo",
+   "case": "Operation Nimrod / Iranian Embassy Siege 1980 (full long-form documentary)",
+   "publishedAt": "2026-06-27"
+  },
+  {
+   "videoId": "sZFPrrmIvqE",
+   "case": "Moscow theater hostage crisis (Nord-Ost siege, 2002)",
+   "publishedAt": "2026-06-27"
+  },
+  {
+   "videoId": "gy6jBeEO_Tc",
+   "case": "Nazi forced sterilization/T4 program (rehearsed on Germans first)",
+   "publishedAt": "2026-06-28"
+  },
+  {
+   "videoId": "MgA50MG6_fQ",
+   "case": "1979 Sverdlovsk anthrax leak (Soviet bioweapons)",
+   "publishedAt": "2026-06-29"
+  },
+  {
+   "videoId": "J6ZfFk1yEr8",
+   "case": "Qian Xuesen deportation (US-to-China missile scientist)",
+   "publishedAt": "2026-06-30"
+  },
+  {
+   "videoId": "daNotUnDcxM",
+   "case": "Air New Zealand Flight 901 (Mount Erebus disaster, 1979 Antarctica, pilots blamed for changed coordinates)",
+   "publishedAt": "2026-07-01"
+  },
+  {
+   "videoId": "CEXd8iUyjSI",
+   "case": "Stuxnet (cyberweapon vs. Iranian nuclear centrifuges)",
+   "publishedAt": "2026-07-02"
+  },
+  {
+   "videoId": "vP2tiB-PY1k",
+   "case": "Mir space station fire (1997)",
+   "publishedAt": "2026-07-03"
+  },
+  {
+   "videoId": "BygrzaPJGKQ",
+   "case": "Vitaly Kaloyev (2002 Uberlingen mid-air collision, killed air traffic controller Peter Nielsen)",
+   "publishedAt": "2026-07-04"
+  },
+  {
+   "videoId": "_wlwnRwfAMM",
+   "case": "Wouter Basson / Project Coast (South African apartheid-era chemical/biological weapons program)",
+   "publishedAt": "2026-07-05"
+  },
+  {
+   "videoId": "aaxwyuG8m_M",
+   "case": "US nuclear waste ocean dumping (Pacific)",
+   "publishedAt": "2026-07-07"
+  },
+  {
+   "videoId": "PANjiMisbqE",
+   "case": "Operation Gladio (NATO stay-behind army)",
+   "publishedAt": "2026-07-08"
+  },
+  {
+   "videoId": "790zEVBB7-4",
+   "case": "MKUltra Operation Midnight Climax (CIA safehouse brothels)",
+   "publishedAt": "2026-07-09"
+  },
+  {
+   "videoId": "B_k-vyKL68A",
+   "case": "Operation Sea-Spray (US Army San Francisco bacteria spraying test, 1950)",
+   "publishedAt": "2026-07-10"
+  },
+  {
+   "videoId": "8lkoEUnRL1c",
+   "case": "Pedro Lopez (\"Monster of the Andes,\" confessed 300 murders)",
+   "publishedAt": "2026-07-11"
+  },
+  {
+   "videoId": "0aMvjbSuI_Y",
+   "case": "Pont-Saint-Esprit mass poisoning (1951, France)",
+   "publishedAt": "2026-07-12"
+  },
+  {
+   "videoId": "J2PqQ2F9M4E",
+   "case": "Kang Kek Iew / \"Comrade Duch\" (Khmer Rouge S-21 prison chief, Cambodia)",
+   "publishedAt": "2026-07-13"
+  },
+  {
+   "videoId": "g-LStvtOO9I",
+   "case": "Korean Air Lines Flight 007 shootdown (Soviet pilot, black box hidden 9 years)",
+   "publishedAt": "2026-07-14"
+  },
+  {
+   "videoId": "loBvWLJGlE4",
+   "case": "Bath School disaster (Michigan, 1927)",
+   "publishedAt": "2026-07-15"
+  },
+  {
+   "videoId": "GfLwZtY9Wlk",
+   "case": "H.H. Holmes' Murder Castle",
+   "publishedAt": "2026-07-28"
+  },
+  {
+   "videoId": "1qmX_xAF3xU",
+   "case": "D.B. Cooper skyjacking",
+   "publishedAt": "2026-07-28"
+  },
+  {
+   "videoId": "BfhX4oA3DhI",
+   "case": "Isdal Woman (Norway, 1970)",
+   "publishedAt": "2026-07-29"
+  },
+  {
+   "videoId": null,
+   "case": "The Lead Masks Case (Rio de Janeiro, 1966)",
+   "publishedAt": "2026-07-30"
+  },
+  {
+   "videoId": "C8eELtx-CIg",
+   "case": "MV Joyita disappearance (1955, South Pacific)",
+   "publishedAt": "2026-07-30"
+  },
+  {
+   "videoId": null,
+   "case": "Isabella Stewart Gardner Museum heist (1990, Boston)",
+   "publishedAt": null
+  },
+  {
+   "videoId": "xdwSgL9hURM",
+   "case": "School of Turin - Antwerp Diamond Heist",
+   "publishedAt": "2026-07-30"
+  },
+  {
+   "videoId": "YywA2Vrby2U",
+   "case": "The Sodder Fire  Five Children, No Bones",
+   "publishedAt": "2026-08-01"
+  },
+  {
+   "videoId": "c89ca07SolM",
+   "case": "The Somerton Man / Taman Shud Case (Adelaide, 1948)",
+   "publishedAt": "2026-07-31"
+  },
+  {
+   "videoId": "bBdyw4lxpeU",
+   "case": "The Boy in the Box (Philadelphia, 1957) / Joseph Augustus Zarelli",
+   "publishedAt": "2026-08-06"
+  },
+  {
+   "videoId": "BUoQD--3RUU",
+   "case": "Flannan Isles Lighthouse Disappearance (1900, Scotland)",
+   "publishedAt": "2026-08-03"
+  },
+  {
+   "videoId": "fchnp3rXBaE",
+   "case": "The Amber Room (looted 1941, still missing)",
+   "publishedAt": "2026-08-07"
+  },
+  {
+   "videoId": "S2XAx6-Uz3U",
+   "case": "Max Headroom Broadcast Intrusion (Chicago, Nov 22 1987)",
+   "publishedAt": "2026-08-11"
+  },
+  {
+   "videoId": "iuxxqOXClVY",
+   "case": "The Circleville Letters (Circleville, Ohio, 1976-1994)",
+   "publishedAt": "2026-08-04"
+  },
+  {
+   "videoId": "aAvu-KmNYMA",
+   "case": "The Watcher (2014-2019, Westfield, New Jersey)",
+   "publishedAt": "2026-08-13"
+  },
+  {
+   "videoId": "Me_EecbtBpc",
+   "case": "SS Baychimo ghost ship (Arctic Canada, 1931-1969)",
+   "publishedAt": "2026-08-12"
+  },
+  {
+   "videoId": null,
+   "case": "Chicago Tylenol Murders (1982)",
+   "publishedAt": null
+  },
+  {
+   "videoId": "yzBkl-Cgs7s",
+   "case": "The Springfield Three disappearance (Springfield, Missouri, 1992)",
+   "publishedAt": "2026-08-14"
+  },
+  {
+   "videoId": "FtROmAutfMg",
+   "case": "The Yuba County Five (California, 1978)",
+   "publishedAt": "2026-08-16"
+  },
+  {
+   "videoId": "HxkKGV7ya48",
+   "case": "The Lufthansa Heist (JFK Airport, Dec 11 1978)",
+   "publishedAt": "2026-08-15"
+  },
+  {
+   "videoId": "4nYvp8kuWn0",
+   "case": "Bella in the Wych Elm (Hagley Wood, England, 1943)",
+   "publishedAt": "2026-08-17"
+  },
+  {
+   "videoId": "7ct_rHsNb28",
+   "case": "The Axeman of New Orleans (1918-1919)",
+   "publishedAt": "2026-08-18"
+  },
+  {
+   "videoId": "gZiPNWP6F88",
+   "case": "The Great Brink's Robbery (Boston, Jan 17 1950)",
+   "publishedAt": "2026-08-18"
+  },
+  {
+   "videoId": "IKM1QzePLkA",
+   "case": "SS Ourang Medan phantom freighter (reported 1947, Strait of Malacca)",
+   "publishedAt": "2026-08-19"
+  },
+  {
+   "videoId": "Jjyl_ccKmps",
+   "case": "The Beaumont Children disappearance (Glenelg Beach, Australia, 1966)",
+   "publishedAt": "2026-08-20"
+  },
+  {
+   "videoId": null,
+   "case": "The Baker Street Bank Robbery (1971, London)",
+   "publishedAt": null
+  },
+  {
+   "videoId": "UnZqMquNSwU",
+   "case": "The Portuguese Bank Note Crisis (Alfredo Vaz dos Reis, 1925)",
+   "publishedAt": "2026-08-21"
+  },
+  {
+   "videoId": "fqth_zWW7TM",
+   "case": "The Overtoun Bridge dog deaths (Milton, Scotland, since 1960s)",
+   "publishedAt": "2026-08-21"
+  },
+  {
+   "videoId": null,
+   "case": "Dozier School for Boys (Marianna, Florida, 1900-2011)",
+   "publishedAt": null
+  },
+  {
+   "videoId": "73scVUa-pDQ",
+   "case": "The Voynich Manuscript (carbon-dated 1404-1438)",
+   "publishedAt": "2026-08-22"
+  },
+  {
+   "videoId": "x5RZv6P2xTw",
+   "case": "The Mary Celeste (1872)",
+   "publishedAt": "2026-08-23"
+  },
+  {
+   "videoId": "Oq4aJkwJ0uo",
+   "case": "SS Waratah disappearance (1909, South Africa)",
+   "publishedAt": "2026-08-24"
+  },
+  {
+   "videoId": "t3TJUNjMsEc",
+   "case": "The Millennium Dome Diamond Heist (Nov 7, 2000, London)",
+   "publishedAt": "2026-08-25"
+  },
+  {
+   "videoId": "c8JTfjnEzag",
+   "case": "Disappearance of Harold Holt (1967, Australia)",
+   "publishedAt": "2026-08-26"
+  },
+  {
+   "videoId": "xYurp1ll0U0",
+   "case": "The Antikythera Mechanism recovery (1901, Greece)",
+   "publishedAt": "2026-08-27"
+  },
+  {
+   "videoId": null,
+   "case": "The Taos Hum and disappearance of the Ourang Medan investigation aside  instead: The Cerro Gordo silver mine embezzlement and murder of Louis D. Gordon (Cerro Gordo, California, 1877-79)",
+   "publishedAt": null
+  },
+  {
+   "videoId": null,
+   "case": "Kaspar Hauser (Nuremberg, 1828)",
+   "publishedAt": "2026-08-01"
+  },
+  {
+   "videoId": "yDuD85fB4do",
+   "case": "The Toxic Lady (Gloria Ramirez ER incident, Riverside CA, 1994)",
+   "publishedAt": "2026-08-29"
+  },
+  {
+   "videoId": "bWwDb5KgqwM",
+   "case": "The Georgia Guidestones bombing (2022)",
+   "publishedAt": "2026-08-30"
+  },
+  {
+   "videoId": null,
+   "case": "Oba Chandler case / murder of the Rogers-Fricker family (1989, Tampa Bay)",
+   "publishedAt": "2026-08-06"
+  },
+  {
+   "videoId": "H_u0xC8ay_A",
+   "case": "The Boston Molasses Flood (January 15, 1919)",
+   "publishedAt": "2026-08-08"
+  },
+  {
+   "videoId": "KzDYKoxFev8",
+   "case": "SS Cotopaxi (1925, disappeared off Florida; wreck identified 2020)",
+   "publishedAt": "2026-08-09"
+  },
+  {
+   "videoId": "vU_D1DSkvrs",
+   "case": "Villisca Axe Murders (Villisca, Iowa, June 10, 1912)",
+   "publishedAt": "2026-08-10"
+  },
+  {
+   "videoId": "u0XrykREgKg",
+   "case": "MV Kaz II 'Ghost Yacht' (Great Barrier Reef, 2007)",
+   "publishedAt": "2026-08-10"
+  },
+  {
+   "videoId": "7ArPABc6RxU",
+   "case": "The Dyatlov Pass Incident (Ural Mountains, USSR, February 1959)",
+   "publishedAt": "2026-08-12"
+  },
+  {
+   "videoId": "yKrdZ-JmRns",
+   "case": "The Phantom of Heilbronn (Germany/Austria/France, 1993-2009)",
+   "publishedAt": "2026-08-14"
+  },
+  {
+   "videoId": "4STsCyk0M0A",
+   "case": "The Green Bicycle Case (Bella Wright murder, Leicestershire, England, 1919)",
+   "publishedAt": "2026-09-02"
+  },
+  {
+   "videoId": "fLVuj3I182k",
+   "case": "The Collyer Brothers (Harlem, NYC, March 1947)",
+   "publishedAt": "2026-08-15"
+  },
+  {
+   "videoId": "3sUxBfxR2_s",
+   "case": "The Zong Massacre (1781, British slave ship)",
+   "publishedAt": "2026-08-16"
+  },
+  {
+   "videoId": "3nNjxCSVPjk",
+   "case": "USS Cyclops disappearance (1918)",
+   "publishedAt": "2026-08-18"
+  },
+  {
+   "videoId": null,
+   "case": "Disappearance of Michael Rockefeller (Netherlands New Guinea, 1961)",
+   "publishedAt": "2026-08-20"
+  },
+  {
+   "videoId": null,
+   "case": "The Dancing Plague of 1518 (Strasbourg, Holy Roman Empire)",
+   "publishedAt": "2026-08-21"
+  },
+  {
+   "videoId": null,
+   "case": "The Tichborne Claimant (England, 1866-1874)",
+   "publishedAt": "2026-08-22"
+  },
+  {
+   "videoId": null,
+   "case": "The Beale Ciphers (Bedford County, Virginia, 1820s)",
+   "publishedAt": "2026-08-23"
+  },
+  {
+   "videoId": null,
+   "case": "Disappearance of Frederick Valentich (Bass Strait, Australia, Oct 21 1978)",
+   "publishedAt": "2026-08-24"
+  },
+  {
+   "videoId": null,
+   "case": "The Alcatraz Escape (Frank Morris & the Anglin Brothers, June 11 1962)",
+   "publishedAt": "2026-08-25"
+  },
+  {
+   "videoId": null,
+   "case": "Hatton Garden Safe Deposit Burglary (April 2015, London)",
+   "publishedAt": "2026-08-26"
+  },
+  {
+   "videoId": null,
+   "case": "The Collar Bomb Heist / Murder of Brian Wells (Erie, Pennsylvania, 2003)",
+   "publishedAt": "2026-08-27"
+  },
+  {
+   "videoId": null,
+   "case": "Cicada 3301 (2012-2014 internet puzzle mystery)",
+   "publishedAt": "2026-08-28"
+  },
+  {
+   "videoId": null,
+   "case": "The Cleveland Torso Murderer / Kingsbury Run Murders (1935-1938)",
+   "publishedAt": "2026-08-29"
+  },
+  {
+   "videoId": null,
+   "case": "Disappearance of Jean Spangler (Hollywood, Oct 7, 1949)",
+   "publishedAt": "2026-08-30"
+  },
+  {
+   "videoId": null,
+   "case": "David Hahn, \"The Radioactive Boy Scout\" (Commerce Township, Michigan, 1994)",
+   "publishedAt": "2026-08-31"
+  },
+  {
+   "videoId": null,
+   "case": "The Monster Study (University of Iowa, 1939)",
+   "publishedAt": "2026-09-01"
+  },
+  {
+   "videoId": null,
+   "case": "The Glico Morinaga case (Japan, 1984-1985)",
+   "publishedAt": "2026-09-02"
+  },
+  {
+   "videoId": null,
+   "case": "Roberto Calvi / 'God's Banker' death at Blackfriars Bridge (London, 1982)",
+   "publishedAt": null
+  },
+  {
+   "videoId": "72LmvE4fYmc",
+   "case": "The Sinking of the Edmund Fitzgerald (Lake Superior, November 10, 1975)",
+   "publishedAt": "2026-09-03"
+  },
+  {
+   "videoId": "nWOlgHlVDMs",
+   "case": "Cerro Gordo silver mine death (1878, California)",
+   "publishedAt": "2026-08-29"
+  },
+  {
+   "videoId": "UJy2YloIuSA",
+   "case": "Radium Girls (full long-form documentary)",
+   "publishedAt": "2026-08-01"
+  },
+  {
+   "videoId": null,
+   "case": "The Stolen Boeing 727 (N844AA, Luanda Airport, Angola, May 25 2003)",
+   "publishedAt": "2026-09-04"
+  }
+ ]
 }
