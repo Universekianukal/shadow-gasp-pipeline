@@ -71,6 +71,12 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          # Required to tell a published product from a draft. Gumroad serves a draft page with
+          # HTTP 200, so the old reachability check passed for every draft and the sweep wrote
+          # links to unbuyable products into two live videos. Without this secret the guard
+          # cannot verify publication and REFUSES rather than guessing, so the funnel will stop
+          # until it is set -- which is the safe direction.
+          GUMROAD_ACCESS_TOKEN: ${{ secrets.GUMROAD_ACCESS_TOKEN }}
         run: |
           set -o pipefail
           python3 _pipeline/_youtube_append_link.py 2>&1 | tee /tmp/funnel_out.txt
