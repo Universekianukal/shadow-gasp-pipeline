@@ -129,8 +129,12 @@ jobs:
       - name: 16 stills — PixArt-Sigma on Kaggle GPU
         working-directory: ${{ steps.guard.outputs.day_dir }}
         env:
-          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
-          KAGGLE_IMAGE_USERNAME: ${{ secrets.KAGGLE_IMAGE_USERNAME }}
+          # Account switch: the image account (anuragmishra108) runs out of Kaggle GPU
+          # quota roughly weekly. Set the repo variable KAGGLE_IMAGE_ACCOUNT=video to
+          # borrow the video account's GPU instead; unset it to go back. Nothing else
+          # changes -- the scripts read KAGGLE_API_TOKEN + KAGGLE_IMAGE_USERNAME either way.
+          KAGGLE_API_TOKEN: ${{ vars.KAGGLE_IMAGE_ACCOUNT == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_IMAGE_USERNAME: ${{ vars.KAGGLE_IMAGE_ACCOUNT == 'video' && secrets.KAGGLE_VIDEO_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
         run: |
           set -euo pipefail
           cp ../../_gen_flux_images.py .
