@@ -21,7 +21,7 @@ on:
         description: "Case to cover (leave blank to auto-pick an unused one)"
         default: ""
       kaggle_account:
-        description: "Which Kaggle account generates the stills: image (anuragmishra108), video (kianukal). Blank = whatever the KAGGLE_IMAGE_ACCOUNT repo variable says."
+        description: "Which Kaggle account generates the stills: image (anuragmishra108), video (kianukal), mahadevi (mahadevi108). Blank = whatever the KAGGLE_IMAGE_ACCOUNT repo variable says."
         required: false
         default: ""
   schedule:
@@ -139,6 +139,27 @@ jobs:
           echo "--- shot prompts ---"
           python3 -c "import json; [print(s['n'], ':', s['prompt']) for s in json.load(open('shots.json'))]"
 
+      - name: Check the chosen Kaggle account actually has credentials
+        # ${SELECTED} resolves through a chain of `&&/||` ternaries, and an
+        # unset secret is an empty string, i.e. falsy -- so asking for an
+        # account whose secrets were never added does not error, it silently
+        # falls through to the image account. That is the one outcome a
+        # human retrying on a different account must never get.
+        env:
+          ACCOUNT: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && 'video' || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && 'mahadevi' || 'image' }}
+          TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
+          USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$USERNAME" ]; then
+            echo "::error::Kaggle account '$ACCOUNT' has no credentials in this repo."
+            echo "Add the secrets for it before selecting it:"
+            echo "  image    -> KAGGLE_IMAGE_API_TOKEN    + KAGGLE_IMAGE_USERNAME"
+            echo "  video    -> KAGGLE_VIDEO_API_TOKEN    + KAGGLE_VIDEO_USERNAME"
+            echo "  mahadevi -> KAGGLE_MAHADEVI_API_TOKEN + KAGGLE_MAHADEVI_USERNAME"
+            exit 1
+          fi
+          echo "stills will run on Kaggle account '$ACCOUNT'"
+
       - name: 16 stills — PixArt-Sigma on Kaggle GPU
         working-directory: ${{ env.DAY_DIR }}
         env:
@@ -150,12 +171,17 @@ jobs:
           # fixing a real bug: every daily run used to reuse the same
           # "video-flux" kernel slug and could download the previous day's
           # stale stills if a status poll landed on the wrong terminal state.
-          # Account switch: the image account (anuragmishra108) runs out of Kaggle GPU
-          # quota roughly weekly. Set the repo variable KAGGLE_IMAGE_ACCOUNT=video to
-          # borrow the video account's GPU instead; unset it to go back. Nothing else
-          # changes -- the scripts read KAGGLE_API_TOKEN + KAGGLE_IMAGE_USERNAME either way.
-          KAGGLE_API_TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
-          KAGGLE_IMAGE_USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
+          # Account switch. Three accounts can generate stills:
+          #   image    = anuragmishra108 (the default, image-gen)
+          #   video    = kianukal        (also renders video; shares one quota)
+          #   mahadevi = mahadevi108
+          # Pick one per run with the kaggle_account input, or repo-wide with the
+          # KAGGLE_IMAGE_ACCOUNT variable (input wins). Quota is per account and
+          # refills weekly, so a day that stalls on one can be retried on another.
+          # Nothing downstream changes -- the scripts read KAGGLE_API_TOKEN +
+          # KAGGLE_IMAGE_USERNAME whichever account is selected.
+          KAGGLE_API_TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_IMAGE_USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           cp ../../_gen_flux_images.py .
@@ -276,7 +302,7 @@ jobs:
           # Which Kaggle account this run used, so the alert can offer the
           # OTHER one as a one-tap retry instead of making someone go and
           # work out which account was in play.
-          ACCOUNT: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && 'video' || 'image' }}
+          ACCOUNT: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && 'video' || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && 'mahadevi' || 'image' }}
         # The step-name lookup races the API: this step starts milliseconds
         # after the failing one exits, and the runner has not necessarily
         # reported that step's conclusion to the service yet -- so the query

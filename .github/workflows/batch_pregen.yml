@@ -58,12 +58,17 @@ jobs:
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
           SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          # Account switch: the image account (anuragmishra108) runs out of Kaggle GPU
-          # quota roughly weekly. Set the repo variable KAGGLE_IMAGE_ACCOUNT=video to
-          # borrow the video account's GPU instead; unset it to go back. Nothing else
-          # changes -- the scripts read KAGGLE_API_TOKEN + KAGGLE_IMAGE_USERNAME either way.
-          KAGGLE_API_TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
-          KAGGLE_IMAGE_USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
+          # Account switch. Three accounts can generate stills:
+          #   image    = anuragmishra108 (the default, image-gen)
+          #   video    = kianukal        (also renders video; shares one quota)
+          #   mahadevi = mahadevi108
+          # Pick one per run with the kaggle_account input, or repo-wide with the
+          # KAGGLE_IMAGE_ACCOUNT variable (input wins). Quota is per account and
+          # refills weekly, so a day that stalls on one can be retried on another.
+          # Nothing downstream changes -- the scripts read KAGGLE_API_TOKEN +
+          # KAGGLE_IMAGE_USERNAME whichever account is selected.
+          KAGGLE_API_TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_IMAGE_USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
           # Self-chaining: if fewer than 30 days are done after this chunk,
