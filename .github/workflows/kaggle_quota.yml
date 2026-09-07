@@ -1,0 +1,58 @@
+name: shadow_gasp Kaggle quota
+
+# Reports remaining weekly GPU quota for every Kaggle account slot, to Telegram.
+#
+# Worth having because an exhausted account does not fail: Kaggle accepts the
+# kernel push and leaves it QUEUED indefinitely, which is indistinguishable
+# from a slow run. Day 61 hung 24h that way, got killed by GitHub's job cap,
+# concluded `cancelled` (so the if: failure() notifier never fired) and left an
+# orphaned state.json stub. The number was readable the whole time.
+#
+# Runs daily an hour before the 13:00 build so the day's account is known to be
+# spendable before it is spent, and on demand whenever you want to pick a slot.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 12:00 UTC — one hour ahead of pipeline.yml's 13:00 daily build.
+    - cron: "0 12 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  quota:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read quota for every slot
+        id: q
+        env:
+          KAGGLE_ACCOUNTS: ${{ vars.KAGGLE_ACCOUNTS }}
+          KAGGLE_IMAGE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_VIDEO_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
+          KAGGLE_MAHADEVI_API_TOKEN: ${{ secrets.KAGGLE_MAHADEVI_API_TOKEN }}
+        run: |
+          python3 _pipeline/_kaggle_quota.py | tee /tmp/quota.txt
+
+      - name: Send it to Telegram
+        # curl, not python: this Worker is behind Cloudflare, which refuses
+        # urllib's default User-Agent at the edge with a 1010 -- the Worker
+        # logs stay empty and the failure looks like the bot is down.
+        env:
+          BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+        run: |
+          python3 -c "
+          import json
+          text = open('/tmp/quota.txt', encoding='utf-8').read().rstrip()
+          hint = ('\n\nPick a slot with: Actions -> shadow_gasp short -> Run workflow'
+                  '\n-> kaggle_account = IMAGE | VIDEO | MAHADEVI')
+          print(json.dumps({'text': text + hint, 'chat_id': ''}))
+          " > /tmp/payload.json
+          curl -sS -X POST "https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/notify-raw" \
+            -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET" \
+            -H "Content-Type: application/json" \
+            --data @/tmp/payload.json
+          echo

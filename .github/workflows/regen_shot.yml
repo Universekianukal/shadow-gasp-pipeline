@@ -68,6 +68,19 @@ jobs:
           fi
           echo "stills will run on Kaggle slot $SLOT${WANT:+ = $WANT}"
 
+      - name: Refuse to start on an account with no GPU quota left
+        # The guard above proves WHICH account we are about to spend; this
+        # proves it CAN be spent. Kaggle answers `kernels push` with a queued
+        # kernel rather than an error when the weekly quota is gone, so
+        # without this the only signal is a job that never ends.
+        env:
+          KAGGLE_ACCOUNTS: ${{ vars.KAGGLE_ACCOUNTS }}
+          KAGGLE_IMAGE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_VIDEO_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
+          KAGGLE_MAHADEVI_API_TOKEN: ${{ secrets.KAGGLE_MAHADEVI_API_TOKEN }}
+          SLOT: ${{ github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE' }}
+        run: python3 $GITHUB_WORKSPACE/_pipeline/_kaggle_quota.py --require "$SLOT" --min-hours 1
+
       - name: Regenerate shot
         working-directory: _pipeline
         env:
