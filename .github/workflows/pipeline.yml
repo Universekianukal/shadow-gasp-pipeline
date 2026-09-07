@@ -41,6 +41,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Confirm the Kaggle account resolved
+      # Runs BEFORE the day is reserved, on purpose. Reserving first and
+      # failing this check later would leave exactly the kind of orphaned
+      # state.json stub that stranded days 60 and 61 -- a day number burned
+      # on a run that never produced anything, which nothing ever retries.
+        # Ported from the comic pipeline, which hit this first. Two ways to
+        # spend the wrong account's quota silently:
+        #   1. the slot's secrets were never added -- secrets[...] is then an
+        #      empty string, not an error;
+        #   2. a typo'd slot ("video" vs "VIDEO") resolves to nothing the same way.
+        # KAGGLE_ACCOUNTS maps slot -> handle in plain text (a username is not a
+        # secret), which gives us something to compare the resolved credential
+        # against. Emptiness alone does not catch case 2.
+        env:
+          SLOT: ${{ github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE' }}
+          ACCOUNT_MAP: ${{ vars.KAGGLE_ACCOUNTS }}
+          KAGGLE_USERNAME: ${{ secrets[format('KAGGLE_{0}_USERNAME', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
+          KAGGLE_API_TOKEN: ${{ secrets[format('KAGGLE_{0}_API_TOKEN', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
+        run: |
+          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_API_TOKEN" ]; then
+            echo "::error::kaggle_account='$SLOT' resolved to an empty credential. Add KAGGLE_${SLOT}_USERNAME and KAGGLE_${SLOT}_API_TOKEN to this repo, or pick a slot that exists."
+            exit 1
+          fi
+          if [ -n "$ACCOUNT_MAP" ]; then
+            WANT=$(printf '%s' "$ACCOUNT_MAP" | awk -v RS=, -F: -v s="$SLOT" '$1==s{print $2}')
+            if [ -z "$WANT" ]; then
+              echo "::error::Slot '$SLOT' is not listed in the KAGGLE_ACCOUNTS variable ($ACCOUNT_MAP). Refusing to guess which account to spend."
+              exit 1
+            fi
+            if [ "$WANT" != "$KAGGLE_USERNAME" ]; then
+              echo "::error::Slot '$SLOT' should be '$WANT' but the secrets resolved to a different account -- KAGGLE_${SLOT}_USERNAME is probably missing. Refusing to spend the wrong account's quota."
+              exit 1
+            fi
+          fi
+          echo "stills will run on Kaggle slot $SLOT${WANT:+ = $WANT}"
+
       - name: Python deps
         run: pip install --quiet anthropic "kaggle==2.2.2"
 
@@ -138,38 +174,6 @@ jobs:
           cat narration.txt
           echo "--- shot prompts ---"
           python3 -c "import json; [print(s['n'], ':', s['prompt']) for s in json.load(open('shots.json'))]"
-
-      - name: Confirm the Kaggle account resolved
-        # Ported from the comic pipeline, which hit this first. Two ways to
-        # spend the wrong account's quota silently:
-        #   1. the slot's secrets were never added -- secrets[...] is then an
-        #      empty string, not an error;
-        #   2. a typo'd slot ("video" vs "VIDEO") resolves to nothing the same way.
-        # KAGGLE_ACCOUNTS maps slot -> handle in plain text (a username is not a
-        # secret), which gives us something to compare the resolved credential
-        # against. Emptiness alone does not catch case 2.
-        env:
-          SLOT: ${{ github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE' }}
-          ACCOUNT_MAP: ${{ vars.KAGGLE_ACCOUNTS }}
-          KAGGLE_USERNAME: ${{ secrets[format('KAGGLE_{0}_USERNAME', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
-          KAGGLE_API_TOKEN: ${{ secrets[format('KAGGLE_{0}_API_TOKEN', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
-        run: |
-          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_API_TOKEN" ]; then
-            echo "::error::kaggle_account='$SLOT' resolved to an empty credential. Add KAGGLE_${SLOT}_USERNAME and KAGGLE_${SLOT}_API_TOKEN to this repo, or pick a slot that exists."
-            exit 1
-          fi
-          if [ -n "$ACCOUNT_MAP" ]; then
-            WANT=$(printf '%s' "$ACCOUNT_MAP" | awk -v RS=, -F: -v s="$SLOT" '$1==s{print $2}')
-            if [ -z "$WANT" ]; then
-              echo "::error::Slot '$SLOT' is not listed in the KAGGLE_ACCOUNTS variable ($ACCOUNT_MAP). Refusing to guess which account to spend."
-              exit 1
-            fi
-            if [ "$WANT" != "$KAGGLE_USERNAME" ]; then
-              echo "::error::Slot '$SLOT' should be '$WANT' but the secrets resolved to a different account -- KAGGLE_${SLOT}_USERNAME is probably missing. Refusing to spend the wrong account's quota."
-              exit 1
-            fi
-          fi
-          echo "stills will run on Kaggle slot $SLOT${WANT:+ = $WANT}"
 
       - name: 16 stills — PixArt-Sigma on Kaggle GPU
         working-directory: ${{ env.DAY_DIR }}
