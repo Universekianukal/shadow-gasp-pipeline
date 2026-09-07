@@ -47,7 +47,7 @@
     "render_run_id": "34001607008"
   },
   "44": {
-    "status": "pending_render",
+    "status": "rendering",
     "notify_chat_id": "8692339206",
     "queued_at": "2026-09-06T23:34:21.075Z"
   },
