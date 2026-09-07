@@ -21,7 +21,7 @@ on:
         description: "Case to cover (leave blank to auto-pick an unused one)"
         default: ""
       kaggle_account:
-        description: "Which Kaggle account generates the stills: image (anuragmishra108), video (kianukal), mahadevi (mahadevi108). Blank = whatever the KAGGLE_IMAGE_ACCOUNT repo variable says."
+        description: "Kaggle account slot for the stills: IMAGE (anuragmishra108), VIDEO (kianukal), MAHADEVI (mahadevi108). Case-sensitive, must match the KAGGLE_ACCOUNTS variable. Blank = the KAGGLE_IMAGE_ACCOUNT repo variable."
         required: false
         default: ""
   schedule:
@@ -139,26 +139,37 @@ jobs:
           echo "--- shot prompts ---"
           python3 -c "import json; [print(s['n'], ':', s['prompt']) for s in json.load(open('shots.json'))]"
 
-      - name: Check the chosen Kaggle account actually has credentials
-        # ${SELECTED} resolves through a chain of `&&/||` ternaries, and an
-        # unset secret is an empty string, i.e. falsy -- so asking for an
-        # account whose secrets were never added does not error, it silently
-        # falls through to the image account. That is the one outcome a
-        # human retrying on a different account must never get.
+      - name: Confirm the Kaggle account resolved
+        # Ported from the comic pipeline, which hit this first. Two ways to
+        # spend the wrong account's quota silently:
+        #   1. the slot's secrets were never added -- secrets[...] is then an
+        #      empty string, not an error;
+        #   2. a typo'd slot ("video" vs "VIDEO") resolves to nothing the same way.
+        # KAGGLE_ACCOUNTS maps slot -> handle in plain text (a username is not a
+        # secret), which gives us something to compare the resolved credential
+        # against. Emptiness alone does not catch case 2.
         env:
-          ACCOUNT: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && 'video' || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && 'mahadevi' || 'image' }}
-          TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
-          USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
+          SLOT: ${{ github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE' }}
+          ACCOUNT_MAP: ${{ vars.KAGGLE_ACCOUNTS }}
+          KAGGLE_USERNAME: ${{ secrets[format('KAGGLE_{0}_USERNAME', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
+          KAGGLE_API_TOKEN: ${{ secrets[format('KAGGLE_{0}_API_TOKEN', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
         run: |
-          if [ -z "$TOKEN" ] || [ -z "$USERNAME" ]; then
-            echo "::error::Kaggle account '$ACCOUNT' has no credentials in this repo."
-            echo "Add the secrets for it before selecting it:"
-            echo "  image    -> KAGGLE_IMAGE_API_TOKEN    + KAGGLE_IMAGE_USERNAME"
-            echo "  video    -> KAGGLE_VIDEO_API_TOKEN    + KAGGLE_VIDEO_USERNAME"
-            echo "  mahadevi -> KAGGLE_MAHADEVI_API_TOKEN + KAGGLE_MAHADEVI_USERNAME"
+          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_API_TOKEN" ]; then
+            echo "::error::kaggle_account='$SLOT' resolved to an empty credential. Add KAGGLE_${SLOT}_USERNAME and KAGGLE_${SLOT}_API_TOKEN to this repo, or pick a slot that exists."
             exit 1
           fi
-          echo "stills will run on Kaggle account '$ACCOUNT'"
+          if [ -n "$ACCOUNT_MAP" ]; then
+            WANT=$(printf '%s' "$ACCOUNT_MAP" | awk -v RS=, -F: -v s="$SLOT" '$1==s{print $2}')
+            if [ -z "$WANT" ]; then
+              echo "::error::Slot '$SLOT' is not listed in the KAGGLE_ACCOUNTS variable ($ACCOUNT_MAP). Refusing to guess which account to spend."
+              exit 1
+            fi
+            if [ "$WANT" != "$KAGGLE_USERNAME" ]; then
+              echo "::error::Slot '$SLOT' should be '$WANT' but the secrets resolved to a different account -- KAGGLE_${SLOT}_USERNAME is probably missing. Refusing to spend the wrong account's quota."
+              exit 1
+            fi
+          fi
+          echo "stills will run on Kaggle slot $SLOT${WANT:+ = $WANT}"
 
       - name: 16 stills — PixArt-Sigma on Kaggle GPU
         working-directory: ${{ env.DAY_DIR }}
@@ -180,8 +191,8 @@ jobs:
           # refills weekly, so a day that stalls on one can be retried on another.
           # Nothing downstream changes -- the scripts read KAGGLE_API_TOKEN +
           # KAGGLE_IMAGE_USERNAME whichever account is selected.
-          KAGGLE_API_TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
-          KAGGLE_IMAGE_USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
+          KAGGLE_API_TOKEN: ${{ secrets[format('KAGGLE_{0}_API_TOKEN', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
+          KAGGLE_IMAGE_USERNAME: ${{ secrets[format('KAGGLE_{0}_USERNAME', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           cp ../../_gen_flux_images.py .
@@ -302,7 +313,7 @@ jobs:
           # Which Kaggle account this run used, so the alert can offer the
           # OTHER one as a one-tap retry instead of making someone go and
           # work out which account was in play.
-          ACCOUNT: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && 'video' || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && 'mahadevi' || 'image' }}
+          ACCOUNT: ${{ github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE' }}
         # The step-name lookup races the API: this step starts milliseconds
         # after the failing one exits, and the runner has not necessarily
         # reported that step's conclusion to the service yet -- so the query

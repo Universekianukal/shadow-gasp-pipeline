@@ -67,8 +67,8 @@ jobs:
           # refills weekly, so a day that stalls on one can be retried on another.
           # Nothing downstream changes -- the scripts read KAGGLE_API_TOKEN +
           # KAGGLE_IMAGE_USERNAME whichever account is selected.
-          KAGGLE_API_TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
-          KAGGLE_IMAGE_USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'mahadevi' && secrets.KAGGLE_MAHADEVI_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
+          KAGGLE_API_TOKEN: ${{ secrets[format('KAGGLE_{0}_API_TOKEN', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
+          KAGGLE_IMAGE_USERNAME: ${{ secrets[format('KAGGLE_{0}_USERNAME', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
           # Self-chaining: if fewer than 30 days are done after this chunk,
