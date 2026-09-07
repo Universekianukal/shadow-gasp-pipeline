@@ -188,6 +188,45 @@ jobs:
           echo "--- shot prompts ---"
           python3 -c "import json; [print(s['n'], ':', s['prompt']) for s in json.load(open('shots.json'))]"
 
+      - name: Commit the script before spending any GPU
+        # Everything up to here lived only on the runner: the reservation step
+        # pushes the day NUMBER, but pick.json/meta.json/shots.json/narration
+        # were not committed until after the stills succeeded. So a stills
+        # failure left a `done: false` key with no directory behind it -- a day
+        # nothing can resume, because backfill_stills.yml needs shots.json on
+        # the remote and the reservation step hands the next run max+1 rather
+        # than looking for unfinished days. That is how days 60 and 61 were
+        # lost, and re-running on a different account would have made a new day
+        # rather than rescuing them.
+        #
+        # Pushing the script first costs one small commit and makes every
+        # partial day resumable:
+        #   gh workflow run backfill_stills.yml -f day=N -f kaggle_account=MAHADEVI
+        # `done` stays false until the stills actually land, so this does not
+        # claim the day is finished.
+        env:
+          DAY: ${{ steps.day.outputs.day }}
+          CASE: ${{ steps.pick.outputs.case }}
+        run: |
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            # Move HEAD to origin without touching the working tree: this day's
+            # files are ours alone, so re-staging them after the move is safe.
+            git reset --mixed "origin/${GITHUB_REF_NAME}"
+            git add "$DAY_DIR" _pipeline/cases_used.json
+            git diff --cached --quiet && exit 0
+            git commit -m "batch: day $(printf '%02d' "$DAY") script ($CASE)"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "script for day $DAY pushed — stills can now be retried on any account"
+              exit 0
+            fi
+            echo "push collided (attempt $attempt) — resyncing and retrying"
+          done
+          echo "::error::could not commit day $DAY's script after 5 attempts"
+          exit 1
+
       - name: 16 stills — PixArt-Sigma on Kaggle GPU
         working-directory: ${{ env.DAY_DIR }}
         env:
