@@ -135,17 +135,55 @@ def main():
     print(f"Pushing kernel {KERNEL_ID} ...")
     subprocess.run(["kaggle", "kernels", "push", "-p", "."], cwd=KERNEL_DIR, check=True)
 
-    print("Polling for completion (PixArt-Sigma at 25 steps, ~25-35 min for 16 images)...")
+    # An account that is out of weekly GPU quota does NOT get an error from
+    # Kaggle -- the kernel is simply accepted and left QUEUED forever. This
+    # loop used to be `while True`, so that state was indistinguishable from
+    # a slow run and the job hung until GitHub's 6h cap killed it, with no
+    # alert (the notify step only fires on failure(), and a timeout-killed
+    # job reports as `cancelled`). Day 61 burned 24h that way on 2026-09-07.
+    # Bound the wait, and say which account it was, so a human gets a real
+    # message naming a real cause instead of silence.
+    timeout_min = int(os.environ.get("KAGGLE_STILLS_TIMEOUT_MIN", "55"))
+    # A healthy kernel leaves the queue within a couple of minutes; the 25-35
+    # min is time spent RUNNING. Never reaching RUNNING is the quota tell.
+    queue_timeout_min = int(os.environ.get("KAGGLE_STILLS_QUEUE_TIMEOUT_MIN", "12"))
+    print(f"Polling for completion (PixArt-Sigma at 25 steps, ~25-35 min for 16 images) "
+          f"on Kaggle account '{KAGGLE_USER}'; giving up after {timeout_min} min "
+          f"({queue_timeout_min} min if it never starts running)...")
+    started = time.time()
+    ever_ran = False
+    status = "(no status yet)"
     while True:
         time.sleep(30)
         r = subprocess.run(["kaggle", "kernels", "status", KERNEL_ID], capture_output=True, text=True)
         status = r.stdout.strip()
-        print(status)
+        elapsed_min = (time.time() - started) / 60
+        print(f"[{elapsed_min:5.1f} min] {status}")
         if "COMPLETE" in status:
             break
         if "ERROR" in status or "CANCEL" in status:
             print(r.stdout, r.stderr, file=sys.stderr)
             sys.exit(1)
+        if "RUNNING" in status:
+            ever_ran = True
+        # Two separate deadlines: still queued long past a normal start is
+        # near-certainly quota, and worth failing fast on rather than sitting
+        # out the full timeout.
+        if not ever_ran and elapsed_min > queue_timeout_min:
+            raise SystemExit(
+                f"QUOTA_SUSPECTED: kernel {KERNEL_ID} never left the queue after "
+                f"{elapsed_min:.0f} min on Kaggle account '{KAGGLE_USER}' (last status: "
+                f"{status}). Kaggle queues instead of erroring when an account is out "
+                f"of weekly GPU quota, so this is what an exhausted account looks like. "
+                f"Re-run this day against the other account."
+            )
+        if elapsed_min > timeout_min:
+            raise SystemExit(
+                f"STILLS_TIMEOUT: kernel {KERNEL_ID} still not COMPLETE after "
+                f"{elapsed_min:.0f} min on Kaggle account '{KAGGLE_USER}' (last status: "
+                f"{status}). It did start running, so this is slowness or a stuck "
+                f"kernel rather than quota."
+            )
 
     out_dir = os.path.join(KERNEL_DIR, "out")
     os.makedirs(out_dir, exist_ok=True)

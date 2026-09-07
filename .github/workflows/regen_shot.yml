@@ -13,6 +13,10 @@ on:
       shot:
         description: "Shot number to regenerate (1-16)"
         required: true
+      kaggle_account:
+        description: "Which Kaggle account generates the stills: image (anuragmishra108), video (kianukal). Blank = whatever the KAGGLE_IMAGE_ACCOUNT repo variable says."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -41,8 +45,8 @@ jobs:
           # quota roughly weekly. Set the repo variable KAGGLE_IMAGE_ACCOUNT=video to
           # borrow the video account's GPU instead; unset it to go back. Nothing else
           # changes -- the scripts read KAGGLE_API_TOKEN + KAGGLE_IMAGE_USERNAME either way.
-          KAGGLE_API_TOKEN: ${{ vars.KAGGLE_IMAGE_ACCOUNT == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
-          KAGGLE_IMAGE_USERNAME: ${{ vars.KAGGLE_IMAGE_ACCOUNT == 'video' && secrets.KAGGLE_VIDEO_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
+          KAGGLE_API_TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_IMAGE_USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
         run: python3 _regen_shot.py "${{ github.event.inputs.day }}" "${{ github.event.inputs.shot }}"
 
       - name: Commit regenerated shot

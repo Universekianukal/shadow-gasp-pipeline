@@ -20,6 +20,10 @@ on:
       case:
         description: "Case to cover (leave blank to auto-pick an unused one)"
         default: ""
+      kaggle_account:
+        description: "Which Kaggle account generates the stills: image (anuragmishra108), video (kianukal). Blank = whatever the KAGGLE_IMAGE_ACCOUNT repo variable says."
+        required: false
+        default: ""
   schedule:
     # 13:00 UTC = 18:30 IST, same daily slot the MindUnlocked channel posts in.
     - cron: "0 13 * * *"
@@ -150,8 +154,8 @@ jobs:
           # quota roughly weekly. Set the repo variable KAGGLE_IMAGE_ACCOUNT=video to
           # borrow the video account's GPU instead; unset it to go back. Nothing else
           # changes -- the scripts read KAGGLE_API_TOKEN + KAGGLE_IMAGE_USERNAME either way.
-          KAGGLE_API_TOKEN: ${{ vars.KAGGLE_IMAGE_ACCOUNT == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
-          KAGGLE_IMAGE_USERNAME: ${{ vars.KAGGLE_IMAGE_ACCOUNT == 'video' && secrets.KAGGLE_VIDEO_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
+          KAGGLE_API_TOKEN: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_API_TOKEN || secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_IMAGE_USERNAME: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && secrets.KAGGLE_VIDEO_USERNAME || secrets.KAGGLE_IMAGE_USERNAME }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           cp ../../_gen_flux_images.py .
@@ -269,6 +273,10 @@ jobs:
           DAY: ${{ steps.day.outputs.day }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
           GH_TOKEN: ${{ github.token }}
+          # Which Kaggle account this run used, so the alert can offer the
+          # OTHER one as a one-tap retry instead of making someone go and
+          # work out which account was in play.
+          ACCOUNT: ${{ (github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT) == 'video' && 'video' || 'image' }}
         # The step-name lookup races the API: this step starts milliseconds
         # after the failing one exits, and the runner has not necessarily
         # reported that step's conclusion to the service yet -- so the query
@@ -283,5 +291,12 @@ jobs:
             [ -n "$STEP" ] && break
             sleep 3
           done
-          printf '{"day":"%s","job":"build (daily cron)","step":"%s","run_url":"%s","chat_id":""}'             "${DAY:-not yet reserved}" "${STEP:-unknown}"             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /tmp/failed.json
+          # A stills step that ran out of Kaggle GPU quota is worth telling
+          # apart from any other failure: it is the one failure a human fixes
+          # by picking a different account, so the alert can offer that.
+          REASON=other
+          case "$STEP" in
+            *stills*) REASON=stills ;;
+          esac
+          printf '{"day":"%s","job":"build (daily cron)","step":"%s","run_url":"%s","account":"%s","reason":"%s","chat_id":""}'             "${DAY:-not yet reserved}" "${STEP:-unknown}"             "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"             "$ACCOUNT" "$REASON" > /tmp/failed.json
           curl -sS -X POST "https://shadow-gasp-bot.everydayhypehq.workers.dev/batch/failed"             -H "X-Batch-Notify-Secret: $BATCH_NOTIFY_SECRET" -H "Content-Type: application/json"             --data @/tmp/failed.json || true
