@@ -46,23 +46,40 @@ recent entries in the exclusion list (e.g. if the last few are serial killers,
 pick a disappearance, a heist, a maritime mystery, an institutional
 cover-up, a forensic puzzle).
 
-Return JSON:
+Return FIVE different candidates, best first, as JSON:
 {
-  "case": "short canonical case name, including a year or place if it disambiguates",
-  "angle": "one sentence on the specific hook/reversal that makes this work as a short",
-  "why_now": "one sentence on why this is underexposed or freshly interesting"
+  "candidates": [
+    {
+      "case": "short canonical case name, including a year or place if it disambiguates",
+      "angle": "one sentence on the specific hook/reversal that makes this work as a short",
+      "why_now": "one sentence on why this is underexposed or freshly interesting"
+    }
+  ]
 }
+Five genuinely DIFFERENT cases, not five framings of one. Vary the category across
+them (a disappearance, a heist, a maritime mystery, a forensic puzzle, an
+institutional cover-up) so that if the first is already published the rest are
+still usable.
 Respond with ONLY the JSON object — no markdown code fences, no other text."""
 
 
 # Escalated on truncation. A retry that repeats the failing parameter is not a retry.
 # 32000 is a backstop, not a plan: day 58 already needed 16,000, so the ladder had no
 # headroom left. PROMPT_EXCLUSIONS below is the actual fix; this just buys room to notice.
-BUDGETS = (1024, 4096, 16000, 32000)
+# 1024 removed 2026-09-07: glm-5p2 ALWAYS spends output budget on reasoning first, so
+# the smallest rung returned empty every time and simply burned an attempt -- one of
+# only four -- before the ladder could climb. Start where a reasoning model can answer.
+BUDGETS = (4096, 16000, 32000)
 
 # How many recent cases to show the model. The full history is still enforced after the
 # pick by is_duplicate(); this bounds only the PROMPT, which is what was growing forever.
-PROMPT_EXCLUSIONS = 60
+# Raised 60 -> 200 on 2026-09-07. 60 was chosen when the worry was a prompt growing
+# without bound, but the whole ledger is only ~8KB / ~2k tokens today -- while the
+# budget that actually gets exhausted is the OUTPUT one, spent on reasoning. Capping
+# the INPUT bought nothing and created an 81-case blind zone that killed the picker.
+# At 200 the model currently sees everything; past that the stratified sample below
+# degrades gracefully instead of going blind on the early famous cases again.
+PROMPT_EXCLUSIONS = 200
 
 
 def extract_json(text):
@@ -129,12 +146,38 @@ def pick(client, used):
     #
     # The tail is the useful end -- `used` runs oldest to newest, and a model asked for a
     # fresh case is likelier to collide with the last few weeks than with something from May.
-    shown = used[-PROMPT_EXCLUSIONS:]
+    # THE WINDOW MUST NOT BE RECENCY-ONLY -- THAT IS BACKWARDS FOR THIS FAILURE.
+    #
+    # A pure tail showed the last 60 while is_duplicate() judged against all 141, so 81 cases
+    # were landmines the model could not see. And the hidden ones are the WORST to hide: a
+    # channel mines the famous cases first, so the blind zone fills with exactly the cases any
+    # model reaches for. On 2026-09-06 the picker died proposing Lead Masks, Hinterkaifeck and
+    # Isdal Woman -- ledger indexes 75, 4 and 74 of 141, every one outside the window.
+    #
+    # Same prompt size, better spend: keep most of it on recent territory (what the rotation
+    # guidance needs) and spread the rest evenly over the whole history, so the early famous
+    # picks are represented. The full ledger is still enforced after the pick.
+    recent_n = min(len(used), PROMPT_EXCLUSIONS * 2 // 3)
+    recent = used[-recent_n:] if recent_n else []
+    older = used[:-recent_n] if recent_n else list(used)
+    spread_n = PROMPT_EXCLUSIONS - recent_n
+    spread = []
+    if older and spread_n > 0:
+        step = max(1, len(older) / float(spread_n))
+        seen = set()
+        for i in range(spread_n):
+            c = older[min(len(older) - 1, int(i * step))]
+            if c not in seen:
+                seen.add(c)
+                spread.append(c)
+    shown = spread + recent
     exclusion = "\n".join(f"- {c}" for c in shown)
     msg = (
-        f"The channel has published {len(used)} cases in total. These are the {len(shown)} "
-        f"most recent -- pick something genuinely different from them, and from anything "
-        f"closely similar:\n\n{exclusion}"
+        f"The channel has published {len(used)} cases in total. Here are {len(shown)} of them "
+        f"-- {len(spread)} sampled across the whole history and the {len(recent)} most recent. "
+        f"Pick something genuinely different from ALL of these, and from anything closely "
+        f"similar. Assume every famous case of this kind is already published even if it is "
+        f"not listed:\n\n{exclusion}"
     )
     messages = [{"role": "user", "content": msg}]
     budget = BUDGETS[0]
@@ -185,14 +228,34 @@ def pick(client, used):
             messages.append({"role": "assistant", "content": raw})
             messages.append({"role": "user", "content": f"That wasn't valid JSON ({e}). Return the full corrected JSON object only, no other text."})
             continue
-        clash = is_duplicate(d["case"], used)
-        if not clash:
-            return d
-        print(f"attempt {attempt + 1}: '{d['case']}' duplicates '{clash}', retrying", file=sys.stderr)
+        # Take the first CANDIDATE that is not already published.
+        #
+        # One call, several answers. Before this the model got exactly one shot per attempt and
+        # four attempts total, so a single unlucky pick burned a whole round-trip -- and with
+        # 141 cases published, unlucky is the normal case. Five candidates per call turns the
+        # same four attempts into up to twenty chances, at no extra request.
+        cands = d.get("candidates") if isinstance(d, dict) else None
+        if not isinstance(cands, list) or not cands:
+            cands = [d]                      # older single-object shape, still accepted
+        clashes = []
+        for c in cands:
+            if not isinstance(c, dict) or not (c.get("case") or "").strip():
+                continue
+            clash = is_duplicate(c["case"], used)
+            if not clash:
+                if clashes:
+                    print(f"attempt {attempt + 1}: skipped {len(clashes)} already-published "
+                          f"candidate(s), taking '{c['case']}'", file=sys.stderr)
+                return c
+            clashes.append(f"'{c['case']}' duplicates '{clash}'")
+        print(f"attempt {attempt + 1}: all {len(clashes)} candidate(s) already published "
+              f"-- {'; '.join(clashes)}", file=sys.stderr)
         messages.append({"role": "assistant", "content": raw})
         messages.append({"role": "user", "content":
-            f"'{d['case']}' is the same case as '{clash}', which is already published. "
-            f"Pick a genuinely different case, in a different category. Return the full JSON."})
+            "Every one of those is already published: " + "; ".join(clashes) + ". "
+            "Pick five genuinely different cases, in different categories, and avoid the "
+            "well-known ones entirely -- this channel has already covered them. "
+            "Return the full JSON."})
     raise SystemExit("could not find an unused case after 4 attempts")
 
 
