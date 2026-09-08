@@ -29,6 +29,14 @@ on:
         description: "Kaggle account slot for the stills: IMAGE (anuragmishra108), VIDEO (kianukal), MAHADEVI (mahadevi108). Case-sensitive, must match the KAGGLE_ACCOUNTS variable. Blank = the KAGGLE_IMAGE_ACCOUNT repo variable."
         required: false
         default: ""
+      start_day:
+        description: "First day this chunk may build (blank = 1). Set it with end_day to give two simultaneous chunks disjoint halves of the batch, one Kaggle account each."
+        required: false
+        default: ""
+      end_day:
+        description: "Last day this chunk may build (blank = no limit). ⚠️ Two chunks running at once MUST have non-overlapping ranges, or both will race onto the same day."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -149,6 +157,8 @@ jobs:
           # already done made the very first chunk report "batch complete" and
           # never chain.
           BATCH_TOTAL_DAYS: ${{ github.event.inputs.total }}
+          BATCH_START_DAY: ${{ github.event.inputs.start_day }}
+          BATCH_END_DAY: ${{ github.event.inputs.end_day }}
           # Passed back into the self-dispatch so the whole chain stays on the
           # account this run was aimed at. Without it every chained chunk falls
           # back to the KAGGLE_IMAGE_ACCOUNT variable, silently drifting off the

@@ -265,6 +265,139 @@ def pick_slot(recheck=True):
     )
 
 
+# --- concurrent chunks --------------------------------------------------------
+# Two chunks can now run at once over disjoint day ranges (one per Kaggle
+# account), which halves the wall-clock for a long batch. Their day folders
+# never overlap, but they do share two files -- cases_used.json and
+# state.json -- so every write to those has to assume someone else is writing
+# too. That is what the two helpers below are for.
+
+
+def _git(*args, repo_root=None, check=True, capture=False, env=None):
+    return subprocess.run(["git", *args], cwd=repo_root, check=check,
+                          capture_output=capture, text=True,
+                          env=({**os.environ, **env} if env else None))
+
+
+def _merge_shared_files(repo_root, state):
+    """Rebuild state.json and cases_used.json as origin's copy plus ours, and
+    stage them. Used to resolve the one conflict two concurrent chunks
+    reliably produce.
+
+    Both files are appended to, and both chunks append in the same place (right
+    after the last pre-existing day), so git sees overlapping insertions and
+    stops. The merge is well-defined even though the textual one is not: day
+    ranges are disjoint, so no key is genuinely contested and the union is
+    simply correct."""
+    for path, key, ident in ((STATE_PATH, "days", None),
+                             (gvc.LEDGER_PATH, "cases", "case")):
+        rel = os.path.relpath(path, repo_root).replace("\\", "/")
+        # "Theirs" is HEAD: mid-rebase that is the upstream commit we are being
+        # replayed onto, i.e. the other chunk's work.
+        base = _read_json_at(repo_root, "HEAD", rel)
+        if base is None:
+            base = _read_json_at(repo_root, "FETCH_HEAD", rel)
+        if base is None:
+            continue
+        # "Ours" must come from the commit being replayed (REBASE_HEAD), never
+        # from the working tree -- mid-conflict that file is full of conflict
+        # markers and does not parse as JSON, which is what made an earlier
+        # version of this throw and abandon the rebase it was meant to fix.
+        # state.json is the exception: the in-memory dict is authoritative and
+        # already holds every day this chunk has done.
+        mine = state if ident is None else _read_json_at(repo_root, "REBASE_HEAD", rel)
+        if mine is None:
+            continue
+        if ident is None:
+            merged = {**base[key], **mine[key]}          # our days win, theirs kept
+        else:
+            seen = {c[ident] for c in base[key]}
+            merged = base[key] + [c for c in mine[key] if c[ident] not in seen]
+        base[key] = merged
+        json.dump(base, open(path, "w", encoding="utf-8"), indent=1)
+        _git("add", rel, repo_root=repo_root, check=False)
+
+
+def _read_json_at(repo_root, ref, rel):
+    """The file as JSON at a git ref, or None if it is not there / not parseable."""
+    r = _git("show", f"{ref}:{rel}", repo_root=repo_root, check=False, capture=True)
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return None
+
+
+def push_with_retry(repo_root, rels, message, remerge=None, attempts=6):
+    """Commit `rels` and get them onto origin/main, conceding to whoever got
+    there first.
+
+    A plain pull --rebase && push is a coin flip once two chunks are running:
+    both rebase onto the same base and one push is rejected as non-fast-forward.
+    On a content conflict `remerge` rebuilds the shared JSON as a union and the
+    rebase continues; only if that fails is the rebase aborted and retried,
+    because a rebase left half-finished makes every later git command in the run
+    fail for reasons unrelated to the real problem."""
+    import time
+
+    _git("add", *rels, repo_root=repo_root)
+    status = _git("status", "--porcelain", *rels, repo_root=repo_root, capture=True)
+    if not status.stdout.strip():
+        return
+    _git("commit", "-m", message, repo_root=repo_root)
+
+    for attempt in range(attempts):
+        _git("fetch", "origin", GITHUB_BRANCH, repo_root=repo_root, check=False)
+        r = _git("pull", "--rebase", "--autostash", "origin", GITHUB_BRANCH,
+                 repo_root=repo_root, check=False, capture=True)
+        if r.returncode != 0:
+            resolved = False
+            if remerge:
+                try:
+                    remerge(repo_root)
+                    # GIT_EDITOR=true: --continue would otherwise open an editor
+                    # for the commit message and hang the runner forever.
+                    c = _git("rebase", "--continue", repo_root=repo_root, check=False,
+                             capture=True, env={"GIT_EDITOR": "true"})
+                    resolved = c.returncode == 0
+                except Exception as e:
+                    print(f"remerge failed: {e!r}", file=sys.stderr)
+            if not resolved:
+                print(f"rebase conflict unresolved ({r.stderr.strip()[:200]}), retrying",
+                      file=sys.stderr)
+                _git("rebase", "--abort", repo_root=repo_root, check=False)
+                time.sleep(3 + 4 * attempt)
+                continue
+        p = _git("push", "origin", f"HEAD:{GITHUB_BRANCH}", repo_root=repo_root,
+                 check=False, capture=True)
+        if p.returncode == 0:
+            return
+        print(f"push rejected (attempt {attempt + 1}/{attempts}), refreshing and retrying",
+              file=sys.stderr)
+        time.sleep(3 + 4 * attempt)
+    raise RuntimeError(f"could not push '{message}' after {attempts} attempts")
+
+
+def refresh_ledger():
+    """Re-read cases_used.json from origin so a pick sees reservations the
+    other chunk has already made.
+
+    Without this each chunk dedups against the ledger as it looked when the
+    chunk started, and two chunks running for hours would drift into picking
+    the same stories. This narrows the window to the seconds between reading
+    the ledger and pushing our own reservation."""
+    repo_root = os.path.dirname(PIPELINE_DIR)
+    rel = os.path.relpath(gvc.LEDGER_PATH, repo_root).replace("\\", "/")
+    r = _git("fetch", "origin", GITHUB_BRANCH, repo_root=repo_root, check=False, capture=True)
+    if r.returncode != 0:
+        print(f"ledger refresh: fetch failed ({r.stderr.strip()[:150]}), using local copy",
+              file=sys.stderr)
+        return gvc.load_ledger()
+    _git("checkout", "FETCH_HEAD", "--", rel, repo_root=repo_root, check=False)
+    return gvc.load_ledger()
+
+
 def load_state():
     if os.path.exists(STATE_PATH):
         return json.load(open(STATE_PATH, encoding="utf-8"))
@@ -436,12 +569,7 @@ def commit_day_assets(day_dir, day_num):
 
     repo_root = os.path.dirname(PIPELINE_DIR)
     rel_dir = os.path.relpath(day_dir, repo_root).replace("\\", "/")
-    subprocess.run(["git", "add", rel_dir], cwd=repo_root, check=True)
-    status = subprocess.run(["git", "status", "--porcelain", rel_dir], cwd=repo_root, capture_output=True, text=True)
-    if status.stdout.strip():
-        subprocess.run(["git", "commit", "-m", f"batch: day {day_num:02d} assets"], cwd=repo_root, check=True)
-        subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", GITHUB_BRANCH], cwd=repo_root, check=True)
-        subprocess.run(["git", "push"], cwd=repo_root, check=True)
+    push_with_retry(repo_root, [rel_dir], f"batch: day {day_num:02d} assets")
 
     shot1_rel = f"{rel_dir}/shot1.jpeg"
     return f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/{shot1_rel}"
@@ -489,7 +617,7 @@ def append_sheet_row(service, day_num, case, title, shot1_url, notes):
     raise RuntimeError(f"day {day_num}: could not append sheet row after 4 attempts")
 
 
-def commit_state(reason, extra_paths=()):
+def commit_state(reason, extra_paths=(), state=None):
     """state.json AND the real channel ledger (cases_used.json) are
     checkpointed after every meaningful change (not just at the end of the
     whole run) so a mid-run crash — Kaggle hiccup, transient Sheets SSL
@@ -501,18 +629,23 @@ def commit_state(reason, extra_paths=()):
     repo_root = os.path.dirname(PIPELINE_DIR)
     rels = [os.path.relpath(STATE_PATH, repo_root).replace("\\", "/")]
     rels += [os.path.relpath(p, repo_root).replace("\\", "/") for p in extra_paths]
-    subprocess.run(["git", "add", *rels], cwd=repo_root, check=True)
-    status = subprocess.run(["git", "status", "--porcelain", *rels], cwd=repo_root, capture_output=True, text=True)
-    if status.stdout.strip():
-        subprocess.run(["git", "commit", "-m", f"batch: {reason}"], cwd=repo_root, check=True)
-        subprocess.run(["git", "pull", "--rebase", "--autostash", "origin", GITHUB_BRANCH], cwd=repo_root, check=True)
-        subprocess.run(["git", "push"], cwd=repo_root, check=True)
+    remerge = (lambda root: _merge_shared_files(root, state)) if state is not None else None
+    push_with_retry(repo_root, rels, f"batch: {reason}", remerge=remerge)
 
 
 def main():
     new_days_budget = int(sys.argv[1]) if len(sys.argv) > 1 else 30
     os.makedirs(BATCH_DIR, exist_ok=True)
     state = load_state()
+
+    # Day range this chunk owns. Two chunks running at once are given disjoint
+    # ranges (one Kaggle account each) so they never build the same day: without
+    # a range both scan from day 1 for the first unfinished day and would race
+    # onto the same one. START_DAY also skips the scan over hundreds of finished
+    # days, and END_DAY is what stops a chain running past its half of the batch
+    # and into the other chain's.
+    start_day = int(os.environ.get("BATCH_START_DAY") or 1)
+    end_day = int(os.environ.get("BATCH_END_DAY") or 0) or None
 
     client = _llm.client()
     sheets = get_sheets_service()
@@ -521,10 +654,13 @@ def main():
     used_cases = [c["case"] for c in ledger["cases"]]
 
     new_days_done = 0
-    day_num = 0
+    day_num = start_day - 1
     failures = 0
     while new_days_done < new_days_budget:
         day_num += 1
+        if end_day and day_num > end_day:
+            print(f"reached the end of this chunk's range (day {end_day})")
+            break
         key = str(day_num)
         day_state = state["days"].get(key, {})
         if day_state.get("done"):
@@ -548,6 +684,12 @@ def main():
                 angle = day_state.get("angle", "")
                 print(f"day {day_num}: resuming existing pick: {case}")
             else:
+                # Re-read the ledger from origin first. The other chunk has been
+                # reserving cases for however long this one has been busy, and
+                # deduping against a copy loaded at startup is how two chunks
+                # end up covering the same story hours apart.
+                ledger = refresh_ledger()
+                used_cases = [c["case"] for c in ledger["cases"]]
                 picked = pc.pick(client, used_cases)
                 case = picked["case"]
                 angle = picked.get("angle", "")
@@ -558,7 +700,7 @@ def main():
                 day_state.update({"case": case, "angle": angle})
                 state["days"][key] = day_state
                 save_state(state)
-                commit_state(f"day {day_num:02d} case picked", extra_paths=[gvc.LEDGER_PATH, pick_path])
+                commit_state(f"day {day_num:02d} case picked", extra_paths=[gvc.LEDGER_PATH, pick_path], state=state)
                 print(f"day {day_num}: picked {case}")
 
             shots_path = os.path.join(day_dir, "shots.json")
@@ -588,12 +730,12 @@ def main():
                 day_state["sheet_logged"] = True
                 state["days"][key] = day_state
                 save_state(state)
-                commit_state(f"day {day_num:02d} sheet row logged")
+                commit_state(f"day {day_num:02d} sheet row logged", state=state)
 
             day_state["done"] = True
             state["days"][key] = day_state
             save_state(state)
-            commit_state(f"day {day_num:02d} complete")
+            commit_state(f"day {day_num:02d} complete", state=state)
             new_days_done += 1
             print(f"day {day_num}: DONE — {case} ({new_days_done}/{new_days_budget} this run)")
         except Exception as e:
@@ -615,7 +757,14 @@ def main():
     print(f"\nThis run: {new_days_done} new day(s) completed, through day {day_num}, "
           f"{failures} failed.")
     done_count = sum(1 for v in state["days"].values() if v.get("done"))
-    batch_complete = done_count >= TOTAL_DAYS
+    if end_day:
+        # A ranged chunk is finished when ITS range is, not when the whole batch
+        # is. Judging by the global count would make the first chain to finish
+        # keep chaining into the other chain's days.
+        batch_complete = all(state["days"].get(str(d), {}).get("done")
+                             for d in range(start_day, end_day + 1))
+    else:
+        batch_complete = done_count >= TOTAL_DAYS
     notify_pregen_done(new_days_done, day_num, batch_complete)
 
     if batch_complete:
@@ -668,6 +817,8 @@ def dispatch_next_chunk(new_days_budget):
                 "notify_chat_id": os.environ.get("NOTIFY_CHAT_ID", ""),
                 "total": str(TOTAL_DAYS),
                 "kaggle_account": os.environ.get("KAGGLE_SLOT", ""),
+                "start_day": os.environ.get("BATCH_START_DAY", ""),
+                "end_day": os.environ.get("BATCH_END_DAY", ""),
             },
         }).encode()
         req = urllib.request.Request(
