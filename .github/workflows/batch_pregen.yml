@@ -76,20 +76,20 @@ jobs:
           fi
           echo "stills will run on Kaggle slot $SLOT${WANT:+ = $WANT}"
 
-      - name: Refuse to start on an account with no GPU quota left
-        # The guard above proves WHICH account we are about to spend; this
-        # proves it CAN be spent. Kaggle answers `kernels push` with a queued
-        # kernel rather than an error when the weekly quota is gone, so
-        # without this the only signal is a job that never ends -- and this
-        # workflow's job cap is 350 minutes, burned one queued day at a time.
-        # min-hours 2, not 1: a chunk is several days, not one.
+      - name: Report GPU quota on every account
+        # Deliberately NOT --require. The batch script now fails over between
+        # accounts by itself, so refusing to start because the *preferred* slot
+        # is dry would block a run that another account could finish -- the
+        # exact manual intervention the failover exists to remove. The script
+        # raises if no slot has quota. This step is here for the log: when a
+        # chunk does something surprising, the first question is always what
+        # each account had left when it started.
         env:
           KAGGLE_ACCOUNTS: ${{ vars.KAGGLE_ACCOUNTS }}
           KAGGLE_IMAGE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
           KAGGLE_VIDEO_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
           KAGGLE_MAHADEVI_API_TOKEN: ${{ secrets.KAGGLE_MAHADEVI_API_TOKEN }}
-          SLOT: ${{ github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE' }}
-        run: python3 $GITHUB_WORKSPACE/_pipeline/_kaggle_quota.py --require "$SLOT" --min-hours 2
+        run: python3 $GITHUB_WORKSPACE/_pipeline/_kaggle_quota.py
 
       - name: Python deps
         run: pip install --quiet anthropic "kaggle==2.2.2" google-api-python-client google-auth
@@ -127,6 +127,17 @@ jobs:
           # KAGGLE_IMAGE_USERNAME whichever account is selected.
           KAGGLE_API_TOKEN: ${{ secrets[format('KAGGLE_{0}_API_TOKEN', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
           KAGGLE_IMAGE_USERNAME: ${{ secrets[format('KAGGLE_{0}_USERNAME', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
+          # ⭐ EVERY account's credentials, not just the selected one. This is what
+          # makes the failover possible: the script re-reads live quota between
+          # days and, when the account it is on drops below what a day costs,
+          # hands the next account's token straight to the kaggle CLI and keeps
+          # going. Without these it can see (via KAGGLE_ACCOUNTS) that another
+          # account exists but has no way to authenticate as it, so the run
+          # would still stop dead and wait for a human to re-aim it.
+          KAGGLE_ACCOUNTS: ${{ vars.KAGGLE_ACCOUNTS }}
+          KAGGLE_IMAGE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_VIDEO_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
+          KAGGLE_MAHADEVI_API_TOKEN: ${{ secrets.KAGGLE_MAHADEVI_API_TOKEN }}
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
           # Self-chaining: if fewer than BATCH_TOTAL_DAYS days are done after
@@ -143,6 +154,9 @@ jobs:
           # back to the KAGGLE_IMAGE_ACCOUNT variable, silently drifting off the
           # account whose quota was actually checked above.
           KAGGLE_SLOT: ${{ github.event.inputs.kaggle_account }}
+          # Fallback preference when no slot was named on the dispatch, so the
+          # failover starts from the same account the rest of the repo defaults to.
+          KAGGLE_IMAGE_ACCOUNT: ${{ vars.KAGGLE_IMAGE_ACCOUNT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python3 _batch_pregen.py "${{ github.event.inputs.days }}"

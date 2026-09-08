@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _llm  # provider shim: Anthropic or Fireworks, see _pipeline/_llm.py
 
 import _gen_video_content as gvc
+import _kaggle_quota as kq
 import _pick_case as pc
 
 PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -185,6 +186,84 @@ print("ALL DONE", flush=True)
 # decision recorded 2026-08-01).
 MODEL_SWITCH_DAY = 10
 
+# --- Kaggle account failover -------------------------------------------------
+# A long unattended batch outlives any single account's weekly GPU quota, and
+# the failure mode when it runs out is the worst kind: `kernels push` succeeds
+# and the kernel sits QUEUED forever, so the batch stalls without erroring.
+# Rather than have a human notice and re-aim the chain at another account, the
+# run now carries every slot's credentials and moves itself to the next one
+# with quota the moment the current slot drops below MIN_SLOT_HOURS.
+#
+# kaggle==2.2.2 authenticates purely from the KAGGLE_API_TOKEN env var, so
+# switching accounts is just handing the CLI a different token per subprocess
+# -- no config file to rewrite, no re-auth step.
+#
+# One day of 16 PixArt stills costs ~0.5 GPU-hours. The threshold is 0.75 so a
+# slot is abandoned while it still has room to finish, instead of being caught
+# out mid-kernel with a day already reserved.
+MIN_SLOT_HOURS = 0.75
+
+# How many days may fail inside one chunk before it gives up. Low on purpose:
+# each attempt reserves a real case out of the ledger, so grinding through a
+# systemic problem burns unused cases as well as time.
+MAX_DAY_FAILURES = 2
+
+_dead_slots = set()   # slots proven out of quota or broken THIS run
+_active_slot = None   # (slot, handle, token)
+
+
+def _slot_order():
+    """Configured slots, preferred one first, minus any already written off."""
+    accounts = kq.parse_accounts(os.environ.get("KAGGLE_ACCOUNTS", ""))
+    pref = (os.environ.get("KAGGLE_SLOT") or os.environ.get("KAGGLE_IMAGE_ACCOUNT") or "").strip()
+    ordered = [a for a in accounts if a[0] == pref] + [a for a in accounts if a[0] != pref]
+    return [a for a in ordered if a[0] not in _dead_slots]
+
+
+def pick_slot(recheck=True):
+    """-> (slot, handle, token) for an account that can actually pay for a day.
+
+    Re-reads live quota rather than trusting the slot that worked last time:
+    the whole point is to notice the current account running dry *between*
+    days, which is exactly when a cached answer would be wrong."""
+    global _active_slot
+
+    if _active_slot and recheck:
+        slot, handle, token = _active_slot
+        r = kq.read_slot(slot, handle)
+        if "error" in r:
+            # Unreadable is not the same as empty -- a transient blip must not
+            # cost us a working account. Keep using it; the kernel poll
+            # deadline is the backstop if it really is dry.
+            return _active_slot
+        if r["left_h"] >= MIN_SLOT_HOURS:
+            return _active_slot
+        print(f"slot {slot} ({handle}) is down to {kq.fmt_hm(r['left_h'])} GPU "
+              f"-- under the {MIN_SLOT_HOURS}h a day needs, switching account", flush=True)
+        _dead_slots.add(slot)
+        _active_slot = None
+
+    for slot, handle in _slot_order():
+        token = os.environ.get(f"KAGGLE_{slot}_API_TOKEN", "").strip()
+        if not token:
+            print(f"slot {slot} ({handle}): no KAGGLE_{slot}_API_TOKEN set, skipping", flush=True)
+            continue
+        r = kq.read_slot(slot, handle)
+        if "error" not in r and r["left_h"] < MIN_SLOT_HOURS:
+            print(f"slot {slot} ({handle}): only {kq.fmt_hm(r['left_h'])} GPU left, skipping", flush=True)
+            _dead_slots.add(slot)
+            continue
+        left = "unreadable" if "error" in r else kq.fmt_hm(r["left_h"])
+        print(f"stills now running on Kaggle slot {slot} ({handle}), {left} GPU left", flush=True)
+        _active_slot = (slot, handle, token)
+        return _active_slot
+
+    raise RuntimeError(
+        "every configured Kaggle slot is out of GPU quota "
+        f"(tried: {', '.join(s for s, _ in kq.parse_accounts(os.environ.get('KAGGLE_ACCOUNTS', ''))) or 'none'}). "
+        "Quota refills weekly -- the batch will resume once it does."
+    )
+
 
 def load_state():
     if os.path.exists(STATE_PATH):
@@ -197,11 +276,13 @@ def save_state(state):
 
 
 def run_flux_for_day(day_dir, shots, day_num):
-    """Runs one Kaggle image-gen kernel for this day's 16 shots. Blocks until
-    done. Model depends on day_num: FLUX.1-schnell below MODEL_SWITCH_DAY,
-    PixArt-Sigma from there on (see MODEL_SWITCH_DAY's comment for why)."""
-    import time
+    """Generate this day's 16 stills, moving to another Kaggle account if the
+    current one cannot finish the job.
 
+    Retrying the day on a fresh account is safe and cheap: the kernel writes
+    nothing outside /kaggle/working, and a day is only marked done once its
+    images are actually in hand, so a half-spent slot costs a repeat of that
+    one day rather than the batch."""
     # images/seq/, not images/ — matches _gen_flux_images.py's convention, which
     # _build_composition.py's template and the hyperframes file server both
     # hardcode as "images/seq/NN.jpeg". Getting this wrong produces a
@@ -212,11 +293,50 @@ def run_flux_for_day(day_dir, shots, day_num):
         print(f"day {day_num}: images already present, skipping generation")
         return
 
+    global _active_slot
+    last_err = None
+    while True:
+        slot, handle, token = pick_slot()
+        try:
+            _run_kernel_on_slot(day_dir, shots, day_num, seq_dir, handle, token)
+            return
+        except Exception as e:
+            # Any failure here -- a queued-forever kernel hitting the deadline,
+            # a kernel ERROR, a push rejected -- is treated as "this account
+            # cannot do the job". Writing the slot off is the conservative
+            # call: the alternative is retrying the same dry account in a loop.
+            print(f"day {day_num}: stills failed on slot {slot} ({handle}): {e!r}", file=sys.stderr)
+            last_err = e
+            _dead_slots.add(slot)
+            _active_slot = None
+            if not _slot_order():
+                raise RuntimeError(
+                    f"day {day_num}: no Kaggle account left to try (last error: {last_err!r})"
+                ) from last_err
+            print(f"day {day_num}: failing over to the next Kaggle account", flush=True)
+
+
+def _run_kernel_on_slot(day_dir, shots, day_num, seq_dir, kaggle_user, token):
+    """One attempt at this day's stills on one specific Kaggle account.
+
+    Model depends on day_num: FLUX.1-schnell below MODEL_SWITCH_DAY,
+    PixArt-Sigma from there on (see MODEL_SWITCH_DAY's comment for why)."""
+    import time
+
+    # The token is handed to each kaggle subprocess explicitly rather than
+    # mutated into os.environ, so which account a call spends is visible at the
+    # call site and two slots can never be half-applied to one command.
+    env = {**os.environ, "KAGGLE_API_TOKEN": token, "KAGGLE_IMAGE_USERNAME": kaggle_user}
+
     use_pixart = day_num >= MODEL_SWITCH_DAY
     model_slug = "pixart" if use_pixart else "flux"
     kernel_dir = os.path.join(day_dir, f"_kaggle_{model_slug}_kernel")
     os.makedirs(kernel_dir, exist_ok=True)
-    kaggle_user = os.environ.get("KAGGLE_IMAGE_USERNAME", "anuragmishra108")
+    # kaggle_user is the account this attempt is aimed at, passed in by the
+    # failover loop. It used to be re-read from the environment here, which
+    # would have quietly pinned every retry to the original account and made
+    # the whole failover a no-op -- the kernel id must name the account whose
+    # token is about to push it.
     kernel_id = f"{kaggle_user}/shadow-gasp-batch-day{day_num:02d}-{model_slug}"
 
     if use_pixart:
@@ -242,26 +362,33 @@ def run_flux_for_day(day_dir, shots, day_num):
         "kernel_sources": [],
     }, open(os.path.join(kernel_dir, "kernel-metadata.json"), "w"), indent=2)
 
-    print(f"day {day_num}: pushing kernel {kernel_id} ({model_slug}) ...")
-    subprocess.run(["kaggle", "kernels", "push", "-p", "."], cwd=kernel_dir, check=True)
+    print(f"day {day_num}: pushing kernel {kernel_id} ({model_slug}) as {kaggle_user} ...")
+    subprocess.run(["kaggle", "kernels", "push", "-p", "."], cwd=kernel_dir, check=True, env=env)
 
-    # A day's kernel is ~25-35 min of real work. 90 minutes is generous headroom
-    # for a slow start, and still short enough that a stuck day fails while the
-    # chunk has time left to be useful.
+    # Two deadlines, because the two ways a day can hang mean different things.
     #
-    # The deadline is the point. An account that has run out of weekly GPU quota
-    # does not make `kernels push` fail -- the kernel is accepted and sits QUEUED
-    # indefinitely. Without a deadline this loop polls a queue that will never
-    # move until GitHub kills the job at its 350-minute cap, which surfaces as
-    # `cancelled` rather than a failure, so `if: failure()` notifiers stay quiet
-    # and the day is left stranded mid-reserve. That is exactly how day 61 burned
-    # 24 hours. The quota preflight in the workflow should catch this first; this
-    # is the backstop for quota that runs out *during* a chunk.
+    # QUEUE_DEADLINE is the one that matters for failover. An account with no
+    # weekly GPU quota left does not make `kernels push` fail -- Kaggle accepts
+    # the kernel and leaves it QUEUED indefinitely. A healthy kernel starts
+    # within a couple of minutes, so a kernel still QUEUED after 12 is not slow,
+    # it is unfundable: give up on the slot immediately rather than burn most of
+    # an hour proving it. This is what makes the switch to another account fast
+    # instead of eventually.
+    #
+    # RUN_DEADLINE only applies once the kernel is actually RUNNING, where the
+    # real work is ~25-35 min. Without either deadline the loop polls until
+    # GitHub kills the job at its 350-minute cap, which reports as `cancelled`
+    # rather than failed -- so `if: failure()` notifiers stay silent and the day
+    # is stranded mid-reserve. That is exactly how day 61 burned 24 hours.
     print(f"day {day_num}: polling for completion ...")
-    deadline = time.time() + 90 * 60
+    QUEUE_DEADLINE = 12 * 60
+    RUN_DEADLINE = 90 * 60
+    started = time.time()
+    ever_ran = False
     while True:
         time.sleep(30)
-        r = subprocess.run(["kaggle", "kernels", "status", kernel_id], capture_output=True, text=True)
+        r = subprocess.run(["kaggle", "kernels", "status", kernel_id],
+                           capture_output=True, text=True, env=env)
         status = r.stdout.strip()
         print(f"day {day_num}: {status}")
         if "COMPLETE" in status:
@@ -269,16 +396,24 @@ def run_flux_for_day(day_dir, shots, day_num):
         if "ERROR" in status or "CANCEL" in status:
             print(r.stdout, r.stderr, file=sys.stderr)
             raise RuntimeError(f"day {day_num}: kaggle kernel failed: {status}")
-        if time.time() > deadline:
+        if "RUNNING" in status and not ever_ran:
+            ever_ran = True
+            started = time.time()  # the run clock starts when the run does
+        waited = time.time() - started
+        if not ever_ran and waited > QUEUE_DEADLINE:
             raise RuntimeError(
-                f"day {day_num}: kaggle kernel {kernel_id} still '{status}' after 90 min. "
-                "A kernel that never leaves QUEUED almost always means this account's weekly "
-                "GPU quota is gone -- check `python3 _kaggle_quota.py` and retry the chunk on "
-                "another slot."
+                f"day {day_num}: kernel {kernel_id} never left the queue in "
+                f"{QUEUE_DEADLINE // 60} min ({status}). This account is almost certainly "
+                "out of weekly GPU quota -- Kaggle queues instead of refusing."
+            )
+        if ever_ran and waited > RUN_DEADLINE:
+            raise RuntimeError(
+                f"day {day_num}: kernel {kernel_id} still '{status}' after "
+                f"{RUN_DEADLINE // 60} min of running."
             )
 
     out_dir = os.path.join(kernel_dir, "out")
-    subprocess.run(["kaggle", "kernels", "output", kernel_id, "-p", out_dir], check=True)
+    subprocess.run(["kaggle", "kernels", "output", kernel_id, "-p", out_dir], check=True, env=env)
     for i in range(1, 17):
         src = os.path.join(out_dir, f"{i:02d}.jpeg")
         dst = os.path.join(seq_dir, f"{i:02d}.jpeg")
@@ -387,6 +522,7 @@ def main():
 
     new_days_done = 0
     day_num = 0
+    failures = 0
     while new_days_done < new_days_budget:
         day_num += 1
         key = str(day_num)
@@ -395,73 +531,102 @@ def main():
             used_cases.append(day_state["case"])
             continue
 
-        day_dir = os.path.join(BATCH_DIR, f"day{day_num:02d}")
-        os.makedirs(day_dir, exist_ok=True)
+        # One bad day must not end the batch. Before this, any exception
+        # anywhere in a day propagated out of main(), the job went red, and
+        # dispatch_next_chunk() never ran -- so a single transient LLM or
+        # Kaggle hiccup silently stopped an unattended run of dozens of days
+        # and waited for a human. A failed day leaves its reservation in
+        # state.json without `done`, and the next chunk walks the same day
+        # numbers from the start, so it is picked up and retried for free.
+        try:
+            day_dir = os.path.join(BATCH_DIR, f"day{day_num:02d}")
+            os.makedirs(day_dir, exist_ok=True)
 
-        pick_path = os.path.join(day_dir, "pick.json")
-        if "case" in day_state:
-            case = day_state["case"]
-            angle = day_state.get("angle", "")
-            print(f"day {day_num}: resuming existing pick: {case}")
-        else:
-            picked = pc.pick(client, used_cases)
-            case = picked["case"]
-            angle = picked.get("angle", "")
-            used_cases.append(case)
-            ledger["cases"].append({"videoId": None, "case": case, "publishedAt": None})
-            gvc.save_ledger(ledger)
-            json.dump({"case": case, "angle": angle}, open(pick_path, "w", encoding="utf-8"), indent=2)
-            day_state.update({"case": case, "angle": angle})
+            pick_path = os.path.join(day_dir, "pick.json")
+            if "case" in day_state:
+                case = day_state["case"]
+                angle = day_state.get("angle", "")
+                print(f"day {day_num}: resuming existing pick: {case}")
+            else:
+                picked = pc.pick(client, used_cases)
+                case = picked["case"]
+                angle = picked.get("angle", "")
+                used_cases.append(case)
+                ledger["cases"].append({"videoId": None, "case": case, "publishedAt": None})
+                gvc.save_ledger(ledger)
+                json.dump({"case": case, "angle": angle}, open(pick_path, "w", encoding="utf-8"), indent=2)
+                day_state.update({"case": case, "angle": angle})
+                state["days"][key] = day_state
+                save_state(state)
+                commit_state(f"day {day_num:02d} case picked", extra_paths=[gvc.LEDGER_PATH, pick_path])
+                print(f"day {day_num}: picked {case}")
+
+            shots_path = os.path.join(day_dir, "shots.json")
+            meta_path = os.path.join(day_dir, "meta.json")
+            if os.path.exists(shots_path) and os.path.exists(meta_path):
+                shots = json.load(open(shots_path, encoding="utf-8"))
+                meta = json.load(open(meta_path, encoding="utf-8"))
+            else:
+                d = gvc.generate(client, case)
+                open(os.path.join(day_dir, "narration.txt"), "w", encoding="utf-8").write(d["narration"].strip() + "\n")
+                shots = d["shots"]
+                json.dump(shots, open(shots_path, "w", encoding="utf-8"), indent=1)
+                meta = {
+                    "hook_motion_prompt": d["hook_motion_prompt"],
+                    "caption_yt": d["caption_yt"],
+                    "caption_ig": d["caption_ig"],
+                    "title_working": d["title_working"],
+                }
+                json.dump(meta, open(meta_path, "w", encoding="utf-8"), indent=2)
+                print(f"day {day_num}: generated narration + 16 shot prompts, title: {meta['title_working']}")
+
+            run_flux_for_day(day_dir, shots, day_num)
+            shot1_url = commit_day_assets(day_dir, day_num)
+
+            if not day_state.get("sheet_logged"):
+                append_sheet_row(sheets, day_num, case, meta["title_working"], shot1_url, angle)
+                day_state["sheet_logged"] = True
+                state["days"][key] = day_state
+                save_state(state)
+                commit_state(f"day {day_num:02d} sheet row logged")
+
+            day_state["done"] = True
             state["days"][key] = day_state
             save_state(state)
-            commit_state(f"day {day_num:02d} case picked", extra_paths=[gvc.LEDGER_PATH, pick_path])
-            print(f"day {day_num}: picked {case}")
+            commit_state(f"day {day_num:02d} complete")
+            new_days_done += 1
+            print(f"day {day_num}: DONE — {case} ({new_days_done}/{new_days_budget} this run)")
+        except Exception as e:
+            failures += 1
+            print(f"day {day_num}: FAILED ({failures}/{MAX_DAY_FAILURES} allowed this chunk): {e!r}",
+                  file=sys.stderr)
+            if not _slot_order():
+                # Not a bad day -- there is no GPU left anywhere. Walking on
+                # would reserve fresh cases for days that cannot be built.
+                print("no Kaggle account has GPU quota left; ending this chunk here",
+                      file=sys.stderr)
+                break
+            if failures >= MAX_DAY_FAILURES:
+                print("too many failed days in one chunk; ending it here rather than "
+                      "reserving more cases against a problem that is not going away",
+                      file=sys.stderr)
+                break
 
-        shots_path = os.path.join(day_dir, "shots.json")
-        meta_path = os.path.join(day_dir, "meta.json")
-        if os.path.exists(shots_path) and os.path.exists(meta_path):
-            shots = json.load(open(shots_path, encoding="utf-8"))
-            meta = json.load(open(meta_path, encoding="utf-8"))
-        else:
-            d = gvc.generate(client, case)
-            open(os.path.join(day_dir, "narration.txt"), "w", encoding="utf-8").write(d["narration"].strip() + "\n")
-            shots = d["shots"]
-            json.dump(shots, open(shots_path, "w", encoding="utf-8"), indent=1)
-            meta = {
-                "hook_motion_prompt": d["hook_motion_prompt"],
-                "caption_yt": d["caption_yt"],
-                "caption_ig": d["caption_ig"],
-                "title_working": d["title_working"],
-            }
-            json.dump(meta, open(meta_path, "w", encoding="utf-8"), indent=2)
-            print(f"day {day_num}: generated narration + 16 shot prompts, title: {meta['title_working']}")
-
-        run_flux_for_day(day_dir, shots, day_num)
-        shot1_url = commit_day_assets(day_dir, day_num)
-
-        if not day_state.get("sheet_logged"):
-            append_sheet_row(sheets, day_num, case, meta["title_working"], shot1_url, angle)
-            day_state["sheet_logged"] = True
-            state["days"][key] = day_state
-            save_state(state)
-            commit_state(f"day {day_num:02d} sheet row logged")
-
-        day_state["done"] = True
-        state["days"][key] = day_state
-        save_state(state)
-        commit_state(f"day {day_num:02d} complete")
-        new_days_done += 1
-        print(f"day {day_num}: DONE — {case} ({new_days_done}/{new_days_budget} this run)")
-
-    print(f"\nThis run: {new_days_done} new day(s) completed, through day {day_num}.")
+    print(f"\nThis run: {new_days_done} new day(s) completed, through day {day_num}, "
+          f"{failures} failed.")
     done_count = sum(1 for v in state["days"].values() if v.get("done"))
     batch_complete = done_count >= TOTAL_DAYS
     notify_pregen_done(new_days_done, day_num, batch_complete)
 
-    if not batch_complete:
+    if batch_complete:
+        print(f"Batch fully complete: {done_count}/{TOTAL_DAYS} days done.")
+    elif new_days_done:
         dispatch_next_chunk(new_days_budget)
     else:
-        print(f"Batch fully complete: {done_count}/{TOTAL_DAYS} days done.")
+        # Chaining on a chunk that achieved nothing would spin the workflow
+        # against the same blocker indefinitely. Stop and leave it to a human.
+        print("this chunk completed no days -- not chaining another, "
+              "since it would hit whatever stopped this one.", file=sys.stderr)
 
 
 # Total size of the batch. Self-chaining (see dispatch_next_chunk) keeps
