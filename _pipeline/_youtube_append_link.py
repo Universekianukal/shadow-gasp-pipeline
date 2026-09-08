@@ -30,8 +30,10 @@ Safety properties, each of which exists because the opposite would be worse than
 4. RESPECTS THE 5000-CHAR LIMIT. YouTube rejects longer descriptions; the block is not added if
    it would overflow, rather than silently truncating someone's description.
 """
+import json
 import os
 import sys
+import urllib.parse
 import urllib.request
 
 from google.oauth2.credentials import Credentials
@@ -64,14 +66,47 @@ def link_block(name, url, pages="", hook=""):
 
 
 def gumroad_is_published(url):
-    """Best-effort public check: a draft permalink is not publicly reachable."""
-    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "shadow-gasp-funnel"})
+    """Is this product actually published? Asked of the Gumroad API, which is the only thing
+    that knows. Returns True, False, or None for "could not establish".
+
+    ⭐⭐ THE PUBLIC PAGE CANNOT ANSWER THIS. This used to be a HEAD request that read any 2xx as
+    "published", on the assumption that a draft permalink is not publicly reachable. It is:
+    Gumroad serves a draft with HTTP 200 and a page that renders the product name normally. So
+    the check passed for every draft, and on 2026-09-07 the 6-hourly sweep wrote links to two
+    DRAFT products into the descriptions of two live videos.
+
+    Measured on a known-published and a known-draft permalink of this same shop: both 200, both
+    ~15KB, and none of "add to cart" / "i want this" / og:availability / "published":false
+    appears in either. There is no marker to scrape. Anything built on the public page is
+    guessing, so ask the API and fail CLOSED when it cannot be asked.
+
+    `published` is the right field: it is the ONLY boolean in the product payload that can drive
+    the draft/published column `gumroad products list` prints, so the CLI status a human reads
+    and this check are the same fact. Verified True against two live products and None against a
+    permalink that does not exist; the False branch is asserted structurally rather than
+    observed, because by the time this was written the shop had no draft left to test against.
+    """
+    token = os.environ.get("GUMROAD_ACCESS_TOKEN", "").strip()
+    if not token:
+        print("GUMROAD_ACCESS_TOKEN is not set, so publication cannot be verified.",
+              file=sys.stderr)
+        return None
+    slug = url.rstrip("/").rsplit("/", 1)[-1].lower()
     try:
+        req = urllib.request.Request(
+            "https://api.gumroad.com/v2/products?access_token=" + urllib.parse.quote(token),
+            headers={"User-Agent": "shadow-gasp-funnel"})
         with urllib.request.urlopen(req, timeout=30) as r:
-            return 200 <= r.status < 300
-    except Exception as exc:  # noqa: BLE001 - any failure means "cannot prove it is live"
-        print(f"product URL check failed: {exc}", file=sys.stderr)
-        return False
+            data = json.loads(r.read().decode("utf-8", "replace"))
+    except Exception as exc:  # noqa: BLE001
+        print(f"Gumroad API lookup failed: {exc}", file=sys.stderr)
+        return None
+    for p in data.get("products", []):
+        short = (p.get("short_url") or "").rstrip("/").rsplit("/", 1)[-1].lower()
+        if short == slug:
+            return bool(p.get("published"))
+    print(f"No Gumroad product matches permalink '{slug}'.", file=sys.stderr)
+    return None
 
 
 def get_youtube_service():
@@ -93,13 +128,21 @@ def main():
     position = os.environ.get("POSITION", "top").strip().lower()
     allow_draft = os.environ.get("ALLOW_DRAFT", "").lower() == "true"
 
-    if not allow_draft and not gumroad_is_published(product_url):
-        print(
-            f"REFUSED: {product_url} is not publicly reachable, so it is probably still a "
-            "Gumroad draft. Publish the product first, or set ALLOW_DRAFT=true. Linking a "
-            "draft from a live video sends viewers to a 404."
-        )
-        sys.exit(1)
+    if not allow_draft:
+        state = gumroad_is_published(product_url)
+        if state is not True:
+            # Three-state on purpose: False means Gumroad says draft, None means we could not
+            # ask. Both must refuse. The previous version collapsed "cannot tell" into "fine",
+            # which is how two live videos ended up linking unbuyable drafts.
+            why = ("Gumroad reports this product is still a DRAFT" if state is False else
+                   "publication could not be verified (see the reason above)")
+            print(
+                f"REFUSED: {product_url} -- {why}.\n"
+                "A draft page loads with HTTP 200 but cannot be bought, so linking it from a "
+                "live video sends viewers to a dead end.\n"
+                "Publish the product first, or set ALLOW_DRAFT=true to link it anyway."
+            )
+            sys.exit(1)
 
     yt = get_youtube_service()
     items = yt.videos().list(part="snippet", id=video_id).execute().get("items", [])
