@@ -21,6 +21,14 @@ on:
       notify_chat_id:
         description: "Telegram chat id to notify when this chunk finishes (set by the bot; leave blank when triggered manually)"
         default: ""
+      total:
+        description: "Stop self-chaining once this many days are done in total. Blank = 30, the original batch size. Must be raised past the days already done or the chain ends on its first chunk."
+        required: false
+        default: ""
+      kaggle_account:
+        description: "Kaggle account slot for the stills: IMAGE (anuragmishra108), VIDEO (kianukal), MAHADEVI (mahadevi108). Case-sensitive, must match the KAGGLE_ACCOUNTS variable. Blank = the KAGGLE_IMAGE_ACCOUNT repo variable."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -32,6 +40,56 @@ jobs:
     timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
+
+      # Both guards ported from pipeline.yml, which had them and this workflow
+      # did not -- and this is the workflow that spends GPU on dozens of days
+      # unattended, so a silent misfire here is far more expensive. They run
+      # BEFORE any day is reserved: failing after the reserve manufactures the
+      # orphaned state.json stub that stranded days 60 and 61.
+      - name: Confirm the Kaggle account resolved
+        # secrets[...] for a slot that was never configured, or a typo'd slot
+        # ("video" vs "VIDEO"), is an empty string rather than an error -- which
+        # falls straight through to the default account, i.e. exactly the
+        # exhausted one a retry was trying to escape. Checking for non-empty
+        # alone misses the typo case; compare the resolved username against
+        # what KAGGLE_ACCOUNTS says the slot should be.
+        env:
+          SLOT: ${{ github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE' }}
+          ACCOUNT_MAP: ${{ vars.KAGGLE_ACCOUNTS }}
+          KAGGLE_USERNAME: ${{ secrets[format('KAGGLE_{0}_USERNAME', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
+          KAGGLE_API_TOKEN: ${{ secrets[format('KAGGLE_{0}_API_TOKEN', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
+        run: |
+          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_API_TOKEN" ]; then
+            echo "::error::kaggle_account='$SLOT' resolved to an empty credential. Add KAGGLE_${SLOT}_USERNAME and KAGGLE_${SLOT}_API_TOKEN to this repo, or pick a slot that exists."
+            exit 1
+          fi
+          if [ -n "$ACCOUNT_MAP" ]; then
+            WANT=$(printf '%s' "$ACCOUNT_MAP" | awk -v RS=, -F: -v s="$SLOT" '$1==s{print $2}')
+            if [ -z "$WANT" ]; then
+              echo "::error::Slot '$SLOT' is not listed in the KAGGLE_ACCOUNTS variable ($ACCOUNT_MAP). Refusing to guess which account to spend."
+              exit 1
+            fi
+            if [ "$WANT" != "$KAGGLE_USERNAME" ]; then
+              echo "::error::Slot '$SLOT' should be '$WANT' but the secrets resolved to a different account -- KAGGLE_${SLOT}_USERNAME is probably missing. Refusing to spend the wrong account's quota."
+              exit 1
+            fi
+          fi
+          echo "stills will run on Kaggle slot $SLOT${WANT:+ = $WANT}"
+
+      - name: Refuse to start on an account with no GPU quota left
+        # The guard above proves WHICH account we are about to spend; this
+        # proves it CAN be spent. Kaggle answers `kernels push` with a queued
+        # kernel rather than an error when the weekly quota is gone, so
+        # without this the only signal is a job that never ends -- and this
+        # workflow's job cap is 350 minutes, burned one queued day at a time.
+        # min-hours 2, not 1: a chunk is several days, not one.
+        env:
+          KAGGLE_ACCOUNTS: ${{ vars.KAGGLE_ACCOUNTS }}
+          KAGGLE_IMAGE_API_TOKEN: ${{ secrets.KAGGLE_IMAGE_API_TOKEN }}
+          KAGGLE_VIDEO_API_TOKEN: ${{ secrets.KAGGLE_VIDEO_API_TOKEN }}
+          KAGGLE_MAHADEVI_API_TOKEN: ${{ secrets.KAGGLE_MAHADEVI_API_TOKEN }}
+          SLOT: ${{ github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE' }}
+        run: python3 $GITHUB_WORKSPACE/_pipeline/_kaggle_quota.py --require "$SLOT" --min-hours 2
 
       - name: Python deps
         run: pip install --quiet anthropic "kaggle==2.2.2" google-api-python-client google-auth
@@ -71,10 +129,20 @@ jobs:
           KAGGLE_IMAGE_USERNAME: ${{ secrets[format('KAGGLE_{0}_USERNAME', github.event.inputs.kaggle_account || vars.KAGGLE_IMAGE_ACCOUNT || 'IMAGE')] }}
           NOTIFY_CHAT_ID: ${{ github.event.inputs.notify_chat_id }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
-          # Self-chaining: if fewer than 30 days are done after this chunk,
-          # the script dispatches another run of this same workflow with the
-          # same chunk size, so the whole batch finishes unattended instead of
-          # needing a human to re-trigger every chunk.
+          # Self-chaining: if fewer than BATCH_TOTAL_DAYS days are done after
+          # this chunk, the script dispatches another run of this same workflow
+          # with the same chunk size, account and total, so the whole batch
+          # finishes unattended instead of needing a human to re-trigger every
+          # chunk. ⚠️ This is a TOTAL, not an increment: it counts every day
+          # ever done. Leaving it at the old hardcoded 30 once 61 days were
+          # already done made the very first chunk report "batch complete" and
+          # never chain.
+          BATCH_TOTAL_DAYS: ${{ github.event.inputs.total }}
+          # Passed back into the self-dispatch so the whole chain stays on the
+          # account this run was aimed at. Without it every chained chunk falls
+          # back to the KAGGLE_IMAGE_ACCOUNT variable, silently drifting off the
+          # account whose quota was actually checked above.
+          KAGGLE_SLOT: ${{ github.event.inputs.kaggle_account }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python3 _batch_pregen.py "${{ github.event.inputs.days }}"

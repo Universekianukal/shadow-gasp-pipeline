@@ -245,7 +245,20 @@ def run_flux_for_day(day_dir, shots, day_num):
     print(f"day {day_num}: pushing kernel {kernel_id} ({model_slug}) ...")
     subprocess.run(["kaggle", "kernels", "push", "-p", "."], cwd=kernel_dir, check=True)
 
+    # A day's kernel is ~25-35 min of real work. 90 minutes is generous headroom
+    # for a slow start, and still short enough that a stuck day fails while the
+    # chunk has time left to be useful.
+    #
+    # The deadline is the point. An account that has run out of weekly GPU quota
+    # does not make `kernels push` fail -- the kernel is accepted and sits QUEUED
+    # indefinitely. Without a deadline this loop polls a queue that will never
+    # move until GitHub kills the job at its 350-minute cap, which surfaces as
+    # `cancelled` rather than a failure, so `if: failure()` notifiers stay quiet
+    # and the day is left stranded mid-reserve. That is exactly how day 61 burned
+    # 24 hours. The quota preflight in the workflow should catch this first; this
+    # is the backstop for quota that runs out *during* a chunk.
     print(f"day {day_num}: polling for completion ...")
+    deadline = time.time() + 90 * 60
     while True:
         time.sleep(30)
         r = subprocess.run(["kaggle", "kernels", "status", kernel_id], capture_output=True, text=True)
@@ -256,6 +269,13 @@ def run_flux_for_day(day_dir, shots, day_num):
         if "ERROR" in status or "CANCEL" in status:
             print(r.stdout, r.stderr, file=sys.stderr)
             raise RuntimeError(f"day {day_num}: kaggle kernel failed: {status}")
+        if time.time() > deadline:
+            raise RuntimeError(
+                f"day {day_num}: kaggle kernel {kernel_id} still '{status}' after 90 min. "
+                "A kernel that never leaves QUEUED almost always means this account's weekly "
+                "GPU quota is gone -- check `python3 _kaggle_quota.py` and retry the chunk on "
+                "another slot."
+            )
 
     out_dir = os.path.join(kernel_dir, "out")
     subprocess.run(["kaggle", "kernels", "output", kernel_id, "-p", out_dir], check=True)
@@ -447,7 +467,14 @@ def main():
 # Total size of the batch. Self-chaining (see dispatch_next_chunk) keeps
 # triggering new chunks of this same size until this many days are done,
 # so a human only has to start the batch once, not re-trigger every chunk.
-TOTAL_DAYS = 30
+#
+# ⚠️ This is a cumulative TOTAL, not "how many more". It was hardcoded to 30
+# and stayed there while the batch grew to 61 done days, which made
+# `done_count >= TOTAL_DAYS` true before the first chunk even started: every
+# run reported "Batch fully complete" and never chained, so extending the
+# batch quietly degraded into one chunk per manual trigger. Overridable
+# per-run via the workflow's `total` input -> BATCH_TOTAL_DAYS.
+TOTAL_DAYS = int(os.environ.get("BATCH_TOTAL_DAYS") or 30)
 
 
 def dispatch_next_chunk(new_days_budget):
@@ -464,11 +491,18 @@ def dispatch_next_chunk(new_days_budget):
     import urllib.request
 
     try:
+        # total and kaggle_account must be carried forward explicitly. A
+        # dispatch that omits them gets the workflow's defaults instead: total
+        # falls back to 30 (ending the chain immediately) and the account falls
+        # back to the KAGGLE_IMAGE_ACCOUNT variable, drifting the chain off the
+        # account whose quota the guard actually verified.
         body = json.dumps({
             "ref": "main",
             "inputs": {
                 "days": str(new_days_budget),
                 "notify_chat_id": os.environ.get("NOTIFY_CHAT_ID", ""),
+                "total": str(TOTAL_DAYS),
+                "kaggle_account": os.environ.get("KAGGLE_SLOT", ""),
             },
         }).encode()
         req = urllib.request.Request(
