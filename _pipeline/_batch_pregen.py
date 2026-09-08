@@ -518,13 +518,32 @@ def _run_kernel_on_slot(day_dir, shots, day_num, seq_dir, kaggle_user, token):
     RUN_DEADLINE = 90 * 60
     started = time.time()
     ever_ran = False
+    # ⭐ A kernel id is reused whenever a day is rebuilt -- a retry after a
+    # failure, or a day whose earlier run was cancelled. `kernels status`
+    # answers for the kernel, not for the version we just pushed, so a COMPLETE
+    # seen on the first poll can belong to the PREVIOUS run. Accepting it
+    # downloads that run's images: right case, but 16 stills generated from
+    # prompts this run threw away and never committed -- art silently paired
+    # with a narration it does not illustrate, with nothing failing.
+    #
+    # Requiring the kernel to be seen QUEUED or RUNNING before any COMPLETE is
+    # believed pins the result to our own push. A real run takes ~25 min and is
+    # polled every 30s, so it cannot start and finish inside one gap.
+    seen_live = False
     while True:
         time.sleep(30)
         r = subprocess.run(["kaggle", "kernels", "status", kernel_id],
                            capture_output=True, text=True, env=env)
         status = r.stdout.strip()
         print(f"day {day_num}: {status}")
+        if "QUEUED" in status or "RUNNING" in status:
+            seen_live = True
         if "COMPLETE" in status:
+            if not seen_live:
+                print(f"day {day_num}: ignoring a COMPLETE seen before this push "
+                      "was observed running -- it belongs to an earlier version",
+                      flush=True)
+                continue
             break
         if "ERROR" in status or "CANCEL" in status:
             print(r.stdout, r.stderr, file=sys.stderr)
