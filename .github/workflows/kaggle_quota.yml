@@ -43,6 +43,8 @@ jobs:
         # logs stay empty and the failure looks like the bot is down.
         env:
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          COMICS_WORKER_URL: ${{ secrets.COMICS_WORKER_URL }}
+          COMICS_WORKER_SHARED_SECRET: ${{ secrets.COMICS_WORKER_SHARED_SECRET }}
         run: |
           python3 -c "
           import json
@@ -56,3 +58,21 @@ jobs:
             -H "Content-Type: application/json" \
             --data @/tmp/payload.json
           echo
+          # Also deliver to the COMICS bot, split out of this one on 2026-09-08.
+          #
+          # /quota is answered by both bots because both pipelines spend the same three
+          # Kaggle accounts -- but this workflow hardcoded the original Worker, so asking the
+          # comics bot produced "the table lands here in 30s" and the table arrived in the
+          # other bot.
+          #
+          # Its own route and its own secret, deliberately: matching BATCH_NOTIFY_SECRET on
+          # the comics Worker would mean rotating that secret across this repo and both
+          # Workers at once (a Cloudflare secret cannot be read back), and it guards most of
+          # this pipeline's callbacks. A quota table is not worth that blast radius.
+          #
+          # Best-effort: the numbers are already delivered by the line above, so a hiccup
+          # here must not fail a run that actually succeeded.
+          if [ -n "$COMICS_WORKER_URL" ]; then
+            curl -sS -X POST "${COMICS_WORKER_URL%/}/notify-raw" \n              -H "X-Shared-Secret: $COMICS_WORKER_SHARED_SECRET" \n              -H "Content-Type: application/json" \n              --data @/tmp/payload.json || echo "WARNING: comics-bot copy of the quota table was not delivered"
+            echo
+          fi
