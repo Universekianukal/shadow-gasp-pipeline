@@ -73,6 +73,11 @@ jobs:
           # Best-effort: the numbers are already delivered by the line above, so a hiccup
           # here must not fail a run that actually succeeded.
           if [ -n "$COMICS_WORKER_URL" ]; then
-            curl -sS -X POST "${COMICS_WORKER_URL%/}/notify-raw" \n              -H "X-Shared-Secret: $COMICS_WORKER_SHARED_SECRET" \n              -H "Content-Type: application/json" \n              --data @/tmp/payload.json || echo "WARNING: comics-bot copy of the quota table was not delivered"
+            # Deliberately one long line, no backslash continuations. The first version of
+            # this step was committed with the continuations mangled into two literal
+            # characters, so curl took a junk extra argument: it delivered the table to the
+            # real URL, exited non-zero anyway, and printed the warning below on a run that
+            # had in fact worked. A single line cannot fail that way.
+            curl -sS -X POST "${COMICS_WORKER_URL%/}/notify-raw" -H "X-Shared-Secret: $COMICS_WORKER_SHARED_SECRET" -H "Content-Type: application/json" --data @/tmp/payload.json || echo "WARNING: comics-bot copy of the quota table was not delivered"
             echo
           fi
