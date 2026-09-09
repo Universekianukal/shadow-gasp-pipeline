@@ -397,7 +397,8 @@
   "94": {
    "case": "Commander Lionel 'Buster' Crabb disappearance (Portsmouth, England, 1956)",
    "angle": "A decorated Royal Navy frogman vanishes during a secret mission to inspect the hull of a Soviet cruiser docked in Portsmouth \u2014 and his headless body washes up 14 months later, with the British government still refusing to release the files.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
