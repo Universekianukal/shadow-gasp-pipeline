@@ -381,6 +381,10 @@
    "angle": "A 28-year-old German tourist is seen on airport CCTV sprinting full-speed out of the terminal, dropping his luggage, vaulting a fence, and vanishing into a field \u2014 never seen again, no body, no trail.",
    "sheet_logged": true,
    "done": true
+  },
+  "92": {
+   "case": "Therac-25 radiation overdoses (1985-1987, multiple U.S. hospitals)",
+   "angle": "A cancer treatment machine's software bug silently delivered lethal radiation doses to at least six patients, and the manufacturer blamed operators instead of admitting the code was flawed until patients were already dead."
   }
  }
 }
