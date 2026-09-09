@@ -5,6 +5,23 @@ name: shadow_gasp render queue (04:30 IST)
 # actual render always starts at this same fixed time, leaving buffer before
 # publish_queue.yml fires everything live at 05:15 IST. See worker.js's
 # video-reply handler for the queuing side.
+#
+# 2026-09-10: two changes, both about a day whose Flow hook clip never arrived.
+#
+#   1. SKIP, don't stall. render_batch_day.yml's hook gate asks Telegram what to
+#      do about a missing clip and, on silence, fails after 15 minutes -- by
+#      design, so a hookless day can never publish as a static Ken Burns still.
+#      Correct, but it burns the night's slot on a day that was never going to
+#      render. A pending_render day with no images/seq/01.mp4 is now not
+#      dispatched at all: it is marked held, with a reason so it stays visible,
+#      and the sweep moves on.
+#
+#   2. AUTO-ADVANCE. If nothing is queued from Telegram, walk forward to the
+#      next batch day that is actually ready and render that one, so the backlog
+#      keeps going out daily without a hook clip being hand-uploaded for every
+#      day. Days missing a clip are stepped over; because the SMALLEST eligible
+#      day always wins, a clip that lands late for an earlier day is picked up
+#      on a later sweep rather than being orphaned.
 
 on:
   schedule:
@@ -22,9 +39,11 @@ jobs:
       - uses: actions/checkout@v4
         with: { ref: main }
 
-      - name: Dispatch render_batch_day.yml for every day still pending_render
+      - name: Dispatch render_batch_day.yml — skipping any day with no hook clip
         env:
           GH_TOKEN: ${{ github.token }}
+          BOT_BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+          NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
@@ -32,26 +51,81 @@ jobs:
             git fetch origin main -q
             git reset --hard origin/main -q
             python3 - <<'PYEOF'
-          import json
+          import json, os, datetime
+
+          HOOK     = "_pipeline/batch/day{:02d}/images/seq/01.mp4".format
+          UPLOADED = "_pipeline/batch/day{:02d}/YOUTUBE_UPLOADED".format
+
+          # Days 1-46 predate the YOUTUBE_UPLOADED marker and are already live,
+          # so auto-advance must never reach back into them.
+          FIRST_AUTO_DAY = 47
+          LAST_DAY = 117
 
           path = "_pipeline/batch/queue.json"
           try:
               q = json.load(open(path))
           except FileNotFoundError:
               q = {}
-          pending = [d for d, v in q.items() if v.get("status") == "pending_render"]
+
+          # Reuse the chat the bot has been talking to, so an auto-advanced day
+          # still reports failures somewhere instead of going silent.
+          chat = ""
+          for v in q.values():
+              if v.get("notify_chat_id"):
+                  chat = v["notify_chat_id"]
+
+          now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          dispatch, held, stepped_over = [], [], []
+
+          for d, v in sorted(q.items(), key=lambda kv: int(kv[0])):
+              if v.get("status") != "pending_render":
+                  continue
+              if os.path.exists(HOOK(int(d))):
+                  v["status"] = "rendering"
+                  dispatch.append((d, v.get("notify_chat_id") or chat))
+              else:
+                  v["prev_status"] = "pending_render"
+                  v["status"] = "held"
+                  v["held_reason"] = ("no hook clip at images/seq/01.mp4 -- skipped by the "
+                                      "04:30 sweep so it could not stall on the hook gate")
+                  v["held_at"] = now
+                  held.append(d)
+
+          if not dispatch:
+              for n in range(FIRST_AUTO_DAY, LAST_DAY + 1):
+                  if str(n) in q or os.path.exists(UPLOADED(n)):
+                      continue
+                  if not os.path.exists(HOOK(n)):
+                      stepped_over.append(n)
+                      continue
+                  q[str(n)] = {"status": "rendering", "notify_chat_id": chat,
+                               "queued_at": now, "auto_advanced": True}
+                  dispatch.append((str(n), chat))
+                  break
+
           with open("/tmp/pending_render_days.txt", "w") as f:
-              for day in pending:
-                  f.write(f"{day}\t{q[day].get('notify_chat_id', '')}\n")
-                  q[day]["status"] = "rendering"
+              for day, c in dispatch:
+                  f.write(f"{day}\t{c}\n")
+
+          note = []
+          if held:
+              note.append("held, no hook clip: " + ", ".join("day " + d for d in held))
+          if stepped_over:
+              note.append("stepped over, no hook clip: " + ", ".join("day %d" % n for n in stepped_over))
+          note.append("rendering: " + ", ".join("day " + d for d, _ in dispatch)
+                      if dispatch else
+                      "nothing to render -- every remaining day is missing its hook clip")
+          with open("/tmp/sweep_note.txt", "w") as f:
+              f.write("; ".join(note))
+
           json.dump(q, open(path, "w"), indent=2)
           PYEOF
-            if [ ! -s /tmp/pending_render_days.txt ]; then
-              echo "nothing pending_render"
+            echo "sweep: $(cat /tmp/sweep_note.txt)"
+            if git diff --quiet -- _pipeline/batch/queue.json; then
               break
             fi
             git add _pipeline/batch/queue.json
-            git commit -q -m "queue: dispatch pending renders (04:30 IST sweep)"
+            git commit -q -m "queue: 04:30 IST sweep -- $(cat /tmp/sweep_note.txt)"
             if git push origin HEAD:main; then break; fi
             echo "push conflict, retry $i"
             sleep $((RANDOM % 8 + 3))
@@ -62,4 +136,17 @@ jobs:
               echo "Dispatching render for day $day (notify_chat_id=$chat)"
               gh workflow run render_batch_day.yml -f "day=$day" -f "notify_chat_id=$chat"
             done < /tmp/pending_render_days.txt
+          fi
+
+          # Say what happened out loud. A day silently stepped over for a missing
+          # hook clip is exactly the kind of thing that goes unnoticed for a week.
+          if [ -n "$NOTIFY_SECRET" ]; then
+            python3 - <<'PYEOF' > /tmp/sweep_msg.json
+          import json
+          print(json.dumps({"text": "\U0001F3AC 04:30 sweep — " + open("/tmp/sweep_note.txt").read().strip()}))
+          PYEOF
+            curl -sS -X POST "$BOT_BASE/batch/notify-raw" \
+              -H "X-Batch-Notify-Secret: $NOTIFY_SECRET" \
+              -H "Content-Type: application/json" \
+              --data @/tmp/sweep_msg.json || echo "could not reach the bot"
           fi
