@@ -58,9 +58,10 @@
     "queued_at": "2026-09-08T19:11:58.157Z"
   },
   "46": {
-    "status": "rendering",
+    "status": "pending_publish",
     "notify_chat_id": "8692339206",
-    "queued_at": "2026-09-08T19:26:20.070Z"
+    "queued_at": "2026-09-08T19:26:20.070Z",
+    "render_run_id": "34297520881"
   },
   "53": {
     "status": "held",
