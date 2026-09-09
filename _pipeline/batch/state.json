@@ -487,7 +487,8 @@
   "109": {
    "case": "BSAA Star Dust and the 'STENDEC' Morse Code Mystery (1947, Andes)",
    "angle": "A passenger plane vanished into the Andes; its final radio message was an unknown word 'STENDEC' that operators asked to repeat twice, then silence \u2014 wreckage emerged from a glacier 51 years later but the word remains unexplained.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
