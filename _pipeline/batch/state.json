@@ -535,7 +535,8 @@
   "117": {
    "case": "SS El Faro Sinking (Hurricane Joaquin, Bahamas, October 1, 2015)",
    "angle": "A 790-foot cargo ship sailed directly into a Category 4 hurricane with 33 crew aboard; the voyage data recorder was recovered from 15,000 feet down, revealing the captain dismissed repeated warnings and the crew realized too late they were trapped.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
