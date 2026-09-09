@@ -23,7 +23,13 @@ name: shadow_gasp render queue (04:30 IST)
 
 on:
   schedule:
-    - cron: '0 23 * * *'   # 23:00 UTC = 04:30 IST
+    # Moved earlier 2026-09-10. publish_queue.yml now holds until 23:40 UTC to
+    # publish at 05:15 IST, so the render has to be FINISHED by then. The old
+    # '0 23' cron actually started ~00:32-01:01 UTC and renders take 15-40 min,
+    # which left as little as 30 min before publishing -- three of six recent
+    # renders would have missed it and slipped a day. Starting here gives the
+    # render roughly 1.5-2h of slack.
+    - cron: '0 20 * * *'   # nominal 20:00 UTC; in practice starts ~21:30-22:00 UTC
   workflow_dispatch: {}     # manual test trigger
 
 permissions:

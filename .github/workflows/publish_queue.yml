@@ -8,12 +8,22 @@ name: shadow_gasp publish queue (05:15 IST)
 
 on:
   schedule:
-    - cron: '45 23 * * *'   # 23:45 UTC = 05:15 IST
+    # Deliberately EARLY. GitHub fires scheduled workflows 1.5-2h late and the
+    # delay drifts day to day (measured 01:18-01:33 UTC for the old '45 23'
+    # cron, i.e. 06:48-07:03 IST instead of 05:15). A cron time therefore
+    # cannot decide when a video goes live -- it can only decide when we start
+    # waiting for the real moment. See the hold step below.
+    - cron: '0 21 * * *'    # nominal 21:00 UTC; in practice starts ~22:30-22:50 UTC
   workflow_dispatch: {}      # manual test trigger
 
 permissions:
   contents: write
   actions: write
+
+env:
+  # 23:40 UTC = 05:10 IST. Dispatching then puts the actual YouTube/FB/IG
+  # upload at roughly 05:15-05:20 IST, which is the moment that matters.
+  PUBLISH_AT_UTC: "23:40"
 
 jobs:
   dispatch:
@@ -21,6 +31,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { ref: main }
+
+      - name: Hold until ${{ env.PUBLISH_AT_UTC }} UTC (05:10 IST)
+        # Runner minutes are free on a public repo, so an idle wait costs
+        # nothing and buys an exact publish time instead of a drifting one.
+        # If we start at or after the target (an unusually late cron, or a
+        # manual run), publish immediately rather than sleeping ~24h.
+        run: |
+          NOW=$(date -u +%s)
+          TARGET=$(date -u -d "today ${PUBLISH_AT_UTC}" +%s)
+          WAIT=$(( TARGET - NOW ))
+          if [ "$WAIT" -gt 0 ] && [ "$WAIT" -le 21600 ]; then
+            echo "started $(date -u +%H:%M) UTC — holding ${WAIT}s until ${PUBLISH_AT_UTC} UTC"
+            sleep "$WAIT"
+          else
+            echo "started $(date -u +%H:%M) UTC — at or past ${PUBLISH_AT_UTC} UTC, publishing now"
+          fi
+          echo "released at $(date -u +%H:%M:%S) UTC"
 
       - name: Dispatch publish_batch_day.yml for every day pending_publish
         env:
