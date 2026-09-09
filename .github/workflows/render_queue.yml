@@ -1,35 +1,19 @@
 name: shadow_gasp render queue (04:30 IST)
 
-# A Telegram hook-video reply no longer dispatches a render immediately -- it
-# just queues the day (queue.json, status pending_render) so every day's
-# actual render always starts at this same fixed time, leaving buffer before
-# publish_queue.yml fires everything live at 05:15 IST. See worker.js's
-# video-reply handler for the queuing side.
+# Renders ONE batch day per night; publish_queue.yml takes it live at 05:15 IST.
 #
-# 2026-09-10: two changes, both about a day whose Flow hook clip never arrived.
+# Which day:
+#   1. a queue.json pending_render day, put there by a Telegram hook-video reply
+#   2. otherwise the next batch day that is ready  (auto-advance, 2026-09-10)
 #
-#   1. SKIP, don't stall. render_batch_day.yml's hook gate asks Telegram what to
-#      do about a missing clip and, on silence, fails after 15 minutes -- by
-#      design, so a hookless day can never publish as a static Ken Burns still.
-#      Correct, but it burns the night's slot on a day that was never going to
-#      render. A pending_render day with no images/seq/01.mp4 is now not
-#      dispatched at all: it is marked held, with a reason so it stays visible,
-#      and the sweep moves on.
-#
-#   2. AUTO-ADVANCE. If nothing is queued from Telegram, walk forward to the
-#      next batch day that is actually ready and render that one, so the backlog
-#      keeps going out daily without a hook clip being hand-uploaded for every
-#      day. Days missing a clip are stepped over; because the SMALLEST eligible
-#      day always wins, a clip that lands late for an earlier day is picked up
-#      on a later sweep rather than being orphaned.
-#
-#   3. HANDS OFF A DAY YOU ARE PUBLISHING YOURSELF. /publish <N> and /day <N>
-#      dispatch finish_batch_day.yml directly and never write to queue.json, so
-#      auto-advance would otherwise land on a day already going out by hand and
-#      upload it twice. Any day with a finish_batch_day.yml run in flight or
-#      already succeeded is left alone. This cannot be done with the
-#      YOUTUBE_UPLOADED marker alone -- that only lands when the manual run
-#      finishes, long after the collision window opens.
+# Two rules, both added 2026-09-10:
+#   * No hook clip at images/seq/01.mp4 -> never dispatched. render_batch_day.yml
+#     would sit on its hook gate for 15 min and then fail, burning the night on a
+#     day that was never going to render. Queued days are held with a reason;
+#     auto-advance steps over them and takes the next ready day.
+#   * A day already published by hand today -> the sweep does nothing. /publish <N>
+#     goes straight to finish_batch_day.yml and never touches queue.json, so the
+#     only way to see it is the Actions API. One video per IST day, either way.
 
 on:
   schedule:
@@ -47,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { ref: main }
 
-      - name: Dispatch render_batch_day.yml — skipping any day with no hook clip
+      - name: Pick tonight's day and dispatch it
         env:
           GH_TOKEN: ${{ github.token }}
           BOT_BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
@@ -56,22 +40,11 @@ jobs:
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
 
-          # Days already claimed by a manual Telegram publish. /publish <N> and
-          # /day <N> + hook reply dispatch finish_batch_day.yml DIRECTLY and
-          # never write to queue.json, so without this the sweep would happily
-          # auto-advance onto a day being published by hand and upload it twice.
-          # The YOUTUBE_UPLOADED marker cannot cover this on its own: it is only
-          # committed once that run finishes, which is far too late if it is
-          # still running right now. finish_batch_day.yml's run-name is
-          # "day <N> (upload=<bool>)", so the day number is read back from there.
-          # In flight (queued/in_progress) OR already succeeded both count as
-          # taken; a failed run does not, so a day can still be retried.
+          # finish_batch_day.yml sets run-name "day <N> (upload=<bool>)" -- that
+          # is where a manual /publish becomes visible to us.
           gh run list --workflow=finish_batch_day.yml --limit 60 \
-            --json displayTitle,status,conclusion \
-            -q '.[] | select(.status != "completed" or .conclusion == "success") | .displayTitle' \
-            2>/dev/null | sed -n 's/^day \([0-9][0-9]*\).*/\1/p' | sort -un > /tmp/taken_days.txt || true
-          touch /tmp/taken_days.txt
-          echo "claimed by a manual publish: $(tr '\n' ' ' < /tmp/taken_days.txt)"
+            --json displayTitle,status,conclusion,createdAt > /tmp/manual_runs.json 2>/dev/null || true
+          [ -s /tmp/manual_runs.json ] || echo '[]' > /tmp/manual_runs.json
 
           for i in 1 2 3; do
             git fetch origin main -q
@@ -81,32 +54,34 @@ jobs:
 
           HOOK     = "_pipeline/batch/day{:02d}/images/seq/01.mp4".format
           UPLOADED = "_pipeline/batch/day{:02d}/YOUTUBE_UPLOADED".format
-
-          # Days 1-46 predate the YOUTUBE_UPLOADED marker and are already live,
-          # so auto-advance must never reach back into them.
-          FIRST_AUTO_DAY = 47
-          LAST_DAY = 117
+          FIRST_AUTO_DAY, LAST_DAY = 47, 117   # 1-46 predate YOUTUBE_UPLOADED and are live
 
           path = "_pipeline/batch/queue.json"
-          try:
-              q = json.load(open(path))
-          except FileNotFoundError:
-              q = {}
+          q = json.load(open(path)) if os.path.exists(path) else {}
+          now = datetime.datetime.now(datetime.timezone.utc)
 
-          # Days a manual /publish has already claimed (see the gh query above).
-          try:
-              taken_manual = {int(x) for x in open("/tmp/taken_days.txt").read().split()}
-          except FileNotFoundError:
-              taken_manual = set()
-
-          # Reuse the chat the bot has been talking to, so an auto-advanced day
-          # still reports failures somewhere instead of going silent.
+          # Reuse whichever chat the bot has been talking to, so an auto-advanced
+          # day still reports failures somewhere.
           chat = ""
           for v in q.values():
-              if v.get("notify_chat_id"):
-                  chat = v["notify_chat_id"]
+              chat = v.get("notify_chat_id") or chat
 
-          now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          # Manual publishes: which days they claim, and whether one already went
+          # out today. "Today" is the IST calendar day -- a fixed lookback would
+          # wrongly cancel tomorrow's slot for an evening publish.
+          IST = datetime.timedelta(hours=5, minutes=30)
+          ist_midnight = (now + IST).replace(hour=0, minute=0, second=0, microsecond=0) - IST
+          claimed, published_today = set(), False
+          for r in json.load(open("/tmp/manual_runs.json")):
+              # in flight, or finished successfully -- a failed run claims nothing
+              if r["status"] == "completed" and r["conclusion"] != "success":
+                  continue
+              bits = r["displayTitle"].split()
+              if len(bits) > 1 and bits[0] == "day" and bits[1].isdigit():
+                  claimed.add(int(bits[1]))
+              if datetime.datetime.fromisoformat(r["createdAt"].replace("Z", "+00:00")) >= ist_midnight:
+                  published_today = True
+
           dispatch, held, stepped_over = [], [], []
 
           for d, v in sorted(q.items(), key=lambda kv: int(kv[0])):
@@ -116,26 +91,20 @@ jobs:
                   v["status"] = "rendering"
                   dispatch.append((d, v.get("notify_chat_id") or chat))
               else:
-                  v["prev_status"] = "pending_render"
-                  v["status"] = "held"
-                  v["held_reason"] = ("no hook clip at images/seq/01.mp4 -- skipped by the "
-                                      "04:30 sweep so it could not stall on the hook gate")
-                  v["held_at"] = now
+                  v.update(status="held", prev_status="pending_render",
+                           held_at=now.isoformat(),
+                           held_reason="no hook clip at images/seq/01.mp4 -- skipped by the 04:30 sweep")
                   held.append(d)
 
-          claimed = []
-          if not dispatch:
+          if not dispatch and not published_today:
               for n in range(FIRST_AUTO_DAY, LAST_DAY + 1):
-                  if str(n) in q or os.path.exists(UPLOADED(n)):
-                      continue
-                  if n in taken_manual:
-                      claimed.append(n)
+                  if str(n) in q or os.path.exists(UPLOADED(n)) or n in claimed:
                       continue
                   if not os.path.exists(HOOK(n)):
                       stepped_over.append(n)
                       continue
                   q[str(n)] = {"status": "rendering", "notify_chat_id": chat,
-                               "queued_at": now, "auto_advanced": True}
+                               "queued_at": now.isoformat(), "auto_advanced": True}
                   dispatch.append((str(n), chat))
                   break
 
@@ -146,22 +115,20 @@ jobs:
           note = []
           if held:
               note.append("held, no hook clip: " + ", ".join("day " + d for d in held))
-          if claimed:
-              note.append("left to your manual publish: " + ", ".join("day %d" % n for n in claimed))
           if stepped_over:
               note.append("stepped over, no hook clip: " + ", ".join("day %d" % n for n in stepped_over))
-          note.append("rendering: " + ", ".join("day " + d for d, _ in dispatch)
-                      if dispatch else
-                      "nothing to render -- every remaining day is missing its hook clip")
-          with open("/tmp/sweep_note.txt", "w") as f:
-              f.write("; ".join(note))
+          if dispatch:
+              note.append("rendering: " + ", ".join("day " + d for d, _ in dispatch))
+          elif published_today:
+              note.append("a day already went out by hand today -- standing down")
+          else:
+              note.append("nothing to render -- every remaining day is missing its hook clip")
+          open("/tmp/sweep_note.txt", "w").write("; ".join(note))
 
           json.dump(q, open(path, "w"), indent=2)
           PYEOF
             echo "sweep: $(cat /tmp/sweep_note.txt)"
-            if git diff --quiet -- _pipeline/batch/queue.json; then
-              break
-            fi
+            if git diff --quiet -- _pipeline/batch/queue.json; then break; fi
             git add _pipeline/batch/queue.json
             git commit -q -m "queue: 04:30 IST sweep -- $(cat /tmp/sweep_note.txt)"
             if git push origin HEAD:main; then break; fi
@@ -176,8 +143,7 @@ jobs:
             done < /tmp/pending_render_days.txt
           fi
 
-          # Say what happened out loud. A day silently stepped over for a missing
-          # hook clip is exactly the kind of thing that goes unnoticed for a week.
+          # A day silently stepped over is exactly what goes unnoticed for a week.
           if [ -n "$NOTIFY_SECRET" ]; then
             python3 - <<'PYEOF' > /tmp/sweep_msg.json
           import json
