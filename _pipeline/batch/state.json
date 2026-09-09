@@ -415,17 +415,14 @@
   "97": {
    "case": "The Bogle-Chandler Case (Sydney, Australia, 1963)",
    "angle": "A brilliant physicist and his lover are found dead and partially undressed on a riverbank with zero visible injuries \u2014 and police rearranged the bodies before forensics even arrived, destroying any chance of solving it.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   },
   "98": {
    "case": "Loss of the French Submarine Minerve (Mediterranean, 1968)",
    "angle": "A military submarine with 52 crew simply ceased to exist in calm seas on a clear day \u2014 no distress signal, no debris, no oil slick \u2014 and the wreck sat unfound for 51 years until a private search located it at 2,370 meters in 2019.",
    "sheet_logged": true,
    "done": true
-  },
-  "71": {
-   "case": "The Toynbee Tiles (Philadelphia, 1980s\u2013present)",
-   "angle": "Mosaic messages embedded in asphalt across dozens of cities from Boston to Buenos Aires, all referencing Arnold Toynbee, Stanley Kubrick, and 'resurrect dead on planet Jupiter' \u2014 a single obsessive creator suspected but never confirmed."
   }
  }
 }
