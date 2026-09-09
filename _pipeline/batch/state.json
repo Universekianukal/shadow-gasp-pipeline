@@ -432,79 +432,10 @@
    "sheet_logged": true,
    "done": true
   },
-  "90": {
-   "case": "The Ghost Blimp / L-8 Naval Airship (Daly City, California, August 16, 1942)",
-   "angle": "A Navy patrol blimp drifts in from the Pacific without its crew, crashes in a residential neighborhood \u2014 both aviators gone, doors open, life raft still aboard, no sign of a struggle, no bodies ever found.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "91": {
-   "case": "Disappearance of Lars Mittank (Varna Airport, Bulgaria, 2014)",
-   "angle": "A 28-year-old German tourist is seen on airport CCTV sprinting full-speed out of the terminal, dropping his luggage, vaulting a fence, and vanishing into a field \u2014 never seen again, no body, no trail.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "92": {
-   "case": "Therac-25 radiation overdoses (1985-1987, multiple U.S. hospitals)",
-   "angle": "A cancer treatment machine's software bug silently delivered lethal radiation doses to at least six patients, and the manufacturer blamed operators instead of admitting the code was flawed until patients were already dead.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "93": {
-   "case": "The Carroll A. Deering Ghost Ship (Cape Hatteras, 1921)",
-   "angle": "A five-masted schooner found aground on Diamond Shoals with the galley stove still warm, crew's personal effects gone but valuables and provisions left behind, and a ship's logbook and lifeboats missing \u2014 the FBI's first-ever ghost-ship investigation and still unsolved.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "94": {
-   "case": "Commander Lionel 'Buster' Crabb disappearance (Portsmouth, England, 1956)",
-   "angle": "A decorated Royal Navy frogman vanishes during a secret mission to inspect the hull of a Soviet cruiser docked in Portsmouth \u2014 and his headless body washes up 14 months later, with the British government still refusing to release the files.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "95": {
-   "case": "Death of Gareth Williams, MI6 officer (London, 2010)",
-   "angle": "A career codebreaker was found dead, padlocked inside a red North Face sports bag in his own bathtub \u2014 and Scotland Yard ruled it 'probably an accident' despite nobody ever demonstrating that one person could lock themselves inside.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "96": {
-   "case": "Joyce Carol Vincent death (found January 2006, Wood Green, London)",
-   "angle": "A woman's skeleton was found on her living room sofa nearly three years after she died \u2014 the TV was still on, Christmas presents wrapped beside her, and nobody had noticed she was gone.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "97": {
-   "case": "The Bogle-Chandler Case (Sydney, Australia, 1963)",
-   "angle": "A brilliant physicist and his lover are found dead and partially undressed on a riverbank with zero visible injuries \u2014 and police rearranged the bodies before forensics even arrived, destroying any chance of solving it.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "98": {
-   "case": "Loss of the French Submarine Minerve (Mediterranean, 1968)",
-   "angle": "A military submarine with 52 crew simply ceased to exist in calm seas on a clear day \u2014 no distress signal, no debris, no oil slick \u2014 and the wreck sat unfound for 51 years until a private search located it at 2,370 meters in 2019.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "99": {
-   "case": "Brian Shaffer disappearance (2006, Columbus, Ohio)",
-   "angle": "A medical student was captured on surveillance camera entering a bar with only one public entrance \u2014 yet there is no footage of him ever leaving, and he was never seen again.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "100": {
-   "case": "The Gr\u00e9gory Villemin Case (1984, France)",
-   "angle": "A 4-year-old boy is pulled from a river and for years an anonymous letter-writer called 'the Crow' taunts the family with confessions \u2014 but the killer was never definitively identified and a family member was both convicted and acquitted.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "101": {
-   "case": "The V\u00e4stberga Helicopter Heist (Stockholm, Sweden, September 23, 2009)",
-   "angle": "Robbers landed a stolen Bell 206 JetRanger on the roof of a cash depot at dawn, blew the skylight with explosives, and lifted off with 39 million kronor while police were stuck behind fake caltrops and a fake bomb at the helipad."
-  },
   "73": {
    "case": "The Gal\u00e1pagos Affair (Floreana Island, 1934)",
-   "angle": "A self-proclaimed 'Empress of the Gal\u00e1pagos' and her lover vanished from an island with only eight inhabitants, and the two remaining settler families gave contradictory accounts of a departing yacht that no port ever recorded."
+   "angle": "A self-proclaimed 'Empress of the Gal\u00e1pagos' and her lover vanished from an island with only eight inhabitants, and the two remaining settler families gave contradictory accounts of a departing yacht that no port ever recorded.",
+   "sheet_logged": true
   }
  }
 }
