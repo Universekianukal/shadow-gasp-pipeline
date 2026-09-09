@@ -433,7 +433,8 @@
   "100": {
    "case": "The Gr\u00e9gory Villemin Case (1984, France)",
    "angle": "A 4-year-old boy is pulled from a river and for years an anonymous letter-writer called 'the Crow' taunts the family with confessions \u2014 but the killer was never definitively identified and a family member was both convicted and acquitted.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
