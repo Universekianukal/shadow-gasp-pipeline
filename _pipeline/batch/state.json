@@ -445,7 +445,8 @@
   "102": {
    "case": "The Atlas Vampire / Murder of Lilly Lindestr\u00f6m (Stockholm, 1932)",
    "angle": "A woman found dead in her apartment with her blood drained and a gravy ladle at the scene \u2014 the killer left a ladder propped against her window and was never identified, despite fingerprints still on file.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
