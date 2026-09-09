@@ -177,7 +177,7 @@
   },
   {
    "videoId": "oQfkl0QAlIo",
-   "case": "Simo Häyhä (\"The White Death,\" Finnish sniper)",
+   "case": "Simo H\u00e4yh\u00e4 (\"The White Death,\" Finnish sniper)",
    "publishedAt": "2026-06-10"
   },
   {
@@ -397,7 +397,7 @@
   },
   {
    "videoId": "YywA2Vrby2U",
-   "case": "The Sodder Fire  Five Children, No Bones",
+   "case": "The Sodder Fire \u0097 Five Children, No Bones",
    "publishedAt": "2026-08-01"
   },
   {
@@ -537,7 +537,7 @@
   },
   {
    "videoId": null,
-   "case": "The Taos Hum and disappearance of the Ourang Medan investigation aside  instead: The Cerro Gordo silver mine embezzlement and murder of Louis D. Gordon (Cerro Gordo, California, 1877-79)",
+   "case": "The Taos Hum and disappearance of the Ourang Medan investigation aside \u0097 instead: The Cerro Gordo silver mine embezzlement and murder of Louis D. Gordon (Cerro Gordo, California, 1877-79)",
    "publishedAt": null
   },
   {
@@ -762,7 +762,7 @@
   },
   {
    "videoId": null,
-   "case": "The Mad Trapper of Rat River (Yukon Territory, January–February 1932)",
+   "case": "The Mad Trapper of Rat River (Yukon Territory, January\u2013February 1932)",
    "publishedAt": null
   },
   {
@@ -798,6 +798,11 @@
   {
    "videoId": null,
    "case": "SS Princess Sophia disaster (Vanderbilt Reef, Alaska, October 25, 1918)",
+   "publishedAt": null
+  },
+  {
+   "videoId": null,
+   "case": "Loss of the French Submarine Minerve (Mediterranean, 1968)",
    "publishedAt": null
   }
  ]
