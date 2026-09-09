@@ -368,19 +368,24 @@
   },
   "62": {
    "case": "Disappearance of Benjamin Bathurst (Perleberg, Prussia, 1809)",
-   "angle": "A British diplomat steps around his horses at a coaching inn and is never seen again \u2014 his boots, coat, and hat are found by the carriage but the man simply ceases to exist in a lit courtyard full of witnesses.",
+   "angle": "A British diplomat steps around his horses at a coaching inn and is never seen again \u2014 his boots, coat, and hat are found by the carriage but the man simply ceases to exist in a lit courtyard full of witnesses."
+  },
+  "90": {
+   "case": "The Ghost Blimp / L-8 Naval Airship (Daly City, California, August 16, 1942)",
+   "angle": "A Navy patrol blimp drifts in from the Pacific without its crew, crashes in a residential neighborhood \u2014 both aviators gone, doors open, life raft still aboard, no sign of a struggle, no bodies ever found.",
    "sheet_logged": true,
    "done": true
   },
-  "63": {
-   "case": "Disappearance of Jodi Huisentruit (1995, Mason City, Iowa)",
-   "angle": "A local TV news anchor vanishes mid-morning in her apartment parking lot \u2014 her keys, shoes, and hairdryer scattered on the asphalt \u2014 but the abductor left zero witnesses in a residential complex and the case remains unsolved 30 years later.",
+  "91": {
+   "case": "Disappearance of Lars Mittank (Varna Airport, Bulgaria, 2014)",
+   "angle": "A 28-year-old German tourist is seen on airport CCTV sprinting full-speed out of the terminal, dropping his luggage, vaulting a fence, and vanishing into a field \u2014 never seen again, no body, no trail.",
    "sheet_logged": true,
    "done": true
   },
-  "64": {
-   "case": "Chowchilla School Bus Kidnapping (1976, California)",
-   "angle": "Three masked men hijacked a bus full of 26 children and buried them alive inside a moving van in a rock quarry \u2014 and the driver and kids dug themselves out with their hands before the ransom was even delivered."
+  "92": {
+   "case": "Therac-25 radiation overdoses (1985-1987, multiple U.S. hospitals)",
+   "angle": "A cancer treatment machine's software bug silently delivered lethal radiation doses to at least six patients, and the manufacturer blamed operators instead of admitting the code was flawed until patients were already dead.",
+   "sheet_logged": true
   }
  }
 }
