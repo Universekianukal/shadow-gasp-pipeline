@@ -483,7 +483,8 @@
   "81": {
    "case": "Han van Meegeren art forgery trial (Netherlands, 1945)",
    "angle": "Accused of selling a Vermeer to Goering \u2014 a capital collaboration charge \u2014 he had to prove his 'Vermeers' were his own forgeries by painting a new fake Vermeer inside his jail cell while experts watched.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
