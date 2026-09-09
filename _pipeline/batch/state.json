@@ -481,7 +481,8 @@
   "108": {
    "case": "The Dugway Sheep Incident (1968, Utah)",
    "angle": "The US Army tested VX nerve agent outdoors and 6,000 sheep died in Skull Valley over three days \u2014 they admitted it only after trying to blame everything from pesticides to botulism.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
