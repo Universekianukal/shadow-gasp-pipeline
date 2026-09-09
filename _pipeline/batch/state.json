@@ -368,41 +368,32 @@
   },
   "62": {
    "case": "Disappearance of Benjamin Bathurst (Perleberg, Prussia, 1809)",
-   "angle": "A British diplomat steps around his horses at a coaching inn and is never seen again \u2014 his boots, coat, and hat are found by the carriage but the man simply ceases to exist in a lit courtyard full of witnesses."
-  },
-  "90": {
-   "case": "The Ghost Blimp / L-8 Naval Airship (Daly City, California, August 16, 1942)",
-   "angle": "A Navy patrol blimp drifts in from the Pacific without its crew, crashes in a residential neighborhood \u2014 both aviators gone, doors open, life raft still aboard, no sign of a struggle, no bodies ever found.",
+   "angle": "A British diplomat steps around his horses at a coaching inn and is never seen again \u2014 his boots, coat, and hat are found by the carriage but the man simply ceases to exist in a lit courtyard full of witnesses.",
    "sheet_logged": true,
    "done": true
   },
-  "91": {
-   "case": "Disappearance of Lars Mittank (Varna Airport, Bulgaria, 2014)",
-   "angle": "A 28-year-old German tourist is seen on airport CCTV sprinting full-speed out of the terminal, dropping his luggage, vaulting a fence, and vanishing into a field \u2014 never seen again, no body, no trail.",
+  "63": {
+   "case": "Disappearance of Jodi Huisentruit (1995, Mason City, Iowa)",
+   "angle": "A local TV news anchor vanishes mid-morning in her apartment parking lot \u2014 her keys, shoes, and hairdryer scattered on the asphalt \u2014 but the abductor left zero witnesses in a residential complex and the case remains unsolved 30 years later.",
    "sheet_logged": true,
    "done": true
   },
-  "92": {
-   "case": "Therac-25 radiation overdoses (1985-1987, multiple U.S. hospitals)",
-   "angle": "A cancer treatment machine's software bug silently delivered lethal radiation doses to at least six patients, and the manufacturer blamed operators instead of admitting the code was flawed until patients were already dead.",
+  "64": {
+   "case": "Chowchilla School Bus Kidnapping (1976, California)",
+   "angle": "Three masked men hijacked a bus full of 26 children and buried them alive inside a moving van in a rock quarry \u2014 and the driver and kids dug themselves out with their hands before the ransom was even delivered.",
    "sheet_logged": true,
    "done": true
   },
-  "93": {
-   "case": "The Carroll A. Deering Ghost Ship (Cape Hatteras, 1921)",
-   "angle": "A five-masted schooner found aground on Diamond Shoals with the galley stove still warm, crew's personal effects gone but valuables and provisions left behind, and a ship's logbook and lifeboats missing \u2014 the FBI's first-ever ghost-ship investigation and still unsolved.",
+  "65": {
+   "case": "The Sarah Joe disappearance (Maui to Taongi Atoll, 1979)",
+   "angle": "Five men vanish from a 17-foot boat off Maui; nine years later the boat is found on a remote Pacific atoll 2,300 miles away with one man buried in a shallow grave and the other four gone without explanation.",
    "sheet_logged": true,
    "done": true
   },
-  "94": {
-   "case": "Commander Lionel 'Buster' Crabb disappearance (Portsmouth, England, 1956)",
-   "angle": "A decorated Royal Navy frogman vanishes during a secret mission to inspect the hull of a Soviet cruiser docked in Portsmouth \u2014 and his headless body washes up 14 months later, with the British government still refusing to release the files.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "95": {
-   "case": "Death of Gareth Williams, MI6 officer (London, 2010)",
-   "angle": "A career codebreaker was found dead, padlocked inside a red North Face sports bag in his own bathtub \u2014 and Scotland Yard ruled it 'probably an accident' despite nobody ever demonstrating that one person could lock themselves inside."
+  "66": {
+   "case": "The Mad Trapper of Rat River (Yukon Territory, January\u2013February 1932)",
+   "angle": "A man who called himself Albert Johnson shot a Mountie through his cabin door, then led a 150-mile chase through minus-forty wilderness before being killed \u2014 and no one ever determined who he actually was.",
+   "sheet_logged": true
   }
  }
 }
