@@ -427,7 +427,8 @@
   "99": {
    "case": "Brian Shaffer disappearance (2006, Columbus, Ohio)",
    "angle": "A medical student was captured on surveillance camera entering a bar with only one public entrance \u2014 yet there is no footage of him ever leaving, and he was never seen again.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
