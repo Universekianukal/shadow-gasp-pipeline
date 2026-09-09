@@ -529,7 +529,8 @@
   "116": {
    "case": "Port Chicago Disaster and Mutiny Trial (1944, California)",
    "angle": "320 sailors\u2014mostly Black\u2014killed in the largest US mainland WWII munitions explosion, then 50 survivors who refused to keep loading unsafe ammo were court-martialed for mutiny.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
