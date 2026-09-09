@@ -368,7 +368,9 @@
   },
   "62": {
    "case": "Disappearance of Benjamin Bathurst (Perleberg, Prussia, 1809)",
-   "angle": "A British diplomat steps around his horses at a coaching inn and is never seen again \u2014 his boots, coat, and hat are found by the carriage but the man simply ceases to exist in a lit courtyard full of witnesses."
+   "angle": "A British diplomat steps around his horses at a coaching inn and is never seen again \u2014 his boots, coat, and hat are found by the carriage but the man simply ceases to exist in a lit courtyard full of witnesses.",
+   "sheet_logged": true,
+   "done": true
   },
   "63": {
    "case": "Disappearance of Jodi Huisentruit (1995, Mason City, Iowa)",
@@ -412,57 +414,8 @@
   },
   "70": {
    "case": "SS Princess Sophia disaster (Vanderbilt Reef, Alaska, October 25, 1918)",
-   "angle": "A steamship ran aground on a reef but stayed upright and visible for two days while the captain told rescuers to wait \u2014 then a storm pushed it off the reef and it sank with all 343 people aboard, becoming the deadliest maritime disaster on the Pacific coast of North America."
-  },
-  "90": {
-   "case": "The Ghost Blimp / L-8 Naval Airship (Daly City, California, August 16, 1942)",
-   "angle": "A Navy patrol blimp drifts in from the Pacific without its crew, crashes in a residential neighborhood \u2014 both aviators gone, doors open, life raft still aboard, no sign of a struggle, no bodies ever found.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "91": {
-   "case": "Disappearance of Lars Mittank (Varna Airport, Bulgaria, 2014)",
-   "angle": "A 28-year-old German tourist is seen on airport CCTV sprinting full-speed out of the terminal, dropping his luggage, vaulting a fence, and vanishing into a field \u2014 never seen again, no body, no trail.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "92": {
-   "case": "Therac-25 radiation overdoses (1985-1987, multiple U.S. hospitals)",
-   "angle": "A cancer treatment machine's software bug silently delivered lethal radiation doses to at least six patients, and the manufacturer blamed operators instead of admitting the code was flawed until patients were already dead.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "93": {
-   "case": "The Carroll A. Deering Ghost Ship (Cape Hatteras, 1921)",
-   "angle": "A five-masted schooner found aground on Diamond Shoals with the galley stove still warm, crew's personal effects gone but valuables and provisions left behind, and a ship's logbook and lifeboats missing \u2014 the FBI's first-ever ghost-ship investigation and still unsolved.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "94": {
-   "case": "Commander Lionel 'Buster' Crabb disappearance (Portsmouth, England, 1956)",
-   "angle": "A decorated Royal Navy frogman vanishes during a secret mission to inspect the hull of a Soviet cruiser docked in Portsmouth \u2014 and his headless body washes up 14 months later, with the British government still refusing to release the files.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "95": {
-   "case": "Death of Gareth Williams, MI6 officer (London, 2010)",
-   "angle": "A career codebreaker was found dead, padlocked inside a red North Face sports bag in his own bathtub \u2014 and Scotland Yard ruled it 'probably an accident' despite nobody ever demonstrating that one person could lock themselves inside.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "96": {
-   "case": "Joyce Carol Vincent death (found January 2006, Wood Green, London)",
-   "angle": "A woman's skeleton was found on her living room sofa nearly three years after she died \u2014 the TV was still on, Christmas presents wrapped beside her, and nobody had noticed she was gone.",
-   "sheet_logged": true,
-   "done": true
-  },
-  "97": {
-   "case": "The Bogle-Chandler Case (Sydney, Australia, 1963)",
-   "angle": "A brilliant physicist and his lover are found dead and partially undressed on a riverbank with zero visible injuries \u2014 and police rearranged the bodies before forensics even arrived, destroying any chance of solving it."
-  },
-  "98": {
-   "case": "Loss of the French Submarine Minerve (Mediterranean, 1968)",
-   "angle": "A military submarine with 52 crew simply ceased to exist in calm seas on a clear day \u2014 no distress signal, no debris, no oil slick \u2014 and the wreck sat unfound for 51 years until a private search located it at 2,370 meters in 2019."
+   "angle": "A steamship ran aground on a reef but stayed upright and visible for two days while the captain told rescuers to wait \u2014 then a storm pushed it off the reef and it sank with all 343 people aboard, becoming the deadliest maritime disaster on the Pacific coast of North America.",
+   "sheet_logged": true
   }
  }
 }
