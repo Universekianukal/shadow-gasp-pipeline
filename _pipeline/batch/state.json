@@ -511,7 +511,8 @@
   "113": {
    "case": "British Bank of the Middle East heist (Beirut, January 1976)",
    "angle": "During the Lebanese Civil War, armed men spent two months tunneling through adjacent buildings into the vault of the British Bank of the Middle East and emptied hundreds of safe deposit boxes \u2014 and nobody knows exactly how much was taken or who planned it.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
