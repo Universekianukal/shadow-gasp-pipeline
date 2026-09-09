@@ -2,18 +2,24 @@ name: shadow_gasp render queue (04:30 IST)
 
 # Renders ONE batch day per night; publish_queue.yml takes it live at 05:15 IST.
 #
-# Which day:
+# Which day, in order:
 #   1. a queue.json pending_render day, put there by a Telegram hook-video reply
-#   2. otherwise the next batch day that is ready  (auto-advance, 2026-09-10)
+#   2. otherwise the next ready batch day -- but ONLY as a safety net, if nothing
+#      else is already covering the next slot (auto-advance, 2026-09-10)
 #
-# Two rules, both added 2026-09-10:
-#   * No hook clip at images/seq/01.mp4 -> never dispatched. render_batch_day.yml
-#     would sit on its hook gate for 15 min and then fail, burning the night on a
-#     day that was never going to render. Queued days are held with a reason;
-#     auto-advance steps over them and takes the next ready day.
-#   * A day already published by hand today -> the sweep does nothing. /publish <N>
-#     goes straight to finish_batch_day.yml and never touches queue.json, so the
-#     only way to see it is the Actions API. One video per IST day, either way.
+# Auto-advance exists for the day you forget to send /publish. It must never
+# add a video on top of one you already handled, so it stands down when:
+#   * a day was published by hand today (IST), or
+#   * a day is uploaded and SCHEDULED to go live later (PUBLISH_AT.txt), or
+#   * a day is rendered and waiting for publish_queue (pending_publish).
+# The scheduled case is the subtle one: `/publish <N> at <HH:MM>` uploads now
+# and goes live later, so without PUBLISH_AT.txt (written by finish_batch_day)
+# that day looks identical to one already live, and the sweep would publish a
+# second video alongside it.
+#
+# A queued day with no hook clip is skipped, not dispatched: render_batch_day's
+# hook gate would wait 15 min on Telegram then fail, burning the slot on a day
+# that was never going to render.
 
 on:
   schedule:
@@ -41,7 +47,7 @@ jobs:
           git config user.email "bot@users.noreply.github.com"
 
           # finish_batch_day.yml sets run-name "day <N> (upload=<bool>)" -- that
-          # is where a manual /publish becomes visible to us.
+          # is the only place a manual /publish is visible to us.
           gh run list --workflow=finish_batch_day.yml --limit 60 \
             --json displayTitle,status,conclusion,createdAt > /tmp/manual_runs.json 2>/dev/null || true
           [ -s /tmp/manual_runs.json ] || echo '[]' > /tmp/manual_runs.json
@@ -50,38 +56,57 @@ jobs:
             git fetch origin main -q
             git reset --hard origin/main -q
             python3 - <<'PYEOF'
-          import json, os, datetime
+          import json, os, glob, datetime
 
-          HOOK     = "_pipeline/batch/day{:02d}/images/seq/01.mp4".format
-          UPLOADED = "_pipeline/batch/day{:02d}/YOUTUBE_UPLOADED".format
+          HOOK       = "_pipeline/batch/day{:02d}/images/seq/01.mp4".format
+          UPLOADED   = "_pipeline/batch/day{:02d}/YOUTUBE_UPLOADED".format
+          SCHEDULED  = "_pipeline/batch/day{:02d}/PUBLISH_AT.txt".format
           FIRST_AUTO_DAY, LAST_DAY = 47, 117   # 1-46 predate YOUTUBE_UPLOADED and are live
 
           path = "_pipeline/batch/queue.json"
           q = json.load(open(path)) if os.path.exists(path) else {}
           now = datetime.datetime.now(datetime.timezone.utc)
 
-          # Reuse whichever chat the bot has been talking to, so an auto-advanced
-          # day still reports failures somewhere.
           chat = ""
           for v in q.values():
               chat = v.get("notify_chat_id") or chat
 
-          # Manual publishes: which days they claim, and whether one already went
-          # out today. "Today" is the IST calendar day -- a fixed lookback would
-          # wrongly cancel tomorrow's slot for an evening publish.
+          def parse(ts):
+              try:
+                  return datetime.datetime.fromisoformat(ts.strip().replace("Z", "+00:00"))
+              except ValueError:
+                  return None
+
+          # --- is the next slot already covered? -----------------------------
+          # "today" is the IST calendar day; a fixed lookback long enough to
+          # catch an early-morning publish also reaches into last evening and
+          # would wrongly cancel the NEXT day's slot.
           IST = datetime.timedelta(hours=5, minutes=30)
           ist_midnight = (now + IST).replace(hour=0, minute=0, second=0, microsecond=0) - IST
-          claimed, published_today = set(), False
+
+          claimed, covered = set(), []
           for r in json.load(open("/tmp/manual_runs.json")):
-              # in flight, or finished successfully -- a failed run claims nothing
               if r["status"] == "completed" and r["conclusion"] != "success":
-                  continue
+                  continue          # a failed manual publish claims nothing
               bits = r["displayTitle"].split()
               if len(bits) > 1 and bits[0] == "day" and bits[1].isdigit():
                   claimed.add(int(bits[1]))
-              if datetime.datetime.fromisoformat(r["createdAt"].replace("Z", "+00:00")) >= ist_midnight:
-                  published_today = True
+              t = parse(r["createdAt"])
+              if t and t >= ist_midnight:
+                  covered.append("day %s went out by hand today" % (bits[1] if len(bits) > 1 else "?"))
 
+          for f in sorted(glob.glob("_pipeline/batch/day*/PUBLISH_AT.txt")):
+              t = parse(open(f).read())
+              if t and t > now:
+                  day_n = os.path.basename(os.path.dirname(f))[3:]   # "day48" -> "48"
+                  covered.append("day %s is scheduled for %s"
+                                 % (day_n, t.strftime("%d %b %H:%M UTC")))
+
+          for d, v in q.items():
+              if v.get("status") == "pending_publish":
+                  covered.append("day %s is rendered and publishes next" % d)
+
+          # --- pick ----------------------------------------------------------
           dispatch, held, stepped_over = [], [], []
 
           for d, v in sorted(q.items(), key=lambda kv: int(kv[0])):
@@ -91,19 +116,15 @@ jobs:
                   v["status"] = "rendering"
                   dispatch.append((d, v.get("notify_chat_id") or chat))
               else:
-                  v.update(status="held", prev_status="pending_render",
-                           held_at=now.isoformat(),
+                  v.update(status="held", prev_status="pending_render", held_at=now.isoformat(),
                            held_reason="no hook clip at images/seq/01.mp4 -- skipped by the 04:30 sweep")
                   held.append(d)
 
-          # A day still waiting to publish IS tonight's video: its render ran long
-          # and missed publish_queue by a few minutes, so it goes out tonight
-          # instead. Rendering another day on top would publish two at once.
-          waiting = [d for d, v in q.items() if v.get("status") == "pending_publish"]
-
-          if not dispatch and not published_today and not waiting:
+          if not dispatch and not covered:
               for n in range(FIRST_AUTO_DAY, LAST_DAY + 1):
-                  if str(n) in q or os.path.exists(UPLOADED(n)) or n in claimed:
+                  if str(n) in q or n in claimed:
+                      continue
+                  if os.path.exists(UPLOADED(n)) or os.path.exists(SCHEDULED(n)):
                       continue
                   if not os.path.exists(HOOK(n)):
                       stepped_over.append(n)
@@ -124,11 +145,8 @@ jobs:
               note.append("stepped over, no hook clip: " + ", ".join("day %d" % n for n in stepped_over))
           if dispatch:
               note.append("rendering: " + ", ".join("day " + d for d, _ in dispatch))
-          elif published_today:
-              note.append("a day already went out by hand today -- standing down")
-          elif waiting:
-              note.append("standing down -- day %s is already rendered and publishes tonight"
-                          % ", ".join(sorted(waiting, key=int)))
+          elif covered:
+              note.append("standing down -- " + "; ".join(sorted(set(covered))))
           else:
               note.append("nothing to render -- every remaining day is missing its hook clip")
           open("/tmp/sweep_note.txt", "w").write("; ".join(note))

@@ -470,8 +470,19 @@ jobs:
             echo "::warning::no Cloudinary link — FB/IG crossposting for this day will have nothing to read"
           fi
           if [ -f youtube.json ]; then cp youtube.json "$DAY_DIR/youtube.json"; fi
+          # Record a SCHEDULED publish. With `/publish <N> at <HH:MM>` the video
+          # is uploaded now but goes live later, and until now nothing on disk
+          # said so: PUBLISH_AT was only ever an env var to _youtube_upload.py,
+          # and YOUTUBE_UPLOADED is an empty marker. That made "already live"
+          # and "scheduled for tomorrow" indistinguishable, so render_queue.yml
+          # could not tell that tomorrow's slot was already taken and would put
+          # a second video out on top of it.
+          if [ -n "${{ github.event.inputs.publish_at }}" ]; then
+            echo -n "${{ github.event.inputs.publish_at }}" > "$DAY_DIR/PUBLISH_AT.txt"
+          fi
           for f in _pipeline/cases_used.json \
                    "$DAY_DIR/YOUTUBE_UPLOADED" \
+                   "$DAY_DIR/PUBLISH_AT.txt" \
                    "$DAY_DIR/CLOUDINARY_LINK.txt" \
                    "$DAY_DIR/youtube.json"; do
             if [ -e "$f" ]; then git add "$f"; fi
