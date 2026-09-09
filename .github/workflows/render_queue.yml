@@ -22,6 +22,14 @@ name: shadow_gasp render queue (04:30 IST)
 #      day. Days missing a clip are stepped over; because the SMALLEST eligible
 #      day always wins, a clip that lands late for an earlier day is picked up
 #      on a later sweep rather than being orphaned.
+#
+#   3. HANDS OFF A DAY YOU ARE PUBLISHING YOURSELF. /publish <N> and /day <N>
+#      dispatch finish_batch_day.yml directly and never write to queue.json, so
+#      auto-advance would otherwise land on a day already going out by hand and
+#      upload it twice. Any day with a finish_batch_day.yml run in flight or
+#      already succeeded is left alone. This cannot be done with the
+#      YOUTUBE_UPLOADED marker alone -- that only lands when the manual run
+#      finishes, long after the collision window opens.
 
 on:
   schedule:
@@ -47,6 +55,24 @@ jobs:
         run: |
           git config user.name "shadow-gasp-bot"
           git config user.email "bot@users.noreply.github.com"
+
+          # Days already claimed by a manual Telegram publish. /publish <N> and
+          # /day <N> + hook reply dispatch finish_batch_day.yml DIRECTLY and
+          # never write to queue.json, so without this the sweep would happily
+          # auto-advance onto a day being published by hand and upload it twice.
+          # The YOUTUBE_UPLOADED marker cannot cover this on its own: it is only
+          # committed once that run finishes, which is far too late if it is
+          # still running right now. finish_batch_day.yml's run-name is
+          # "day <N> (upload=<bool>)", so the day number is read back from there.
+          # In flight (queued/in_progress) OR already succeeded both count as
+          # taken; a failed run does not, so a day can still be retried.
+          gh run list --workflow=finish_batch_day.yml --limit 60 \
+            --json displayTitle,status,conclusion \
+            -q '.[] | select(.status != "completed" or .conclusion == "success") | .displayTitle' \
+            2>/dev/null | sed -n 's/^day \([0-9][0-9]*\).*/\1/p' | sort -un > /tmp/taken_days.txt || true
+          touch /tmp/taken_days.txt
+          echo "claimed by a manual publish: $(tr '\n' ' ' < /tmp/taken_days.txt)"
+
           for i in 1 2 3; do
             git fetch origin main -q
             git reset --hard origin/main -q
@@ -66,6 +92,12 @@ jobs:
               q = json.load(open(path))
           except FileNotFoundError:
               q = {}
+
+          # Days a manual /publish has already claimed (see the gh query above).
+          try:
+              taken_manual = {int(x) for x in open("/tmp/taken_days.txt").read().split()}
+          except FileNotFoundError:
+              taken_manual = set()
 
           # Reuse the chat the bot has been talking to, so an auto-advanced day
           # still reports failures somewhere instead of going silent.
@@ -91,9 +123,13 @@ jobs:
                   v["held_at"] = now
                   held.append(d)
 
+          claimed = []
           if not dispatch:
               for n in range(FIRST_AUTO_DAY, LAST_DAY + 1):
                   if str(n) in q or os.path.exists(UPLOADED(n)):
+                      continue
+                  if n in taken_manual:
+                      claimed.append(n)
                       continue
                   if not os.path.exists(HOOK(n)):
                       stepped_over.append(n)
@@ -110,6 +146,8 @@ jobs:
           note = []
           if held:
               note.append("held, no hook clip: " + ", ".join("day " + d for d in held))
+          if claimed:
+              note.append("left to your manual publish: " + ", ".join("day %d" % n for n in claimed))
           if stepped_over:
               note.append("stepped over, no hook clip: " + ", ".join("day %d" % n for n in stepped_over))
           note.append("rendering: " + ", ".join("day " + d for d, _ in dispatch)
