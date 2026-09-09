@@ -96,7 +96,12 @@ jobs:
                            held_reason="no hook clip at images/seq/01.mp4 -- skipped by the 04:30 sweep")
                   held.append(d)
 
-          if not dispatch and not published_today:
+          # A day still waiting to publish IS tonight's video: its render ran long
+          # and missed publish_queue by a few minutes, so it goes out tonight
+          # instead. Rendering another day on top would publish two at once.
+          waiting = [d for d, v in q.items() if v.get("status") == "pending_publish"]
+
+          if not dispatch and not published_today and not waiting:
               for n in range(FIRST_AUTO_DAY, LAST_DAY + 1):
                   if str(n) in q or os.path.exists(UPLOADED(n)) or n in claimed:
                       continue
@@ -121,6 +126,9 @@ jobs:
               note.append("rendering: " + ", ".join("day " + d for d, _ in dispatch))
           elif published_today:
               note.append("a day already went out by hand today -- standing down")
+          elif waiting:
+              note.append("standing down -- day %s is already rendered and publishes tonight"
+                          % ", ".join(sorted(waiting, key=int)))
           else:
               note.append("nothing to render -- every remaining day is missing its hook clip")
           open("/tmp/sweep_note.txt", "w").write("; ".join(note))
