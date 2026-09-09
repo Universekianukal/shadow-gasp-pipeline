@@ -477,7 +477,8 @@
   "80": {
    "case": "Banqiao Dam collapse (1975, Henan, China)",
    "angle": "A single typhoon breached 62 dams in a cascade failure that killed an estimated 171,000 people \u2014 more than Hiroshima and Nagasaki combined \u2014 and the Chinese government suppressed the real death toll for over two decades.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
