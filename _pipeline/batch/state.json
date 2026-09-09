@@ -475,7 +475,8 @@
   "107": {
    "case": "Disappearance of Glenn Miller (December 15, 1944, English Channel)",
    "angle": "The most famous musician in the world boarded a small military transport plane to Paris and vanished without a single piece of wreckage ever being recovered \u2014 no mayday, no debris, no body, and 80 years of conflicting theories from friendly-fire bombing to a secret terminal illness.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
