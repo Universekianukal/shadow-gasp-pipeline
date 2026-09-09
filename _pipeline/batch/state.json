@@ -391,7 +391,8 @@
   "93": {
    "case": "The Carroll A. Deering Ghost Ship (Cape Hatteras, 1921)",
    "angle": "A five-masted schooner found aground on Diamond Shoals with the galley stove still warm, crew's personal effects gone but valuables and provisions left behind, and a ship's logbook and lifeboats missing \u2014 the FBI's first-ever ghost-ship investigation and still unsolved.",
-   "sheet_logged": true
+   "sheet_logged": true,
+   "done": true
   }
  }
 }
