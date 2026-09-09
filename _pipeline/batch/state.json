@@ -368,121 +368,126 @@
   },
   "62": {
    "case": "Disappearance of Benjamin Bathurst (Perleberg, Prussia, 1809)",
-   "angle": "A British diplomat steps around his horses at a coaching inn and is never seen again \u2014 his boots, coat, and hat are found by the carriage but the man simply ceases to exist in a lit courtyard full of witnesses.",
+   "angle": "A British diplomat steps around his horses at a coaching inn and is never seen again \u2014 his boots, coat, and hat are found by the carriage but the man simply ceases to exist in a lit courtyard full of witnesses."
+  },
+  "90": {
+   "case": "The Ghost Blimp / L-8 Naval Airship (Daly City, California, August 16, 1942)",
+   "angle": "A Navy patrol blimp drifts in from the Pacific without its crew, crashes in a residential neighborhood \u2014 both aviators gone, doors open, life raft still aboard, no sign of a struggle, no bodies ever found.",
    "sheet_logged": true,
    "done": true
   },
-  "63": {
-   "case": "Disappearance of Jodi Huisentruit (1995, Mason City, Iowa)",
-   "angle": "A local TV news anchor vanishes mid-morning in her apartment parking lot \u2014 her keys, shoes, and hairdryer scattered on the asphalt \u2014 but the abductor left zero witnesses in a residential complex and the case remains unsolved 30 years later.",
+  "91": {
+   "case": "Disappearance of Lars Mittank (Varna Airport, Bulgaria, 2014)",
+   "angle": "A 28-year-old German tourist is seen on airport CCTV sprinting full-speed out of the terminal, dropping his luggage, vaulting a fence, and vanishing into a field \u2014 never seen again, no body, no trail.",
    "sheet_logged": true,
    "done": true
   },
-  "64": {
-   "case": "Chowchilla School Bus Kidnapping (1976, California)",
-   "angle": "Three masked men hijacked a bus full of 26 children and buried them alive inside a moving van in a rock quarry \u2014 and the driver and kids dug themselves out with their hands before the ransom was even delivered.",
+  "92": {
+   "case": "Therac-25 radiation overdoses (1985-1987, multiple U.S. hospitals)",
+   "angle": "A cancer treatment machine's software bug silently delivered lethal radiation doses to at least six patients, and the manufacturer blamed operators instead of admitting the code was flawed until patients were already dead.",
    "sheet_logged": true,
    "done": true
   },
-  "65": {
-   "case": "The Sarah Joe disappearance (Maui to Taongi Atoll, 1979)",
-   "angle": "Five men vanish from a 17-foot boat off Maui; nine years later the boat is found on a remote Pacific atoll 2,300 miles away with one man buried in a shallow grave and the other four gone without explanation.",
+  "93": {
+   "case": "The Carroll A. Deering Ghost Ship (Cape Hatteras, 1921)",
+   "angle": "A five-masted schooner found aground on Diamond Shoals with the galley stove still warm, crew's personal effects gone but valuables and provisions left behind, and a ship's logbook and lifeboats missing \u2014 the FBI's first-ever ghost-ship investigation and still unsolved.",
    "sheet_logged": true,
    "done": true
   },
-  "66": {
-   "case": "The Mad Trapper of Rat River (Yukon Territory, January\u2013February 1932)",
-   "angle": "A man who called himself Albert Johnson shot a Mountie through his cabin door, then led a 150-mile chase through minus-forty wilderness before being killed \u2014 and no one ever determined who he actually was.",
+  "94": {
+   "case": "Commander Lionel 'Buster' Crabb disappearance (Portsmouth, England, 1956)",
+   "angle": "A decorated Royal Navy frogman vanishes during a secret mission to inspect the hull of a Soviet cruiser docked in Portsmouth \u2014 and his headless body washes up 14 months later, with the British government still refusing to release the files.",
    "sheet_logged": true,
    "done": true
   },
-  "67": {
-   "case": "The West Mesa Bone Collector (Albuquerque, New Mexico, 2009)",
-   "angle": "Eleven women's remains found buried across a 92-acre lot visible on Google Maps, all disappeared from the same Central Avenue corridor, and a suspect named in an FBI search warrant died before anyone could question him.",
+  "95": {
+   "case": "Death of Gareth Williams, MI6 officer (London, 2010)",
+   "angle": "A career codebreaker was found dead, padlocked inside a red North Face sports bag in his own bathtub \u2014 and Scotland Yard ruled it 'probably an accident' despite nobody ever demonstrating that one person could lock themselves inside.",
    "sheet_logged": true,
    "done": true
   },
-  "68": {
-   "case": "Elmer McCurdy, the Outlaw Mummy (1976 discovery, Long Beach, California)",
-   "angle": "A 1911 outlaw's corpse was mummified, sold to a carnival, and ended up as a funhouse prop at an amusement park\u2014where in 1976 a crew member bent the arm to move it and a real human bone snapped, revealing it had been a dead body on public display for 65 years.",
+  "96": {
+   "case": "Joyce Carol Vincent death (found January 2006, Wood Green, London)",
+   "angle": "A woman's skeleton was found on her living room sofa nearly three years after she died \u2014 the TV was still on, Christmas presents wrapped beside her, and nobody had noticed she was gone.",
    "sheet_logged": true,
    "done": true
   },
-  "69": {
-   "case": "The Banco Central Tunnel Heist (Fortaleza, Brazil, 2005)",
-   "angle": "A gang rented a house across the street from the bank, posed as a landscaping business, and spent three months digging a 78-meter tunnel lined with plastic and electric lighting to steal 156 million reais \u2014 roughly 3.5 tons of cash that has never been fully recovered.",
+  "97": {
+   "case": "The Bogle-Chandler Case (Sydney, Australia, 1963)",
+   "angle": "A brilliant physicist and his lover are found dead and partially undressed on a riverbank with zero visible injuries \u2014 and police rearranged the bodies before forensics even arrived, destroying any chance of solving it.",
    "sheet_logged": true,
    "done": true
   },
-  "70": {
-   "case": "SS Princess Sophia disaster (Vanderbilt Reef, Alaska, October 25, 1918)",
-   "angle": "A steamship ran aground on a reef but stayed upright and visible for two days while the captain told rescuers to wait \u2014 then a storm pushed it off the reef and it sank with all 343 people aboard, becoming the deadliest maritime disaster on the Pacific coast of North America.",
+  "98": {
+   "case": "Loss of the French Submarine Minerve (Mediterranean, 1968)",
+   "angle": "A military submarine with 52 crew simply ceased to exist in calm seas on a clear day \u2014 no distress signal, no debris, no oil slick \u2014 and the wreck sat unfound for 51 years until a private search located it at 2,370 meters in 2019.",
    "sheet_logged": true,
    "done": true
   },
-  "71": {
-   "case": "The Toynbee Tiles (Philadelphia, 1980s\u2013present)",
-   "angle": "Mosaic messages embedded in asphalt across dozens of cities from Boston to Buenos Aires, all referencing Arnold Toynbee, Stanley Kubrick, and 'resurrect dead on planet Jupiter' \u2014 a single obsessive creator suspected but never confirmed.",
+  "99": {
+   "case": "Brian Shaffer disappearance (2006, Columbus, Ohio)",
+   "angle": "A medical student was captured on surveillance camera entering a bar with only one public entrance \u2014 yet there is no footage of him ever leaving, and he was never seen again.",
    "sheet_logged": true,
    "done": true
   },
-  "72": {
-   "case": "Keddie Cabin Murders (1981, Keddie, California)",
-   "angle": "A mother and two teenagers were bound with wire and duct tape and bludgeoned to death inside Cabin 28 of a remote Sierra Nevada resort while two young children survived in the next room \u2014 and the case has never been solved.",
+  "100": {
+   "case": "The Gr\u00e9gory Villemin Case (1984, France)",
+   "angle": "A 4-year-old boy is pulled from a river and for years an anonymous letter-writer called 'the Crow' taunts the family with confessions \u2014 but the killer was never definitively identified and a family member was both convicted and acquitted.",
    "sheet_logged": true,
    "done": true
   },
-  "73": {
-   "case": "The Gal\u00e1pagos Affair (Floreana Island, 1934)",
-   "angle": "A self-proclaimed 'Empress of the Gal\u00e1pagos' and her lover vanished from an island with only eight inhabitants, and the two remaining settler families gave contradictory accounts of a departing yacht that no port ever recorded.",
+  "101": {
+   "case": "The V\u00e4stberga Helicopter Heist (Stockholm, Sweden, September 23, 2009)",
+   "angle": "Robbers landed a stolen Bell 206 JetRanger on the roof of a cash depot at dawn, blew the skylight with explosives, and lifted off with 39 million kronor while police were stuck behind fake caltrops and a fake bomb at the helipad.",
    "sheet_logged": true,
    "done": true
   },
-  "74": {
-   "case": "Disappearance of Richard Halliburton (1939, Pacific Ocean)",
-   "angle": "One of the most famous men in America \u2014 a celebrity adventurer who swam the Panama Canal and climbed the Matterhorn \u2014 vanished attempting to sail a Chinese junk called the Sea Dragon from Hong Kong to San Francisco, sending a final radio message into a storm and then silence.",
+  "102": {
+   "case": "The Atlas Vampire / Murder of Lilly Lindestr\u00f6m (Stockholm, 1932)",
+   "angle": "A woman found dead in her apartment with her blood drained and a gravy ladle at the scene \u2014 the killer left a ladder propped against her window and was never identified, despite fingerprints still on file.",
    "sheet_logged": true,
    "done": true
   },
-  "75": {
-   "case": "Disappearance of Andrew Gosden (London, 2007)",
-   "angle": "A 14-year-old math prodigy skipped school, bought a one-way ticket to London with cash, was last seen on CCTV leaving King's Cross station, and simply ceased to exist \u2014 no phone, no bank activity, no body, ever.",
+  "103": {
+   "case": "Roopkund Skeleton Lake (Uttarakhand, India, discovered 1942)",
+   "angle": "A Himalayan lake at 16,500 feet is filled with hundreds of human bones, long thought to be from a single catastrophic hailstorm \u2014 until a 2019 DNA study revealed the dead came from at least three genetically distinct populations spanning roughly a thousand years, demolishing the one-event theory entirely.",
    "sheet_logged": true,
    "done": true
   },
-  "76": {
-   "case": "Disappearance of Zebb Quinn (Asheville, NC, January 2, 2000)",
-   "angle": "An 18-year-old left his Walmart shift and vanished; days later his car appeared at a hospital parking lot with a stranger's name written on a wall, a live puppy inside, and a lipstick kiss on the windshield \u2014 and it only gets stranger from there.",
+  "104": {
+   "case": "Death of Blair Adams (1996, Knoxville, Tennessee)",
+   "angle": "A construction worker told coworkers and family someone was trying to kill him, then drove across the continent with thousands in cash and multiple plane tickets, only to be found dead in a gas station parking lot \u2014 pants pulled down, keys in hand, no visible wounds, and $4,000 in five currencies scattered around him.",
    "sheet_logged": true,
    "done": true
   },
-  "77": {
-   "case": "Peter Bergmann (Sligo, Ireland, 2009)",
-   "angle": "A man with a fake name checked into a hotel, spent three days methodically disposing of all identifying documents, walked to a beach, and was found dead \u2014 with no match in any database on Earth and a lavender scent on him that has never been explained.",
+  "105": {
+   "case": "The Celle Hole / Celler Loch (1978, West Germany)",
+   "angle": "West German intelligence agents blew a three-meter hole in the wall of Celle Prison to frame Red Army Faction terrorists and plant an informant \u2014 but the explosion was so powerful it left a trail of forensic evidence, and the entire false-flag operation collapsed into public scandal.",
    "sheet_logged": true,
    "done": true
   },
-  "78": {
-   "case": "Isidor Fink Locked-Room Death (New York, 1929)",
-   "angle": "A tailor is found shot dead inside his shop with every door and window locked from the inside and no weapon anywhere \u2014 police had to climb through a transom to get in, and the killer's exit remains physically impossible.",
+  "106": {
+   "case": "Disappearance of Connie Smith (1952, Salisbury, Connecticut)",
+   "angle": "A ten-year-old granddaughter of a former governor walked away from her summer camp to buy a stamp, left a signed note, and vanished within two hundred yards of a busy road with no body, no abductor, and no trace ever found.",
    "sheet_logged": true,
    "done": true
   },
-  "79": {
-   "case": "SS Flor de la Mar wreck (1511, Strait of Malacca)",
-   "angle": "A Portuguese carrack carrying the single largest treasure ever lost at sea \u2014 looted from the Malacca Sultanate, estimated at $17 billion today \u2014 sank in a storm off Sumatra and has never been found despite centuries of salvage attempts.",
+  "107": {
+   "case": "Disappearance of Glenn Miller (December 15, 1944, English Channel)",
+   "angle": "The most famous musician in the world boarded a small military transport plane to Paris and vanished without a single piece of wreckage ever being recovered \u2014 no mayday, no debris, no body, and 80 years of conflicting theories from friendly-fire bombing to a secret terminal illness.",
    "sheet_logged": true,
    "done": true
   },
-  "80": {
-   "case": "Banqiao Dam collapse (1975, Henan, China)",
-   "angle": "A single typhoon breached 62 dams in a cascade failure that killed an estimated 171,000 people \u2014 more than Hiroshima and Nagasaki combined \u2014 and the Chinese government suppressed the real death toll for over two decades.",
+  "108": {
+   "case": "The Dugway Sheep Incident (1968, Utah)",
+   "angle": "The US Army tested VX nerve agent outdoors and 6,000 sheep died in Skull Valley over three days \u2014 they admitted it only after trying to blame everything from pesticides to botulism.",
    "sheet_logged": true,
    "done": true
   },
-  "81": {
-   "case": "Han van Meegeren art forgery trial (Netherlands, 1945)",
-   "angle": "Accused of selling a Vermeer to Goering \u2014 a capital collaboration charge \u2014 he had to prove his 'Vermeers' were his own forgeries by painting a new fake Vermeer inside his jail cell while experts watched."
+  "109": {
+   "case": "BSAA Star Dust and the 'STENDEC' Morse Code Mystery (1947, Andes)",
+   "angle": "A passenger plane vanished into the Andes; its final radio message was an unknown word 'STENDEC' that operators asked to repeat twice, then silence \u2014 wreckage emerged from a glacier 51 years later but the word remains unexplained.",
+   "sheet_logged": true
   }
  }
 }
