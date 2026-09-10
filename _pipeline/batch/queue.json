@@ -75,5 +75,11 @@
     "held_reason": "stills being re-rendered on PixArt-Sigma; existing hook clip was animated from the superseded FLUX shot1 and must be replaced before this day renders",
     "held_at": "2026-08-29T21:20:00Z",
     "prev_status": "pending_render"
+  },
+  "48": {
+    "status": "rendering",
+    "notify_chat_id": "8692339206",
+    "queued_at": "2026-09-10T22:19:06.568235+00:00",
+    "auto_advanced": true
   }
 }
