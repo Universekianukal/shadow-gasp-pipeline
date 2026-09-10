@@ -77,7 +77,7 @@
     "prev_status": "pending_render"
   },
   "48": {
-    "status": "publishing",
+    "status": "published",
     "notify_chat_id": "8692339206",
     "queued_at": "2026-09-10T22:19:06.568235+00:00",
     "auto_advanced": true,
