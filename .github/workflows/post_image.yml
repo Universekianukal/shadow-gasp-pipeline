@@ -1,0 +1,108 @@
+name: shadow_gasp photo post (Facebook / Instagram)
+
+# Dispatched by the shadow-gasp bots when a photo-post "Post" button is tapped,
+# or by their scheduler when a "Schedule"d photo post comes due. Posts ONE image
+# immediately -- Instagram's API cannot schedule, so the waiting happens in the
+# Worker, never here.
+#
+# New file, added 2026-09-12. It does not touch crosspost_decision.yml (the
+# video Approve/Reject flow) or any other workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "fb or ig"
+        required: true
+      source:
+        description: "day (that day's thumbnail still) or photo (a photo sent to the bot)"
+        required: true
+      day:
+        description: "Batch day number, for source=day"
+        default: ""
+      photo_token:
+        description: "Worker's stored-photo token, for source=photo"
+        default: ""
+      caption:
+        description: "Caption (blank for source=day = the video's own caption)"
+        default: ""
+      bot:
+        description: "video or comics -- which bot holds the photo and gets the result"
+        default: "video"
+      notify_chat_id:
+        default: ""
+      label:
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WORKER_URL: ${{ inputs.bot == 'comics' && secrets.COMICS_WORKER_URL || 'https://shadow-gasp-bot.everydayhypehq.workers.dev' }}
+      WORKER_SECRET_HEADER: ${{ inputs.bot == 'comics' && 'X-Shared-Secret' || 'X-Batch-Notify-Secret' }}
+      WORKER_SECRET: ${{ inputs.bot == 'comics' && secrets.COMICS_WORKER_SHARED_SECRET || secrets.BATCH_NOTIFY_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve day dir
+        if: inputs.source == 'day'
+        run: |
+          DAY=$(printf "%02d" "${{ inputs.day }}")
+          echo "DAY_DIR=_pipeline/batch/day$DAY" >> "$GITHUB_ENV"
+
+      - name: Python deps
+        run: pip install --quiet requests Pillow
+
+      - name: Post the photo
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          SOURCE: ${{ inputs.source }}
+          PHOTO_TOKEN: ${{ inputs.photo_token }}
+          CAPTION: ${{ inputs.caption }}
+          NOTIFY_CHAT_ID: ${{ inputs.notify_chat_id }}
+          LABEL: ${{ inputs.label }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FB_PAGE_ID: "1164008466785123"
+          IG_USER_ID: "17841425663819735"
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: python3 _pipeline/_post_image.py
+
+      - name: Commit the posted marker (stops a duplicate of the same day)
+        if: success() && inputs.source == 'day'
+        run: |
+          MARK=$([ "${{ inputs.platform }}" = "fb" ] && echo FB_IMG_POSTED || echo IG_IMG_POSTED)
+          git config user.name "shadow-gasp-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add "$DAY_DIR/$MARK"
+          git diff --cached --quiet || git commit -q -m "day ${{ inputs.day }}: ${{ inputs.platform }} photo posted via Telegram"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main -q && git push origin HEAD:main && break
+            echo "push conflict, retry $i"
+            sleep $((RANDOM % 8 + 3))
+          done
+
+      - name: Tell Telegram if the script never got to report
+        # The script reports its own success/failure. This only fires if it died
+        # before that (e.g. pip failed), so a failure is never silent.
+        if: failure()
+        continue-on-error: true
+        env:
+          CHAT: ${{ inputs.notify_chat_id }}
+          PLATFORM: ${{ inputs.platform }}
+          LABEL: ${{ inputs.label }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 -c 'import json,os;print(json.dumps({"ok":False,"platform":os.environ["PLATFORM"],"label":os.environ["LABEL"] or "Photo post","chat_id":os.environ["CHAT"],"run_url":os.environ["RUN_URL"],"error":"the post job failed -- see the run log","fallback":True}))' > /tmp/fail.json
+          curl -sS -X POST "${WORKER_URL%/}/post/decided" \
+            -H "$WORKER_SECRET_HEADER: $WORKER_SECRET" -H "Content-Type: application/json" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            --data @/tmp/fail.json || true
