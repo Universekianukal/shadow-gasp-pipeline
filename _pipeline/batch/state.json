@@ -545,6 +545,12 @@
    "angle": "",
    "sheet_logged": true,
    "done": true
+  },
+  "92": {
+   "case": "Assassination of Olof Palme (Stockholm, Sweden, February 28, 1986)",
+   "angle": "",
+   "sheet_logged": false,
+   "done": false
   }
  }
 }
