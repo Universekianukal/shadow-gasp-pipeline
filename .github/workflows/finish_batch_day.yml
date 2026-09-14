@@ -261,11 +261,15 @@ jobs:
         # of the three are in @latest's documented render flags, so they were
         # already stale holdovers from whatever CLI version this pin started
         # life on; --workers 1 already minimizes Chrome instance count.
+        # Re-pinned to 0.8.36 (2026-09-15): releases up to 0.8.40 (2026-09-14)
+        # switched capture from screenshot to beginframe mode, which hangs at
+        # "Starting frame capture" (Runtime.callFunctionOn timed out) -- day 51
+        # died that way. 0.8.36 rendered day 91 in screenshot mode on 09-13.
         working-directory: ${{ env.DAY_DIR }}
         run: |
           for attempt in 1 2 3; do
             echo "=== render attempt $attempt ==="
-            npx --yes hyperframes@latest render \
+            npx --yes hyperframes@0.8.36 render \
               --fps 30 -o final.mp4 \
               --workers 1 \
               --quality high \
