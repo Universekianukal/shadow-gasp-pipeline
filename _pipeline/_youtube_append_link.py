@@ -92,19 +92,31 @@ def gumroad_is_published(url):
               file=sys.stderr)
         return None
     slug = url.rstrip("/").rsplit("/", 1)[-1].lower()
-    try:
-        req = urllib.request.Request(
-            "https://api.gumroad.com/v2/products?access_token=" + urllib.parse.quote(token),
-            headers={"User-Agent": "shadow-gasp-funnel"})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            data = json.loads(r.read().decode("utf-8", "replace"))
-    except Exception as exc:  # noqa: BLE001
-        print(f"Gumroad API lookup failed: {exc}", file=sys.stderr)
-        return None
-    for p in data.get("products", []):
-        short = (p.get("short_url") or "").rstrip("/").rsplit("/", 1)[-1].lower()
-        if short == slug:
-            return bool(p.get("published"))
+    # /v2/products returns 10 per page and hands back next_page_key when more remain. Reading
+    # only page 1 made every product past the newest 10 "not found": 2026-09-14 the funnel for
+    # day 51 refused #35 COLLARED (published) with "No Gumroad product matches permalink".
+    # Capped at 30 pages; a repeated key stops the loop.
+    page_key, seen = None, set()
+    for _ in range(30):
+        q = "access_token=" + urllib.parse.quote(token)
+        if page_key:
+            q += "&page_key=" + urllib.parse.quote(page_key)
+        try:
+            req = urllib.request.Request("https://api.gumroad.com/v2/products?" + q,
+                                         headers={"User-Agent": "shadow-gasp-funnel"})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = json.loads(r.read().decode("utf-8", "replace"))
+        except Exception as exc:  # noqa: BLE001
+            print(f"Gumroad API lookup failed: {exc}", file=sys.stderr)
+            return None
+        for p in data.get("products", []):
+            short = (p.get("short_url") or "").rstrip("/").rsplit("/", 1)[-1].lower()
+            if slug in (short, (p.get("custom_permalink") or "").lower()):
+                return bool(p.get("published"))
+        page_key = data.get("next_page_key")
+        if not page_key or page_key in seen:
+            break
+        seen.add(page_key)
     print(f"No Gumroad product matches permalink '{slug}'.", file=sys.stderr)
     return None
 
