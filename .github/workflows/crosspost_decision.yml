@@ -31,6 +31,9 @@ on:
       schedule_at:
         description: "fb only: unix seconds -> Facebook's own scheduler (shows in the FB Planner). Blank = post now"
         default: ""
+      ig_reels_only:
+        description: "ig only: 'true' = Reels tab only (share_to_feed=false, not in the profile grid). Blank = Reel + grid"
+        default: ""
 
 permissions:
   contents: write
@@ -87,7 +90,7 @@ jobs:
           test -f "$DAY_DIR/CLOUDINARY_LINK.txt" || { echo "::error::$DAY_DIR/CLOUDINARY_LINK.txt missing -- was this day published before the CLOUDINARY_LINK.txt commit step existed?"; exit 1; }
           VIDEO_URL=$(cat "$DAY_DIR/CLOUDINARY_LINK.txt")
           PLATFORM="${{ github.event.inputs.platform }}" VIDEO_URL="$VIDEO_URL" DAY_DIR="$DAY_DIR" \
-            SCHEDULE_AT="${{ github.event.inputs.schedule_at }}" \
+            SCHEDULE_AT="${{ github.event.inputs.schedule_at }}" IG_REELS_ONLY="${{ github.event.inputs.ig_reels_only }}" \
             python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
 
       - name: Commit post marker

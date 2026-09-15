@@ -78,15 +78,20 @@ def post_to_facebook(token, caption, video_url, schedule_at=None):
     return post_id
 
 
-def post_to_instagram(token, caption, video_url):
+def post_to_instagram(token, caption, video_url, reels_only=False):
+    data = {
+        "media_type": "REELS",  # IG deprecated plain feed VIDEO posts; REELS is the current path
+        "video_url": video_url,
+        "caption": caption,
+        "access_token": token,
+    }
+    if reels_only:
+        # "🎞 IG: Reels only" button: the Reel appears ONLY in the Reels tab -- not the
+        # profile grid / followers' feed. Can only be set at creation (the API can't move it later).
+        data["share_to_feed"] = "false"
     resp = requests.post(
         f"{GRAPH}/{IG_USER_ID}/media",
-        data={
-            "media_type": "REELS",  # IG deprecated plain feed VIDEO posts; REELS is the current path
-            "video_url": video_url,
-            "caption": caption,
-            "access_token": token,
-        },
+        data=data,
         timeout=60,
     )
     resp.raise_for_status()
@@ -152,7 +157,8 @@ def main():
     if platform == "fb":
         post_to_facebook(token, caption, video_url, schedule_at=schedule_at or None)
     else:
-        post_to_instagram(token, caption, video_url)
+        reels_only = os.environ.get("IG_REELS_ONLY", "").strip().lower() == "true"
+        post_to_instagram(token, caption, video_url, reels_only=reels_only)
     with open(marker_path, "w") as f:
         # FB_POSTED on a scheduled video = handed to Facebook's scheduler (blocks a double post).
         if schedule_at:
