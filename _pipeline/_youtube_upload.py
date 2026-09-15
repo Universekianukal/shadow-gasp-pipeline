@@ -13,6 +13,7 @@ YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN.
 """
 import json
 import os
+import re
 import sys
 
 from google.oauth2.credentials import Credentials
@@ -82,6 +83,31 @@ def stamp_ledger(video_id, case):
     print(f"No reserved ledger entry found for '{case}' — not stamping", file=sys.stderr)
 
 
+NO_NOTIFY_MARKER = "YT_NO_NOTIFY"
+LIVE_RAW = "https://raw.githubusercontent.com/Universekianukal/shadow-gasp-pipeline/main"
+
+
+def _yt_no_notify():
+    """True if Telegram's /silent <N> marked this day: upload with notifySubscribers=false.
+    Checks the checkout first, then LIVE main -- the upload job's checkout is the commit from
+    when the workflow started (a /publish renders for 20-40 min first), so a later /silent
+    would otherwise be missed. Any failure = notify as normal (YouTube's default)."""
+    day_dir = os.environ.get("DAY_DIR", ".")
+    if os.path.exists(os.path.join(day_dir, NO_NOTIFY_MARKER)):
+        return True
+    rel = day_dir.replace("\\", "/").strip("/")
+    if not re.fullmatch(r"_pipeline/batch/day\d+", rel):
+        return False
+    try:
+        import requests
+        r = requests.get(f"{LIVE_RAW}/{rel}/{NO_NOTIFY_MARKER}", timeout=20,
+                         headers={"User-Agent": "shadow-gasp-pipeline"})
+        return r.status_code == 200
+    except Exception as e:  # never let the check block an upload
+        print(f"WARNING: couldn't check live {NO_NOTIFY_MARKER} ({e}) -- notifying as normal", file=sys.stderr)
+        return False
+
+
 def main():
     force = os.environ.get("FORCE_YOUTUBE_UPLOAD", "").strip().lower() == "true"
     if os.path.exists(YOUTUBE_MARKER_PATH) and not force:
@@ -117,7 +143,11 @@ def main():
 
     yt = get_service()
     media = MediaFileUpload(VIDEO_PATH, chunksize=-1, resumable=True, mimetype="video/mp4")
-    request = yt.videos().insert(part="snippet,status", body=body, media_body=media)
+    if _yt_no_notify():
+        print("notifySubscribers=false (Telegram /silent -- YT_NO_NOTIFY marker)")
+        request = yt.videos().insert(part="snippet,status", body=body, media_body=media, notifySubscribers=False)
+    else:
+        request = yt.videos().insert(part="snippet,status", body=body, media_body=media)
 
     response = None
     while response is None:
