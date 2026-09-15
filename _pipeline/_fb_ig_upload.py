@@ -78,6 +78,82 @@ def post_to_facebook(token, caption, video_url, schedule_at=None):
     return post_id
 
 
+def _fb_video_status(token, video_id):
+    r = requests.get(f"{GRAPH}/{video_id}", params={"fields": "status", "access_token": token}, timeout=30)
+    r.raise_for_status()
+    return r.json().get("status") or {}
+
+
+def post_fb_reel(token, caption, video_url, schedule_at=None):
+    """"🎞 FB: Reel" button: publish as a Facebook REEL (Page Reels section, recommended to
+    non-followers too) via the Reels Publishing API -- start -> hosted-file upload -> finish.
+    Reels must be 3-90 s, 9:16; max 30 API reels per Page per 24 h."""
+    start = requests.post(f"{GRAPH}/{FB_PAGE_ID}/video_reels",
+                          data={"upload_phase": "start", "access_token": token}, timeout=60)
+    if not start.ok:
+        print(f"Facebook refused the reel start: {start.status_code} {start.text[:500]}", file=sys.stderr)
+    start.raise_for_status()
+    video_id = start.json()["video_id"]
+
+    up = requests.post(f"https://rupload.facebook.com/video-upload/{GRAPH.rsplit('/', 1)[-1]}/{video_id}",
+                       headers={"Authorization": f"OAuth {token}", "file_url": video_url}, timeout=600)
+    if not up.ok:
+        print(f"Facebook refused the reel upload: {up.status_code} {up.text[:500]}", file=sys.stderr)
+    up.raise_for_status()
+
+    deadline = time.time() + POLL_TIMEOUT_S
+    while time.time() < deadline:
+        st = _fb_video_status(token, video_id)
+        phase = (st.get("uploading_phase") or {}).get("status")
+        if st.get("video_status") == "error" or phase == "error":
+            raise RuntimeError(f"Facebook reel {video_id} upload failed: {st}")
+        if phase == "complete" or st.get("video_status") in ("ready", "upload_complete"):
+            break
+        time.sleep(POLL_INTERVAL_S)
+    else:
+        raise TimeoutError(f"Facebook reel {video_id} upload did not finish within {POLL_TIMEOUT_S}s")
+
+    fin_data = {"upload_phase": "finish", "video_id": video_id, "video_state": "PUBLISHED",
+                "description": caption, "access_token": token}
+    if schedule_at:
+        # "⏰ FB: Schedule Reel": Facebook holds it in the Planner (10 min - 29 days ahead).
+        fin_data.update({"video_state": "SCHEDULED", "scheduled_publish_time": str(schedule_at)})
+    fin = requests.post(f"{GRAPH}/{FB_PAGE_ID}/video_reels", data=fin_data, timeout=120)
+    if not fin.ok:
+        print(f"Facebook refused to publish the reel: {fin.status_code} {fin.text[:500]}", file=sys.stderr)
+    fin.raise_for_status()
+    if not fin.json().get("success"):
+        raise RuntimeError(f"Facebook reel {video_id} finish returned {fin.text[:300]}")
+
+    deadline = time.time() + (0 if schedule_at else POLL_TIMEOUT_S)  # scheduled: nothing to wait for
+    while time.time() < deadline:
+        st = _fb_video_status(token, video_id)
+        pub = (st.get("publishing_phase") or {}).get("status")
+        if st.get("video_status") == "error" or pub == "error" or (st.get("processing_phase") or {}).get("status") == "error":
+            raise RuntimeError(f"Facebook reel {video_id} failed processing: {st}")
+        if pub == "complete":
+            break
+        time.sleep(POLL_INTERVAL_S)
+    else:
+        if not schedule_at:
+            print(f"WARNING: reel {video_id} not reported published within {POLL_TIMEOUT_S}s -- check the Page", file=sys.stderr)
+
+    ref = video_id
+    try:  # the post id is what FB comments carry (comment funnel); fall back to the video id
+        r = requests.get(f"{GRAPH}/{video_id}", params={"fields": "post_id", "access_token": token}, timeout=30)
+        if r.ok and r.json().get("post_id"):
+            ref = f"{FB_PAGE_ID}_{r.json()['post_id']}" if "_" not in str(r.json()["post_id"]) else r.json()["post_id"]
+    except requests.RequestException:
+        pass
+    if schedule_at:
+        print(f"Facebook reel scheduled for unix {schedule_at}: video_id={video_id} https://facebook.com/{ref}")
+        print(f"fb_scheduled_at={schedule_at}")
+    else:
+        print(f"Facebook reel posted: video_id={video_id} https://facebook.com/{ref}")
+    print(f"fb_post_id={ref}")
+    return ref
+
+
 def post_to_instagram(token, caption, video_url, reels_only=False):
     data = {
         "media_type": "REELS",  # IG deprecated plain feed VIDEO posts; REELS is the current path
@@ -154,7 +230,14 @@ def main():
         print("SCHEDULE_AT is Facebook-only (Instagram's API cannot schedule)", file=sys.stderr)
         sys.exit(1)
 
-    if platform == "fb":
+    as_reel = os.environ.get("FB_AS_REEL", "").strip().lower() == "true"
+    if as_reel and platform != "fb":
+        print("FB_AS_REEL is Facebook-only", file=sys.stderr)
+        sys.exit(1)
+
+    if platform == "fb" and as_reel:
+        post_fb_reel(token, caption, video_url, schedule_at=schedule_at or None)
+    elif platform == "fb":
         post_to_facebook(token, caption, video_url, schedule_at=schedule_at or None)
     else:
         reels_only = os.environ.get("IG_REELS_ONLY", "").strip().lower() == "true"
