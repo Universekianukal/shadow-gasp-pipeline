@@ -28,6 +28,9 @@ on:
       notify_chat_id:
         description: "Telegram chat id to confirm the outcome to (blank for manual runs)"
         default: ""
+      schedule_at:
+        description: "fb only: unix seconds -> Facebook's own scheduler (shows in the FB Planner). Blank = post now"
+        default: ""
 
 permissions:
   contents: write
@@ -84,6 +87,7 @@ jobs:
           test -f "$DAY_DIR/CLOUDINARY_LINK.txt" || { echo "::error::$DAY_DIR/CLOUDINARY_LINK.txt missing -- was this day published before the CLOUDINARY_LINK.txt commit step existed?"; exit 1; }
           VIDEO_URL=$(cat "$DAY_DIR/CLOUDINARY_LINK.txt")
           PLATFORM="${{ github.event.inputs.platform }}" VIDEO_URL="$VIDEO_URL" DAY_DIR="$DAY_DIR" \
+            SCHEDULE_AT="${{ github.event.inputs.schedule_at }}" \
             python3 _pipeline/_fb_ig_upload.py | tee /tmp/crosspost.log
 
       - name: Commit post marker
@@ -145,11 +149,18 @@ jobs:
           DECISION: ${{ github.event.inputs.decision }}
         run: |
           REF_ID=""
+          SCHED=""
           if [ "$DECISION" = "approve" ]; then
             REF_ID=$(grep -o 'fb_post_id=.*\|ig_media_id=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
+            SCHED=$(grep -o 'fb_scheduled_at=.*' /tmp/crosspost.log 2>/dev/null | cut -d= -f2)
           fi
-          printf '{"day":"%s","platform":"%s","decision":"%s","ref_id":"%s","chat_id":"%s"}' \
-            "$DAY" "$PLATFORM" "$DECISION" "$REF_ID" "$CHAT" > /tmp/decision.json
+          if [ -n "$SCHED" ]; then
+            printf '{"day":"%s","platform":"%s","decision":"%s","ref_id":"%s","chat_id":"%s","scheduled_at":"%s"}' \
+              "$DAY" "$PLATFORM" "$DECISION" "$REF_ID" "$CHAT" "$SCHED" > /tmp/decision.json
+          else
+            printf '{"day":"%s","platform":"%s","decision":"%s","ref_id":"%s","chat_id":"%s"}' \
+              "$DAY" "$PLATFORM" "$DECISION" "$REF_ID" "$CHAT" > /tmp/decision.json
+          fi
           curl -sS -X POST "$BASE/batch/crosspost-decided" \
             -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json" \
             --data @/tmp/decision.json || echo "could not reach the bot"

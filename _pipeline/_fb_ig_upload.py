@@ -49,19 +49,31 @@ def build_caption(meta):
     return caption
 
 
-def post_to_facebook(token, caption, video_url):
+def post_to_facebook(token, caption, video_url, schedule_at=None):
     # file_url instead of a multipart binary upload -- the permanent
     # Cloudinary link means there's no need to have final.mp4 on disk at all,
     # which matters here since this can run days after the original render's
     # artifact has expired.
+    data = {"description": caption, "file_url": video_url, "access_token": token}
+    if schedule_at:
+        # Facebook's own scheduler: the video uploads now, sits in Meta Business
+        # Suite's Planner (movable/editable there) and Facebook publishes it at
+        # this unix time. Meta requires it to be at least 10 minutes ahead.
+        data.update({"published": "false", "scheduled_publish_time": str(schedule_at)})
     resp = requests.post(
         f"{GRAPH}/{FB_PAGE_ID}/videos",
-        data={"description": caption, "file_url": video_url, "access_token": token},
+        data=data,
         timeout=600,
     )
+    if not resp.ok:
+        print(f"Facebook refused: {resp.status_code} {resp.text[:500]}", file=sys.stderr)
     resp.raise_for_status()
     post_id = resp.json()["id"]
-    print(f"Facebook posted: https://facebook.com/{post_id}")
+    if schedule_at:
+        print(f"Facebook scheduled for unix {schedule_at}: https://facebook.com/{post_id}")
+        print(f"fb_scheduled_at={schedule_at}")
+    else:
+        print(f"Facebook posted: https://facebook.com/{post_id}")
     print(f"fb_post_id={post_id}")
     return post_id
 
@@ -132,11 +144,19 @@ def main():
               f"(set FORCE_CROSSPOST=true to force a repost)")
         return
 
+    schedule_at = os.environ.get("SCHEDULE_AT", "").strip()
+    if schedule_at and platform != "fb":
+        print("SCHEDULE_AT is Facebook-only (Instagram's API cannot schedule)", file=sys.stderr)
+        sys.exit(1)
+
     if platform == "fb":
-        post_to_facebook(token, caption, video_url)
+        post_to_facebook(token, caption, video_url, schedule_at=schedule_at or None)
     else:
         post_to_instagram(token, caption, video_url)
-    open(marker_path, "w").close()
+    with open(marker_path, "w") as f:
+        # FB_POSTED on a scheduled video = handed to Facebook's scheduler (blocks a double post).
+        if schedule_at:
+            f.write(f"scheduled_publish_time={schedule_at}\n")
 
 
 if __name__ == "__main__":
