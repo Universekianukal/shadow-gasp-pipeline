@@ -81,7 +81,7 @@ jobs:
 
       - name: Python deps
         if: github.event.inputs.decision == 'approve'
-        run: pip install --quiet requests cloudinary
+        run: pip install --quiet requests cloudinary imageio-ffmpeg
 
       - name: Approve -- post now, from the permanent Cloudinary link
         id: approve

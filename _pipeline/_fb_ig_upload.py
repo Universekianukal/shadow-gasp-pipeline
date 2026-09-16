@@ -160,8 +160,25 @@ class IgProcessingError(RuntimeError):
         self.container_id = container_id
 
 
-def _faststart_copy(video_url):
-    """A TEMPORARY Cloudinary copy of the video with its index (moov) moved to the front.
+# Retry recipes, in order: a lossless remux with the index moved to the front, then a re-encode to
+# the settings Meta documents as safe for Reels.
+FASTSTART = ["-c", "copy", "-movflags", "+faststart"]
+SAFE_REENCODE = ["-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-preset", "veryfast",
+                 "-crf", "20", "-maxrate", "6M", "-bufsize", "12M", "-r", "30",
+                 "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-movflags", "+faststart"]
+
+
+def _ffmpeg():
+    import shutil
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    import imageio_ffmpeg  # pip: imageio-ffmpeg (GitHub's ubuntu-24.04 image has no ffmpeg)
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def _faststart_copy(video_url, recipe=FASTSTART):
+    """A TEMPORARY Cloudinary copy of the video, rebuilt with `recipe` (see FASTSTART / SAFE_REENCODE).
 
     Instagram refused day 22 twice and day 19 twice with a bare "failed processing" while the
     same day 19 file went through minutes later (2026-09-16). The renders keep moov at the END of
@@ -185,8 +202,7 @@ def _faststart_copy(video_url):
             with open(src, "wb") as f:
                 for chunk in r.iter_content(1 << 20):
                     f.write(chunk)
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-c", "copy",
-                        "-movflags", "+faststart", dst], check=True)
+        subprocess.run([_ffmpeg(), "-v", "error", "-y", "-i", src, *recipe, dst], check=True)
         public_id = f"shadow_gasp_ig_retry_{int(time.time())}"
         resp = cloudinary.uploader.upload_large(dst, resource_type="video", public_id=public_id)
     return resp["secure_url"], public_id
@@ -199,16 +215,22 @@ def post_to_instagram(token, caption, video_url, reels_only=False):
         print(f"WARNING: {first}")
         if not os.environ.get("CLOUDINARY_API_SECRET"):
             raise
-    print("retrying once from a fresh faststart copy of the video...")
-    url, public_id = _faststart_copy(video_url)
-    try:
-        return _post_to_instagram(token, caption, url, reels_only)
-    finally:
+        last = first
+    for label, recipe in (("faststart remux", FASTSTART), ("safe re-encode", SAFE_REENCODE)):
+        print(f"retrying from a temporary {label} of the video...")
+        url, public_id = _faststart_copy(video_url, recipe)
         try:
-            import cloudinary.uploader
-            cloudinary.uploader.destroy(public_id, resource_type="video", invalidate=True)
-        except Exception as e:
-            print(f"WARNING: could not delete the temporary copy {public_id}: {e}")
+            return _post_to_instagram(token, caption, url, reels_only)
+        except IgProcessingError as e:
+            print(f"WARNING: {e}")
+            last = e
+        finally:
+            try:
+                import cloudinary.uploader
+                cloudinary.uploader.destroy(public_id, resource_type="video", invalidate=True)
+            except Exception as e:
+                print(f"WARNING: could not delete the temporary copy {public_id}: {e}")
+    raise last
 
 
 def _post_to_instagram(token, caption, video_url, reels_only=False):
