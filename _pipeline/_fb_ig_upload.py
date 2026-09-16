@@ -154,7 +154,64 @@ def post_fb_reel(token, caption, video_url, schedule_at=None):
     return ref
 
 
+class IgProcessingError(RuntimeError):
+    def __init__(self, container_id, detail):
+        super().__init__(f"Instagram container {container_id} failed processing: {detail}")
+        self.container_id = container_id
+
+
+def _faststart_copy(video_url):
+    """A TEMPORARY Cloudinary copy of the video with its index (moov) moved to the front.
+
+    Instagram refused day 22 twice and day 19 twice with a bare "failed processing" while the
+    same day 19 file went through minutes later (2026-09-16). The renders keep moov at the END of
+    the file, which Meta advises against for URL fetches, and a refused fetch can stick to the
+    URL. So the retry gets a remuxed copy (-c copy: no re-encode) under a brand-new public_id.
+    Returns (url, public_id); the caller deletes it.
+    """
+    import subprocess
+    import tempfile
+
+    import cloudinary
+    import cloudinary.uploader
+
+    cloudinary.config(cloud_name=os.environ["CLOUDINARY_CLOUD_NAME"],
+                      api_key=os.environ["CLOUDINARY_API_KEY"],
+                      api_secret=os.environ["CLOUDINARY_API_SECRET"])
+    with tempfile.TemporaryDirectory() as tmp:
+        src, dst = os.path.join(tmp, "in.mp4"), os.path.join(tmp, "out.mp4")
+        with requests.get(video_url, stream=True, timeout=300) as r:
+            r.raise_for_status()
+            with open(src, "wb") as f:
+                for chunk in r.iter_content(1 << 20):
+                    f.write(chunk)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-c", "copy",
+                        "-movflags", "+faststart", dst], check=True)
+        public_id = f"shadow_gasp_ig_retry_{int(time.time())}"
+        resp = cloudinary.uploader.upload_large(dst, resource_type="video", public_id=public_id)
+    return resp["secure_url"], public_id
+
+
 def post_to_instagram(token, caption, video_url, reels_only=False):
+    try:
+        return _post_to_instagram(token, caption, video_url, reels_only)
+    except IgProcessingError as first:
+        print(f"WARNING: {first}")
+        if not os.environ.get("CLOUDINARY_API_SECRET"):
+            raise
+    print("retrying once from a fresh faststart copy of the video...")
+    url, public_id = _faststart_copy(video_url)
+    try:
+        return _post_to_instagram(token, caption, url, reels_only)
+    finally:
+        try:
+            import cloudinary.uploader
+            cloudinary.uploader.destroy(public_id, resource_type="video", invalidate=True)
+        except Exception as e:
+            print(f"WARNING: could not delete the temporary copy {public_id}: {e}")
+
+
+def _post_to_instagram(token, caption, video_url, reels_only=False):
     data = {
         "media_type": "REELS",  # IG deprecated plain feed VIDEO posts; REELS is the current path
         "video_url": video_url,
@@ -177,7 +234,7 @@ def post_to_instagram(token, caption, video_url, reels_only=False):
     while time.time() < deadline:
         status_resp = requests.get(
             f"{GRAPH}/{container_id}",
-            params={"fields": "status_code", "access_token": token},
+            params={"fields": "status_code,status", "access_token": token},
             timeout=30,
         )
         status_resp.raise_for_status()
@@ -185,7 +242,8 @@ def post_to_instagram(token, caption, video_url, reels_only=False):
         if status_code == "FINISHED":
             break
         if status_code == "ERROR":
-            raise RuntimeError(f"Instagram container {container_id} failed processing")
+            # `status` carries Instagram's own reason ("Error: ..."); it used to go unread.
+            raise IgProcessingError(container_id, status_resp.json().get("status") or "no reason given")
         time.sleep(POLL_INTERVAL_S)
     else:
         raise TimeoutError(f"Instagram container {container_id} did not finish within {POLL_TIMEOUT_S}s")

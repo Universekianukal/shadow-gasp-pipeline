@@ -81,13 +81,17 @@ jobs:
 
       - name: Python deps
         if: github.event.inputs.decision == 'approve'
-        run: pip install --quiet requests
+        run: pip install --quiet requests cloudinary
 
       - name: Approve -- post now, from the permanent Cloudinary link
         id: approve
         if: github.event.inputs.decision == 'approve'
         env:
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          # Only for Instagram's one retry from a temporary faststart copy (_fb_ig_upload.py).
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: |
           set -o pipefail
           test -f "$DAY_DIR/CLOUDINARY_LINK.txt" || { echo "::error::$DAY_DIR/CLOUDINARY_LINK.txt missing -- was this day published before the CLOUDINARY_LINK.txt commit step existed?"; exit 1; }
