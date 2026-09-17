@@ -32,7 +32,50 @@ POLL_INTERVAL_S = 10
 POLL_TIMEOUT_S = 600  # IG container processing can take a few minutes for longer videos
 
 
-def build_caption(meta):
+COMIC_RAW = "https://raw.githubusercontent.com/Universekianukal/shadow-gasp-comic-pipeline/main"
+COMIC_LINE = "\U0001F4D6 This case is also a documentary comic. Comment COMIC and we'll send it to you."
+
+
+def _case_slug(case):
+    """The comic pipeline's case slug: pipeline.yml does
+    tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' | cut -c1-40"""
+    s = case.lower().replace(" ", "-")
+    return "".join(ch for ch in s if ch in "abcdefghijklmnopqrstuvwxyz0123456789-")[:40]
+
+
+def published_comic_issue(day_dir):
+    """Issue number of a PUBLISHED comic of this day's story, else None. Never raises.
+
+    day -> _pipeline/batch/state.json case -> the comic repo's issues.json -> Gumroad's own
+    `published` flag (a draft's page answers 200 too, so the page is never the test).
+    """
+    try:
+        day = str(int(os.path.basename(os.path.normpath(day_dir)).replace("day", "")))
+        state = json.load(open(os.path.join(os.path.dirname(os.path.normpath(day_dir)), "state.json"),
+                               encoding="utf-8"))
+        case = state["days"][day]["case"]
+        issues = requests.get(f"{COMIC_RAW}/issues.json", timeout=30).json()["issues"]
+        issue = issues.get(_case_slug(case))
+        token = os.environ.get("GUMROAD_ACCESS_TOKEN", "")
+        if not issue or not token:
+            return None
+        key = None
+        for _ in range(30):
+            params = {"access_token": token, **({"page_key": key} if key else {})}
+            data = requests.get("https://api.gumroad.com/v2/products", params=params, timeout=30).json()
+            for p in data.get("products", []):
+                name = p.get("name") or ""
+                if p.get("published") and (f"#{issue}:" in name or f"#{int(issue):02d}:" in name):
+                    return int(issue)
+            key = data.get("next_page_key")
+            if not key:
+                break
+    except Exception as e:  # noqa: BLE001 - a caption must never fail a post
+        print(f"comic lookup skipped: {e}")
+    return None
+
+
+def build_caption(meta, comic_issue=None):
     """Title + first paragraph of the description + hashtags, IG-caption-length
     shaped. youtube.json's "tags" are plain lowercase keywords with no "#"
     (meant for YouTube's separate tags field) -- this is the only place they
@@ -41,6 +84,14 @@ def build_caption(meta):
     title = meta["title"]
     first_para = meta["description"].split("\n\n")[0].strip()
     hashtags = " ".join(f"#{tag.replace(' ', '')}" for tag in meta.get("tags", [])[:8])
+    if comic_issue:
+        # Owner, 2026-09-17: a video whose story has a published comic asks for the COMIC
+        # comment (the bot DMs that issue). No price, no link. Shorten the paragraph, never the ask.
+        extra = f"\n\n{COMIC_LINE}" + (f"\n\n{hashtags}" if hashtags else "")
+        room = 2000 - len(title) - 2 - len(extra)
+        if len(first_para) > room:
+            first_para = first_para[:max(0, room - 3)] + "..."
+        return f"{title}\n\n{first_para}{extra}"
     caption = f"{title}\n\n{first_para}"
     if hashtags:
         caption += f"\n\n{hashtags}"
@@ -74,6 +125,18 @@ def post_to_facebook(token, caption, video_url, schedule_at=None):
         print(f"fb_scheduled_at={schedule_at}")
     else:
         print(f"Facebook posted: https://facebook.com/{post_id}")
+        # /videos returns the VIDEO id, but comments carry the POST id: report the post id so the
+        # bot's COMIC-comment routing (postmap:fb:<post>) matches this video (2026-09-17).
+        for _ in range(6):
+            r = requests.get(f"{GRAPH}/{post_id}", params={"fields": "post_id", "access_token": token},
+                             timeout=30)
+            pid = r.json().get("post_id") if r.ok else None
+            if pid:
+                post_id = pid if "_" in str(pid) else f"{FB_PAGE_ID}_{pid}"
+                break
+            time.sleep(10)
+        else:
+            print("WARNING: no post_id for this video yet -- reporting the video id")
     print(f"fb_post_id={post_id}")
     return post_id
 
@@ -294,7 +357,7 @@ def main():
         sys.exit(1)
 
     meta = json.load(open(os.path.join(DAY_DIR, META_FILENAME), encoding="utf-8"))
-    caption = build_caption(meta)
+    caption = build_caption(meta, published_comic_issue(DAY_DIR))
     token = os.environ["FB_PAGE_ACCESS_TOKEN"]
     force = os.environ.get("FORCE_CROSSPOST", "").strip().lower() == "true"
 
