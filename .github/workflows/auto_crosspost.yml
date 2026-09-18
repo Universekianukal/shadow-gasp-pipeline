@@ -241,7 +241,10 @@ jobs:
         # crosspost_decision.yml reports each post's own outcome via
         # /batch/crosspost-decided. This is the one line that says the
         # autopilot woke up, what it chose, and how much backlog is left.
-        if: always()
+        # success() only -- a failed run is announced by the alert step
+        # below instead, which says what broke rather than reporting a
+        # half-empty pick.
+        if: success()
         continue-on-error: true
         env:
           SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
@@ -271,3 +274,20 @@ jobs:
           curl -sS -X POST "$WORKER_BASE/batch/notify-raw" \
             -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json" \
             --data @/tmp/n.json || echo "could not reach the bot"
+
+      # ---- failure alert (added 2026-09-19) ----
+      # Nobody is watching this run. If the autopilot itself breaks -- the bot
+      # unreachable, the Gumroad CLI down, a dispatch refused -- it has to say
+      # so, or the stream just silently stops and the backlog quietly grows
+      # again. Failures of the actual POST are reported separately by the
+      # workflow that does the posting.
+      - name: Tell Telegram the autopilot FAILED
+        if: failure()
+        continue-on-error: true
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          MSG: "🔴 SG FB/IG autopilot FAILED before posting. No video went out this morning; the day stays in the queue and it will retry tomorrow."
+        run: |
+          T="$MSG Log: $RUN_URL"             python3 -c 'import json,os;print(json.dumps({"text":os.environ["T"]}))' > tgfail.json
+          curl -sS -X POST "$WORKER_BASE/batch/notify-raw"             -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json"             --data @tgfail.json || echo "WARNING: could not reach the bot"
