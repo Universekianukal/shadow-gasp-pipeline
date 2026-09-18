@@ -1,0 +1,264 @@
+name: shadow_gasp FB/IG autopilot (one backlog day per morning)
+
+# Drains the Facebook / Instagram backlog automatically, one day per morning,
+# so FB and IG catch up with YouTube and then STAY level with it.
+#
+# Why this exists: YouTube publishes itself (render_queue -> publish_queue, the
+# 05:15 IST slot). Facebook and Instagram did not -- they only ever went out
+# when someone tapped an Approve button, or typed /fbpost and tapped one. That
+# left a long tail of days that are live on YouTube and absent from both.
+#
+# This workflow is PURELY ADDITIVE. It dispatches the very same
+# crosspost_decision.yml that the Telegram buttons dispatch, with the very same
+# inputs. Every existing path -- the Approve/Reject keyboard, /fbpost, the
+# 04:30/05:15 queue, render_queue, publish_queue -- is untouched and keeps
+# working exactly as before. Nothing here writes a marker or a caption itself;
+# crosspost_decision.yml still owns all of that.
+#
+# It is not a fixed list of the days that were pending when it was written. It
+# re-derives eligibility from the repo every morning, so any day that reaches
+# YouTube without reaching FB/IG becomes eligible on its own. The queue
+# therefore refills itself as new videos publish and never runs dry.
+#
+# PAUSE IT: commit an empty file at _pipeline/batch/AUTOPILOT_OFF. The next run
+# exits without posting. Delete the file to resume. No deploy, no edit here.
+
+on:
+  schedule:
+    # Deliberately EARLY, for the reason spelled out in publish_queue.yml:
+    # GitHub fires scheduled workflows 1.5-2h late and the delay DRIFTS day to
+    # day, so a cron time cannot decide when a post goes out. It can only
+    # decide when we start waiting. The hold step below decides the real time.
+    - cron: '0 0 * * *'     # nominal 00:00 UTC; in practice starts ~01:30-02:00 UTC
+  workflow_dispatch:
+    inputs:
+      day:
+        description: "Force a specific day instead of the next eligible one (blank = auto-pick)"
+        required: false
+        default: ""
+      skip_hold:
+        description: "'true' = post immediately instead of holding until the slot (manual tests)"
+        required: false
+        default: ""
+      dry_run:
+        description: "'true' = pick a day and report it, dispatch nothing"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  # Never let two mornings overlap; a slow run must not race the next one into
+  # posting two days at once.
+  group: auto-crosspost
+  cancel-in-progress: false
+
+env:
+  # 03:30 UTC = 09:00 IST, the earliest the post can go out. A per-day jitter of
+  # 0-90 minutes is added on top, so the real slot moves around inside
+  # 09:00-10:30 IST instead of landing on the same minute every day.
+  #
+  # The jitter is derived from the date, not from $RANDOM, so a re-run of the
+  # same day computes the same target and does not shift the slot.
+  BASE_AT_UTC: "03:30"
+  WORKER_BASE: https://shadow-gasp-bot.everydayhypehq.workers.dev
+
+jobs:
+  crosspost:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+
+      - name: Hold until the slot (09:00-10:30 IST, jittered by date)
+        # Runner minutes are free on this public repo, so an idle wait costs
+        # nothing and buys an exact posting time instead of a drifting one.
+        # Bounded: if we start at or past the target (a very late cron, or a
+        # manual run) post now rather than sleeping ~24h.
+        if: github.event.inputs.skip_hold != 'true'
+        run: |
+          JITTER=$(( 10#$(date -u +%j) * 37 % 91 ))     # 0-90 min, deterministic per date
+          NOW=$(date -u +%s)
+          TARGET=$(( $(date -u -d "today ${BASE_AT_UTC}" +%s) + JITTER * 60 ))
+          echo "today's slot: $(date -u -d "@$TARGET" +%H:%M) UTC (+${JITTER}m jitter) = $(TZ=Asia/Kolkata date -d "@$TARGET" +%H:%M) IST"
+          WAIT=$(( TARGET - NOW ))
+          if [ "$WAIT" -gt 0 ] && [ "$WAIT" -le 21600 ]; then
+            echo "started $(date -u +%H:%M) UTC -- holding ${WAIT}s"
+            sleep "$WAIT"
+          else
+            echo "started $(date -u +%H:%M) UTC -- at or past the slot, posting now"
+          fi
+          echo "released at $(date -u +%H:%M:%S) UTC"
+
+      - name: Refresh the checkout
+        # The hold can be hours long. Re-read main so the eligibility scan sees
+        # markers committed by anything that ran while we were asleep (a manual
+        # Approve tap, publish_batch_day, /fbpost). Safe to reset here: this
+        # step has no earlier side effects of its own to lose.
+        run: |
+          git fetch origin main -q
+          git reset --hard origin/main -q
+
+      - name: Kill switch
+        id: killswitch
+        run: |
+          if [ -f _pipeline/batch/AUTOPILOT_OFF ]; then
+            echo "AUTOPILOT_OFF is present -- standing down."
+            echo "off=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "off=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pick the next eligible day
+        id: pick
+        if: steps.killswitch.outputs.off != 'true'
+        env:
+          FORCE_DAY: ${{ github.event.inputs.day }}
+        run: |
+          python3 - <<'PYEOF' >> "$GITHUB_OUTPUT"
+          import os, pathlib, re
+
+          # Eligibility is exactly what /fbpost uses, so the autopilot and the
+          # Telegram list can never disagree about what is postable:
+          #   postable  = CLOUDINARY_LINK.txt (the permanent video URL) AND
+          #               youtube.json (proof it actually reached the channel)
+          #   needs fb  = no FB_POSTED and no FB_REJECTED
+          #   needs ig  = no IG_POSTED and no IG_REJECTED
+          # A day the owner rejected by hand stays rejected -- the autopilot
+          # must never overturn a deliberate "no".
+          batch = pathlib.Path("_pipeline/batch")
+          force = os.environ.get("FORCE_DAY", "").strip()
+
+          cands = []
+          for d in sorted(batch.glob("day*")):
+              m = re.fullmatch(r"day(\d+)", d.name)
+              if not m or not d.is_dir():
+                  continue
+              n = int(m.group(1))
+              if not ((d / "CLOUDINARY_LINK.txt").is_file() and (d / "youtube.json").is_file()):
+                  continue
+              need_fb = not ((d / "FB_POSTED").exists() or (d / "FB_REJECTED").exists())
+              need_ig = not ((d / "IG_POSTED").exists() or (d / "IG_REJECTED").exists())
+              if need_fb or need_ig:
+                  cands.append((n, d, need_fb, need_ig))
+
+          if force:
+              want = int(force)
+              chosen = next((c for c in cands if c[0] == want), None)
+              if chosen is None:
+                  print("day=")
+                  print(f"reason=day {want} is not eligible (already posted/rejected, or missing its Cloudinary link / youtube.json)")
+                  raise SystemExit(0)
+          elif cands:
+              # Smallest eligible day first: oldest backlog drains before new
+              # days, and a day whose link lands late is picked up later rather
+              # than being skipped forever.
+              chosen = cands[0]
+          else:
+              print("day=")
+              print("reason=nothing eligible -- Facebook and Instagram are level with YouTube")
+              raise SystemExit(0)
+
+          n, d, need_fb, need_ig = chosen
+          print(f"day={n}")
+          print(f"need_fb={'true' if need_fb else 'false'}")
+          print(f"need_ig={'true' if need_ig else 'false'}")
+          print(f"video_url={(d / 'CLOUDINARY_LINK.txt').read_text().strip()}")
+          print(f"remaining={len(cands)}")
+          PYEOF
+
+      - name: Measure the video (Facebook Reels must be 3-90s)
+        id: probe
+        if: steps.killswitch.outputs.off != 'true' && steps.pick.outputs.day != '' && steps.pick.outputs.need_fb == 'true'
+        continue-on-error: true
+        env:
+          VIDEO_URL: ${{ steps.pick.outputs.video_url }}
+        run: |
+          # Shadow Gasp shorts measure 82-88s, which is inside Facebook's
+          # 3-90s Reel window but close enough to the ceiling that a slightly
+          # longer day would be REFUSED outright. So measure first and fall
+          # back to a normal video rather than losing the post.
+          #
+          # If ffprobe cannot read it we deliberately fall back too: a normal
+          # video always works, a Reel might not.
+          DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$VIDEO_URL" 2>/dev/null | cut -d. -f1)
+          if [ -z "$DUR" ]; then
+            echo "could not measure the video -- posting as a normal video, not a Reel"
+            echo "as_reel=" >> "$GITHUB_OUTPUT"
+          elif [ "$DUR" -ge 3 ] && [ "$DUR" -le 90 ]; then
+            echo "${DUR}s -- inside the Reel window"
+            echo "as_reel=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "${DUR}s -- outside Facebook's 3-90s Reel window, posting as a normal video"
+            echo "as_reel=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post to Facebook
+        if: steps.killswitch.outputs.off != 'true' && steps.pick.outputs.day != '' && steps.pick.outputs.need_fb == 'true' && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DAY: ${{ steps.pick.outputs.day }}
+          AS_REEL: ${{ steps.probe.outputs.as_reel }}
+        run: |
+          gh workflow run crosspost_decision.yml \
+            -f "day=$DAY" \
+            -f "platform=fb" \
+            -f "decision=approve" \
+            -f "fb_as_reel=$AS_REEL"
+
+      - name: Stagger
+        # Don't fire both platforms in the same second -- it reads as one bot
+        # broadcast, and it keeps the two runs from racing each other's
+        # marker commit on the same day directory.
+        if: steps.killswitch.outputs.off != 'true' && steps.pick.outputs.day != '' && steps.pick.outputs.need_fb == 'true' && steps.pick.outputs.need_ig == 'true' && github.event.inputs.dry_run != 'true'
+        run: sleep 600
+
+      - name: Post to Instagram (Reels tab only, not the grid)
+        if: steps.killswitch.outputs.off != 'true' && steps.pick.outputs.day != '' && steps.pick.outputs.need_ig == 'true' && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DAY: ${{ steps.pick.outputs.day }}
+        run: |
+          gh workflow run crosspost_decision.yml \
+            -f "day=$DAY" \
+            -f "platform=ig" \
+            -f "decision=approve" \
+            -f "ig_reels_only=true"
+
+      - name: Tell Telegram what the autopilot did
+        # crosspost_decision.yml reports each post's own outcome via
+        # /batch/crosspost-decided. This is the one line that says the
+        # autopilot woke up, what it chose, and how much backlog is left.
+        if: always()
+        continue-on-error: true
+        env:
+          SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
+          # Every one of these reaches bash through the environment, never through
+          # ${{ }} substituted into the script. A reason string is free text, so
+          # interpolating it directly would let a stray quote break the step.
+          OFF: ${{ steps.killswitch.outputs.off }}
+          DAY: ${{ steps.pick.outputs.day }}
+          REASON: ${{ steps.pick.outputs.reason }}
+          NEED_FB: ${{ steps.pick.outputs.need_fb }}
+          NEED_IG: ${{ steps.pick.outputs.need_ig }}
+          REMAINING: ${{ steps.pick.outputs.remaining }}
+          AS_REEL: ${{ steps.probe.outputs.as_reel }}
+          DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          if [ "$OFF" = "true" ]; then
+            TEXT="🤖 FB/IG autopilot: paused (AUTOPILOT_OFF is committed). Delete _pipeline/batch/AUTOPILOT_OFF to resume."
+          elif [ -z "$DAY" ]; then
+            TEXT="🤖 FB/IG autopilot: $REASON"
+          elif [ "$DRY" = "true" ]; then
+            TEXT="🤖 FB/IG autopilot (dry run): would post day $DAY — fb=$NEED_FB ig=$NEED_IG. $REMAINING day(s) still behind YouTube."
+          else
+            REEL=$([ -n "$AS_REEL" ] && echo "Reel" || echo "video")
+            TEXT="🤖 FB/IG autopilot: posting day $DAY → FB(${REEL})=$NEED_FB · IG(Reels-only)=$NEED_IG. $REMAINING day(s) still behind YouTube."
+          fi
+          printf '{"text":%s}' "$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')" > /tmp/n.json
+          curl -sS -X POST "$WORKER_BASE/batch/notify-raw" \
+            -H "X-Batch-Notify-Secret: $SECRET" -H "Content-Type: application/json" \
+            --data @/tmp/n.json || echo "could not reach the bot"
