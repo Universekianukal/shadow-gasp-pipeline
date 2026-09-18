@@ -180,13 +180,19 @@ jobs:
         env:
           VIDEO_URL: ${{ steps.pick.outputs.video_url }}
         run: |
+          # ffmpeg is NOT on the runner image -- finish_batch_day.yml installs it
+          # the same way before its own ffprobe call. Without this the measure
+          # silently failed and every day fell back to a normal video, quietly
+          # losing the Reel format. ~10s.
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends -qq ffmpeg
           # Shadow Gasp shorts measure 82-88s, which is inside Facebook's
           # 3-90s Reel window but close enough to the ceiling that a slightly
           # longer day would be REFUSED outright. So measure first and fall
           # back to a normal video rather than losing the post.
           #
-          # If ffprobe cannot read it we deliberately fall back too: a normal
-          # video always works, a Reel might not.
+          # ffprobe reads only the header here, it does not pull the whole file.
+          # If it still cannot read it we fall back deliberately: a normal video
+          # always works, a Reel might not.
           DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$VIDEO_URL" 2>/dev/null | cut -d. -f1)
           if [ -z "$DUR" ]; then
             echo "could not measure the video -- posting as a normal video, not a Reel"
