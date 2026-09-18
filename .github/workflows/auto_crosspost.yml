@@ -118,7 +118,10 @@ jobs:
         env:
           FORCE_DAY: ${{ github.event.inputs.day }}
         run: |
-          python3 - <<'PYEOF' >> "$GITHUB_OUTPUT"
+          # tee, not plain redirect: the pick must be visible in the run log too.
+          # This runs unattended, and a log that does not say which day was chosen
+          # is useless the one morning something looks wrong.
+          python3 - <<'PYEOF' | tee -a "$GITHUB_OUTPUT"
           import os, pathlib, re
 
           # Eligibility is exactly what /fbpost uses, so the autopilot and the
