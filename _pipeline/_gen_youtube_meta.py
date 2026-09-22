@@ -49,6 +49,10 @@ def generate(client, script):
 
 
 def main():
+    if os.path.isfile("youtube.json"):
+        print("youtube.json already exists, skipping generation")
+        return
+
     script = open("tc_narration.txt").read()
     client = _llm.client()
     meta = generate(client, script)
