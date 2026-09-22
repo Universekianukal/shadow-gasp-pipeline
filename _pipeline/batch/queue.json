@@ -104,7 +104,7 @@
     "auto_advanced": true
   },
   "58": {
-    "status": "rendering",
+    "status": "pending_render",
     "notify_chat_id": "8692339206",
     "queued_at": "2026-09-21T23:03:00.723972+00:00",
     "auto_advanced": true
