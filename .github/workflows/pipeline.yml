@@ -132,9 +132,15 @@ jobs:
             git fetch origin "${GITHUB_REF_NAME}"
             git reset --hard "origin/${GITHUB_REF_NAME}"
             NEXT=$(python3 -c "
-          import json
+          import json, os, re
+          # 2026-09-29: state.json's days stop at 97 while dirs 98-117 exist (the 62-117 batch
+          # chains never landed there), so max(state)+1 re-issued 96 and 97 on 09-19/20 and
+          # OVERWROTE their content under hook clips cut for the original cases. Take the max of
+          # state.json AND the dayNN dirs on disk so an existing day is never handed out again.
           state = json.load(open('_pipeline/batch/state.json'))
           days = [int(k) for k in state['days'].keys()]
+          days += [int(m.group(1)) for d in os.listdir('_pipeline/batch')
+                   for m in [re.fullmatch(r'day(\d+)', d)] if m]
           print((max(days) if days else 0) + 1)
           ")
             DD=$(printf "%02d" "$NEXT")
