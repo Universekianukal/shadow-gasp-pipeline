@@ -1,0 +1,34 @@
+name: Fix funnel page count in live descriptions (one-off)
+
+# The funnel blurb advertised the REQUESTED page count ("25-page") instead of the delivered book.
+# This rewrites that one sentence in every upload that carries it. Dry run by default.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true = only list the videos that would change"
+        required: false
+        default: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet google-api-python-client google-auth requests
+      - name: Fix descriptions
+        working-directory: _pipeline
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: python _fix_funnel_page_count.py
