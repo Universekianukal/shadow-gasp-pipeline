@@ -54,12 +54,15 @@ def link_block(name, url, pages="", hook=""):
     what the comic actually adds -- length and form. A few minutes of video cannot carry fifty
     pages of drawn narrative, and that difference is the entire offer.
     """
-    size = f"{pages}-page " if pages else ""
+    # 2026-09-29, owner: NO page count here. PAGES is the page count the build was ASKED for
+    # (Worker default "25"), not what the book delivered, so 40-100 page comics were sold as
+    # "25-page" in live descriptions. Same rule as the promo copy (no PDF / page counts).
+    # `pages` is still accepted so existing callers keep working; it is deliberately unused.
     lines = [f"📕 THE COMIC — {name}"]
     if hook:
         lines.append(hook.strip())
     lines.append(
-        f"The whole story as a {size}illustrated book: the people, the timeline and the detail "
+        "The whole story as an illustrated book: the people, the timeline and the detail "
         "there was never room for here.")
     lines.append(url)
     return "\n".join(lines) + "\n"
