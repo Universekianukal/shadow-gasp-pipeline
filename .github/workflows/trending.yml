@@ -33,6 +33,7 @@ jobs:
           # Anthropic when its key is present and Fireworks otherwise. Pin with the repo
           # variable SHORT_LLM_PROVIDER.
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          FEATHERLESS_API_KEY: ${{ secrets.FEATHERLESS_API_KEY }}
           SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
           BATCH_NOTIFY_SECRET: ${{ secrets.BATCH_NOTIFY_SECRET }}
           CHAT_ID_INPUT: ${{ github.event.inputs.chat_id }}

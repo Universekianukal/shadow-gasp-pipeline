@@ -102,6 +102,7 @@ jobs:
           # 'auto' uses Anthropic when its key is present, Fireworks otherwise. Set the
           # repo variable SHORT_LLM_PROVIDER to 'anthropic' to force it back later.
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          FEATHERLESS_API_KEY: ${{ secrets.FEATHERLESS_API_KEY }}
           SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
           CASE: ${{ github.event.inputs.case }}
         run: python3 _pipeline/_pick_case.py # writes CASE to GITHUB_ENV and step output
@@ -176,6 +177,7 @@ jobs:
           # 'auto' uses Anthropic when its key is present, Fireworks otherwise. Set the
           # repo variable SHORT_LLM_PROVIDER to 'anthropic' to force it back later.
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          FEATHERLESS_API_KEY: ${{ secrets.FEATHERLESS_API_KEY }}
           SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
           CASE: ${{ steps.pick.outputs.case }}
           # Reserve the case in the channel-wide ledger, not a copy inside the day dir.

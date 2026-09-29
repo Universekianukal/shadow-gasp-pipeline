@@ -184,6 +184,7 @@ jobs:
           # Anthropic when its key is present and Fireworks otherwise. Pin with the repo
           # variable SHORT_LLM_PROVIDER.
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          FEATHERLESS_API_KEY: ${{ secrets.FEATHERLESS_API_KEY }}
           SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
         run: |
           cp ../../_gen_youtube_meta.py ../../_llm.py .

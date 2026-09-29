@@ -43,6 +43,15 @@ FIREWORKS_MODEL = os.environ.get("FIREWORKS_MODEL",
 # 32,000-token cap. Capping the effort is what makes the call terminate at all.
 REASONING_EFFORT = os.environ.get("FIREWORKS_REASONING_EFFORT", "low")
 
+# 2026-09-29: Fireworks account suspended (HTTP 412) and Anthropic out of credit, so the daily
+# 13:00 UTC day generator died at "Pick case" every day from 09-21. Featherless is the same
+# OpenAI-style API, already live for MindUnlocked and the comic pipeline. DeepSeek-V3.2 is not a
+# reasoning model (no reasoning_effort), and Featherless returns EMPTY content for any
+# max_tokens >= ~48K, so requests are clamped to its 30K reply ceiling.
+FEATHERLESS_URL = "https://api.featherless.ai/v1/chat/completions"
+FEATHERLESS_MODEL = os.environ.get("FEATHERLESS_MODEL", "deepseek-ai/DeepSeek-V3.2")
+FEATHERLESS_MAX_OUTPUT = 30000
+
 
 class TextBlock:
     """Mimics an Anthropic content block: `.type` and `.text`."""
@@ -83,22 +92,32 @@ def _flatten(messages):
 
 
 class FireworksMessages:
+    URL, LABEL, MAX_OUTPUT = FIREWORKS_URL, "Fireworks", None
+
     def __init__(self, api_key):
         self._key = api_key
+
+    def _model(self):
+        return FIREWORKS_MODEL
+
+    def _extra(self):
+        return {"reasoning_effort": REASONING_EFFORT}
 
     def create(self, model=None, max_tokens=4096, system=None, messages=None, **_ignored):
         """Same signature as Anthropic's messages.create, for the fields we use."""
         msgs = ([{"role": "system", "content": system}] if system else []) + \
                _flatten(messages or [])
+        if self.MAX_OUTPUT:
+            max_tokens = min(max_tokens, self.MAX_OUTPUT)
         payload = {
-            "model": FIREWORKS_MODEL,
+            "model": self._model(),
             "max_tokens": max_tokens,
             "messages": msgs,
-            "reasoning_effort": REASONING_EFFORT,
+            **self._extra(),
         }
         data = json.dumps(payload).encode()
         req = urllib.request.Request(
-            FIREWORKS_URL, data=data,
+            self.URL, data=data,
             headers={"Authorization": f"Bearer {self._key}",
                      "Content-Type": "application/json",
                      # Cloudflare returns 1010 to urllib's default Python-urllib/3.x agent,
@@ -118,14 +137,14 @@ class FireworksMessages:
                 # 4xx other than 429 will not improve on retry: fail immediately with the
                 # provider's own message rather than burning 3 attempts on a bad key.
                 if 400 <= e.code < 500 and e.code != 429:
-                    raise RuntimeError(f"Fireworks HTTP {e.code}: {detail}") from None
+                    raise RuntimeError(f"{self.LABEL} HTTP {e.code}: {detail}") from None
                 last = f"HTTP {e.code}: {detail}"
             except Exception as e:  # noqa: BLE001 - network, timeout, malformed body
                 last = repr(e)
             if attempt < 2:
                 time.sleep(2 ** attempt * 3)
         else:
-            raise RuntimeError(f"Fireworks call failed after 3 attempts: {last}")
+            raise RuntimeError(f"{self.LABEL} call failed after 3 attempts: {last}")
 
         choice = (body.get("choices") or [{}])[0]
         message = choice.get("message") or {}
@@ -143,7 +162,7 @@ class FireworksMessages:
             hint = (f" It produced {len(reasoning)} chars of reasoning; raise max_tokens."
                     if reasoning else "")
             raise RuntimeError(
-                f"Fireworks returned empty content (finish_reason={finish!r}).{hint}")
+                f"{self.LABEL} returned empty content (finish_reason={finish!r}).{hint}")
         return Response(text, stop_reason)
 
 
@@ -154,10 +173,27 @@ class FireworksClient:
         self.messages = FireworksMessages(api_key)
 
 
+class FeatherlessMessages(FireworksMessages):
+    URL, LABEL, MAX_OUTPUT = FEATHERLESS_URL, "Featherless", FEATHERLESS_MAX_OUTPUT
+
+    def _model(self):
+        return FEATHERLESS_MODEL
+
+    def _extra(self):
+        return {}
+
+
+class FeatherlessClient:
+    """Anthropic-shaped client backed by Featherless."""
+
+    def __init__(self, api_key):
+        self.messages = FeatherlessMessages(api_key)
+
+
 def provider():
     """Which provider this run will use. 'auto' resolves on which key is present."""
     choice = (os.environ.get("SHORT_LLM_PROVIDER") or "auto").strip().lower()
-    if choice in ("anthropic", "fireworks"):
+    if choice in ("anthropic", "fireworks", "featherless"):
         return choice
     if os.environ.get("ANTHROPIC_API_KEY"):
         return "anthropic"
@@ -178,6 +214,13 @@ def client():
             raise RuntimeError("SHORT_LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set")
         print("LLM provider: anthropic", flush=True)
         return Anthropic(api_key=key)
+
+    if name == "featherless":
+        key = os.environ.get("FEATHERLESS_API_KEY")
+        if not key:
+            raise RuntimeError("SHORT_LLM_PROVIDER=featherless but FEATHERLESS_API_KEY is not set")
+        print(f"LLM provider: featherless ({FEATHERLESS_MODEL})", flush=True)
+        return FeatherlessClient(key)
 
     key = os.environ.get("FIREWORKS_API_KEY")
     if not key:

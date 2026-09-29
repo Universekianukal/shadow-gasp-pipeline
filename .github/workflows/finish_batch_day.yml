@@ -232,6 +232,7 @@ jobs:
           # 'auto' uses Anthropic when its key is present, Fireworks otherwise. Set the
           # repo variable SHORT_LLM_PROVIDER to 'anthropic' to force it back later.
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          FEATHERLESS_API_KEY: ${{ secrets.FEATHERLESS_API_KEY }}
           SHORT_LLM_PROVIDER: ${{ vars.SHORT_LLM_PROVIDER || 'auto' }}
         run: |
           cp ../../_gen_youtube_meta.py ../../_llm.py .
