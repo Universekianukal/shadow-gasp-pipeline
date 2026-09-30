@@ -130,7 +130,7 @@ jobs:
           touch "$SEQ/01.PREWASHED"
 
       - name: Python deps
-        run: pip install --quiet anthropic faster-whisper kokoro-onnx soundfile numpy "av>=14"
+        run: pip install --quiet anthropic faster-whisper kokoro-onnx soundfile numpy "av>=14,<19"
 
       - name: Free disk
         run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android "$AGENT_TOOLSDIRECTORY" || true
