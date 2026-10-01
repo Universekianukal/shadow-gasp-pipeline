@@ -142,9 +142,23 @@ def post_to_facebook(token, caption, video_url, schedule_at=None):
 
 
 def _fb_video_status(token, video_id):
-    r = requests.get(f"{GRAPH}/{video_id}", params={"fields": "status", "access_token": token}, timeout=30)
+    # A single transient 400/5xx while FB is still registering the video must not kill the post.
+    r = None
+    for attempt in range(6):
+        try:
+            r = requests.get(f"{GRAPH}/{video_id}", params={"fields": "status", "access_token": token}, timeout=30)
+        except requests.RequestException as ex:
+            print(f"video status poll error ({attempt + 1}/6): {ex}", file=sys.stderr)
+            time.sleep(10)
+            continue
+        if r.ok:
+            return r.json().get("status") or {}
+        print(f"video status poll {r.status_code} ({attempt + 1}/6): {r.text[:500]}", file=sys.stderr)
+        time.sleep(10)
+    if r is None:
+        raise RuntimeError(f"video status poll for {video_id} never got a response")
     r.raise_for_status()
-    return r.json().get("status") or {}
+    return {}
 
 
 def post_fb_reel(token, caption, video_url, schedule_at=None):
