@@ -212,5 +212,11 @@
     "queued_at": "2026-10-09T23:51:24.634903+00:00",
     "auto_advanced": true,
     "render_run_id": "38006440808"
+  },
+  "76": {
+    "status": "rendering",
+    "notify_chat_id": "8692339206",
+    "queued_at": "2026-10-10T23:17:41.604815+00:00",
+    "auto_advanced": true
   }
 }
