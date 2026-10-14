@@ -235,9 +235,10 @@
     "render_run_id": "38334151037"
   },
   "79": {
-    "status": "rendering",
+    "status": "pending_publish",
     "notify_chat_id": "8692339206",
     "queued_at": "2026-10-14T23:01:25.253221+00:00",
-    "auto_advanced": true
+    "auto_advanced": true,
+    "render_run_id": "38651489199"
   }
 }
