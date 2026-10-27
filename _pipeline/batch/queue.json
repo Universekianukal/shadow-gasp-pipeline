@@ -314,5 +314,11 @@
     "notify_chat_id": "8692339206",
     "queued_at": "2026-10-26T23:37:27.705366+00:00",
     "auto_advanced": true
+  },
+  "92": {
+    "status": "rendering",
+    "notify_chat_id": "8692339206",
+    "queued_at": "2026-10-27T23:33:12.682176+00:00",
+    "auto_advanced": true
   }
 }
