@@ -334,9 +334,10 @@
     "auto_advanced": true
   },
   "95": {
-    "status": "rendering",
+    "status": "pending_publish",
     "notify_chat_id": "8692339206",
     "queued_at": "2026-10-30T23:30:14.198578+00:00",
-    "auto_advanced": true
+    "auto_advanced": true,
+    "render_run_id": "41144851420"
   }
 }
