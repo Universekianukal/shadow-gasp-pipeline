@@ -27,6 +27,10 @@ on:
         description: "If no Flow hook video is committed, generate one with CogVideoX instead of falling back to a static Ken Burns still"
         type: boolean
         default: false
+      test_only:
+        description: "Render and upload the artifact, but do not queue it for publishing"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -203,16 +207,19 @@ jobs:
           test -x "$p" || { echo "chrome-headless-shell not executable: $p"; exit 1; }
           echo "HYPERFRAMES_BROWSER_PATH=$p" >> "$GITHUB_ENV"
 
-      - name: Render (retry — Puppeteer detaches intermittently on this comp)
+      - name: Render (retry — stable screenshot capture)
+        # 0.8.36 is deliberately pinned: newer beginFrame-based releases hung
+        # on this composition, while 0.8.36 has rendered comparable batch days.
+        # It also avoids the legacy 15-minute protocol timeout that killed Day 94.
         working-directory: ${{ env.DAY_DIR }}
         run: |
           for attempt in 1 2 3; do
             echo "=== render attempt $attempt ==="
-            npx --yes hyperframes@0.6.80 render \
+            npx --yes hyperframes@0.8.36 render \
               --fps 30 -o final.mp4 \
-              --workers 1 --low-memory-mode \
+              --workers 1 \
               --quality high \
-              --browser-timeout 300 --protocol-timeout 900000 --player-ready-timeout 180000 \
+              --browser-timeout 300 \
               && break
             echo "attempt $attempt failed"
             [ "$attempt" = "3" ] && exit 1
@@ -245,7 +252,7 @@ jobs:
           [ "$(md5sum /tmp/f0.png|cut -d' ' -f1)" != "$(md5sum /tmp/f1.png|cut -d' ' -f1)" ] || { echo "identical frames"; exit 1; }
 
       - name: Mark day pending_publish in the queue (05:15 IST sweep picks this up)
-        if: success()
+        if: success() && github.event.inputs.test_only != 'true'
         env:
           DAY: ${{ github.event.inputs.day }}
           RUN_ID: ${{ github.run_id }}
