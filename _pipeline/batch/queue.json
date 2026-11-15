@@ -439,7 +439,7 @@
     "render_run_id": "43535978013"
   },
   "111": {
-    "status": "pending_publish",
+    "status": "publishing",
     "notify_chat_id": "8692339206",
     "queued_at": "2026-11-14T23:40:10.069597+00:00",
     "auto_advanced": true,
